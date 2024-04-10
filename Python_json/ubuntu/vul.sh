@@ -26,7 +26,7 @@ declare -A OS_EPEL_PACKAGE=(
     [rocky]=""
 )
 
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/ubuntu/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="${WEB_DIRECTORY}/results_${NOW}.json"
@@ -88,6 +88,8 @@ install_packages() {
     for PACKAGE in $PACKAGES; do
         sudo $PKG_MANAGER install "$PACKAGE" -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
+
+    sudo pip install psutil
 
     setup_cron_job
 }
