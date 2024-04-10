@@ -17,7 +17,7 @@ def check_nis_processes():
     nis_processes = ['ypserv', 'ypbind', 'ypxfrd', 'rpc.yppasswdd', 'rpc.ypupdated']
     try:
         # ps 명령을 사용하여 실행 중인 프로세스를 확인
-        result = subprocess.Popen(["ps", "-e"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        result = subprocess.Popen(["ps", "-e"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         output, _ = result.communicate()
         output_lines = output.split('\n')
         for line in output_lines:

@@ -18,7 +18,7 @@ def check_nfs_services_disabled():
         # NFS 서비스에 대한 프로세스를 확인
         nfs_processes = ["nfs", "rpc.statd", "statd", "rpc.lockd", "lockd"]
         for process_name in nfs_processes:
-            process_check = subprocess.run(['pgrep', process_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            process_check = subprocess.run(['pgrep', process_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if process_check.returncode == 0:
                 results["진단 결과"] = "취약"
                 results["현황"].append(f"불필요한 NFS 서비스 관련 데몬({process_name})이 실행 중입니다.")
