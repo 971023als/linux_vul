@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import subprocess
 import json
-import psutil
 
 def check_automountd_disabled():
     results = {
@@ -15,13 +14,14 @@ def check_automountd_disabled():
     }
 
 def check_service_running(service_name):
-    for process in psutil.process_iter():
-        try:
-            if service_name in process.name().lower():
-                return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    return False
+    try:
+        # systemctl 명령을 사용하여 서비스의 상태를 확인
+        result = subprocess.run(["systemctl", "is-active", service_name], capture_output=True, text=True)
+        return result.stdout.strip() == "active"
+    except Exception as e:
+        # 오류가 발생하면 False를 반환
+        print(f"오류 발생: {e}")
+        return False
 
 def main():
     results = {"진단 결과": "", "현황": []}

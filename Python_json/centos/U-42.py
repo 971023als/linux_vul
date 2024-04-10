@@ -14,27 +14,26 @@ def check_security_patches_and_recommendations():
     }
 
     try:
-    # Ubuntu 시스템에서 보안 패치를 확인하는 명령어입니다.
-    output = subprocess.check_output(["sudo", "unattended-upgrades", "--dry-run", "--debug"], stderr=subprocess.STDOUT, universal_newlines=True)
-    
-    # 출력 내용에서 보안 패치 여부를 확인합니다.
-    if "All upgrades installed" in output:
-        results["진단 결과"] = "양호"
-        results["현황"] = "시스템은 최신 보안 패치를 보유하고 있습니다."
-    else:
-        results["진단 결과"] = "취약"
-        results["현황"] = "시스템에 보안 패치가 필요합니다."
+        # Ubuntu 시스템에서 보안 패치를 확인하는 명령어입니다.
+        output = subprocess.check_output(["sudo", "unattended-upgrades", "--dry-run", "--debug"], stderr=subprocess.STDOUT, universal_newlines=True)
+        
+        # 출력 내용에서 보안 패치 여부를 확인합니다.
+        if "All upgrades installed" in output:
+            results["진단 결과"] = "양호"
+            results["현황"] = "시스템은 최신 보안 패치를 보유하고 있습니다."
+        else:
+            results["진단 결과"] = "취약"
+            results["현황"] = "시스템에 보안 패치가 필요합니다."
 
     except subprocess.CalledProcessError as e:
-    if "command not found" in e.output:
-        results["진단 결과"] = "오류"
-        results["현황"] = "unattended-upgrades 명령어를 찾을 수 없습니다."
-    else:
-        results["진단 결과"] = "취약"
-        results["현황"] = "오류로 인해 보안 패치 상태를 확인할 수 없습니다."
+        if "command not found" in e.output:
+            results["진단 결과"] = "오류"
+            results["현황"] = "unattended-upgrades 명령어를 찾을 수 없습니다."
+        else:
+            results["진단 결과"] = "취약"
+            results["현황"] = "오류로 인해 보안 패치 상태를 확인할 수 없습니다."
 
     return results
-
 
 def main():
     results = check_security_patches_and_recommendations()
@@ -42,3 +41,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

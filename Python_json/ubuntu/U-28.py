@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import subprocess
 import json
-import psutil
 
 def check_nis_services_status():
     results = {
@@ -16,16 +15,17 @@ def check_nis_services_status():
 
 def check_nis_processes():
     nis_processes = ['ypserv', 'ypbind', 'ypxfrd', 'rpc.yppasswdd', 'rpc.ypupdated']
-    processes = psutil.process_iter()
-
-    for process in processes:
-        try:
-            for nis_process in nis_processes:
-                if nis_process in process.name().lower():
-                    return True
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    return False
+    try:
+        # ps 명령을 사용하여 실행 중인 프로세스를 확인
+        result = subprocess.run(["ps", "-e"], capture_output=True, text=True)
+        output_lines = result.stdout.split('\n')
+        for line in output_lines:
+            if any(nis_process in line.lower() for nis_process in nis_processes):
+                return True
+        return False
+    except Exception as e:
+        print(f"오류 발생: {e}")
+        return False
 
 def main():
     results = {"진단 결과": "", "현황": []}
