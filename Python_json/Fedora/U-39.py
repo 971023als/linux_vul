@@ -77,7 +77,6 @@ def check_link_usage_restriction(server_info, found_files):
                         vulnerabilities.append(file_path)
                         break  # No need to check further once a vulnerability is found
         except IOError:
-            print(f"Error accessing {file_path}. File may not exist or may be inaccessible.")
             continue
 
     return vulnerabilities

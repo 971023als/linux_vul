@@ -70,7 +70,7 @@ def check_upload_download_restrictions(server_info, found_files):
                    (server_info['download_directive'] and server_info['download_directive'] not in content):
                     vulnerabilities.append(file_path)
         except IOError:
-            print(f"Error accessing {file_path}. File may not exist or may be inaccessible.")
+            continue
 
     return vulnerabilities
 

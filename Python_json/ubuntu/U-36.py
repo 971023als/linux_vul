@@ -111,7 +111,6 @@ def main():
                 for vulnerability in vulnerabilities:
                     results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 설정되어 있습니다.")
         else:
-            print(f"Skipping {server_name}, as it does not use standard config files or not applicable.")
 
     if overall_vulnerable:
         results["진단 결과"] = "취약"
