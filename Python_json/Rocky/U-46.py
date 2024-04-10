@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import os
-import json  # Import the json module
+import json
 
 def check_password_min_length():
     results = {
@@ -8,7 +8,7 @@ def check_password_min_length():
         "코드": "U-46",
         "위험도": "중",
         "진단 항목": "패스워드 최소 길이 설정",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
+        "진단 결과": "양호",  # 초기 상태는 "양호"로 가정
         "현황": [],
         "대응방안": "패스워드 최소 길이 8자 이상으로 설정"
     }
@@ -22,7 +22,7 @@ def check_password_min_length():
 
     file_exists_count = 0
     minlen_file_exists_count = 0
-    no_settings_in_minlen_file = 0
+    appropriate_settings_count = 0
 
     for file_path, setting_key in files_to_check:
         if os.path.isfile(file_path):
@@ -38,18 +38,17 @@ def check_password_min_length():
                             if min_length and min_length[0] < 8:
                                 results["진단 결과"] = "취약"
                                 results["현황"].append(f"{file_path} 파일에 {setting_key}가 8 미만으로 설정되어 있습니다.")
-                                break
-                    if min_length is None:
-                        no_settings_in_minlen_file += 1
-                else:
-                    no_settings_in_minlen_file += 1
+                            elif min_length:
+                                appropriate_settings_count += 1
 
     if file_exists_count == 0:
         results["진단 결과"] = "취약"
         results["현황"].append("패스워드 최소 길이를 설정하는 파일이 없습니다.")
-    elif minlen_file_exists_count == no_settings_in_minlen_file:
+    elif minlen_file_exists_count > 0 and appropriate_settings_count == minlen_file_exists_count:
+        results["현황"].append("모든 검사된 파일에서 패스워드 최소 길이 설정이 적절히 구성되어 있습니다.")
+    elif minlen_file_exists_count == 0:
         results["진단 결과"] = "취약"
-        results["현황"].append("패스워드 최소 길이를 설정한 파일이 없습니다.")
+        results["현황"].append("패스워드 최소 길이 설정이 발견되지 않았습니다.")
 
     return results
 
