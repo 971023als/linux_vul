@@ -1,53 +1,103 @@
 #!/usr/bin/python3
 import subprocess
-import os
 import json
 
-def check_unnecessary_web_files_removal():
+# Mapping of web servers to their potential unnecessary files and directories
+web_servers = {
+    'Apache': {
+        'server_root_directive': 'ServerRoot',
+        'unnecessary_files': ['manual', 'cgi-bin/'],
+    },
+    'Nginx': {
+        'server_root_directive': 'root',
+        'unnecessary_files': ['html/', 'docs/', 'manual/'],
+    },
+    'LiteSpeed': {
+        'server_root_directive': 'ServerRoot',
+        'unnecessary_files': ['_private', '_vti_bin/', 'manual/'],
+    },
+    'Microsoft-IIS': {
+        # IIS does not use a directive in a config file like Apache or Nginx. Configuration is through the IIS Manager and settings in web.config files.
+        'unnecessary_files': ['aspnet_client/', '_vti_bin/', 'scripts/'],
+    },
+    'Node.js': {
+        # Node.js applications do not have a server root directive in the same sense; structure is determined by the application's code.
+        'unnecessary_files': ['node_modules/', 'test/', 'docs/'],
+    },
+    'Envoy': {
+        # Envoy's configuration does not use a server root directive but defines routes and services in its configuration files.
+        'unnecessary_files': ['examples/', 'docs/'],
+    },
+    'Caddy': {
+        'server_root_directive': 'root',
+        'unnecessary_files': ['caddy/', 'examples/'],
+    },
+    'Tomcat': {
+        'server_root_directive': 'docBase',
+        'unnecessary_files': ['docs/', 'examples/', 'host-manager/', 'manager/'],
+    }
+    # Additional web servers could be added here.
+}
+
+
+def find_server_roots(server_info):
+    server_root_directories = []
+    if 'config_files' not in server_info:
+        return server_root_directories  # Return an empty list if no config_files are defined
+    
+    for conf_file in server_info['config_files']:
+        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
+        try:
+            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
+            for file_path in find_output:
+                if file_path:
+                    with open(file_path, 'r') as file:
+                        for line in file:
+                            if server_info.get('server_root_directive', '') in line and not line.strip().startswith('#'):
+                                serverroot = line.split()[1].strip('"').strip("'")
+                                if serverroot not in server_root_directories:
+                                    server_root_directories.append(serverroot)
+        except subprocess.CalledProcessError:
+            continue
+    return server_root_directories
+
+def check_unnecessary_files(server_info, server_root_directories):
+    found_files = []
+    for directory in server_root_directories:
+        for unnecessary_file in server_info.get('unnecessary_files', []):
+            full_path = os.path.join(directory, unnecessary_file)
+            if os.path.exists(full_path):
+                found_files.append(full_path)
+    return found_files
+
+def main():
     results = {
         "분류": "서비스 관리",
         "코드": "U-38",
         "위험도": "상",
         "진단 항목": "웹서비스 불필요한 파일 제거",
-        "진단 결과": None,  # 초기 상태 설정, 검사 후 결과에 따라 업데이트
+        "진단 결과": None,
         "현황": [],
         "대응방안": "기본으로 생성되는 불필요한 파일 및 디렉터리 제거"
     }
 
-    webconf_files = [".htaccess", "httpd.conf", "apache2.conf"]
-    serverroot_directories = []
+    overall_found_unnecessary_files = False
 
-    for conf_file in webconf_files:
-        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
-        try:
-            find_output = subprocess.check_output(find_command, shell=True, text=True).strip().split('\n')
-            for file_path in find_output:
-                if file_path:
-                    with open(file_path, 'r') as file:
-                        for line in file:
-                            if 'ServerRoot' in line and not line.strip().startswith('#'):
-                                serverroot = line.split()[1].strip('"')
-                                if serverroot not in serverroot_directories:
-                                    serverroot_directories.append(serverroot)
-        except subprocess.CalledProcessError:
-            continue  # find 명령어 실행 중 오류가 발생하면 다음 파일로 넘어감
+    for server_name, server_info in web_servers.items():
+        print(f"\nChecking {server_name} for unnecessary web files...")
+        server_root_directories = find_server_roots(server_info)
+        found_files = check_unnecessary_files(server_info, server_root_directories)
+        if found_files:
+            overall_found_unnecessary_files = True
+            for file in found_files:
+                results["현황"].append(f"Found unnecessary file or directory in {server_name}: {file}")
 
-    vulnerable = False
-    for directory in serverroot_directories:
-        manual_path = os.path.join(directory, 'manual')
-        if os.path.exists(manual_path):
-            results["진단 결과"] = "취약"
-            results["현황"].append(f"Apache 홈 디렉터리 내 기본으로 생성되는 불필요한 파일 및 디렉터리가 제거되어 있지 않습니다: {manual_path}")
-            vulnerable = True
-
-    if not vulnerable:
+    if overall_found_unnecessary_files:
+        results["진단 결과"] = "취약"
+    else:
         results["진단 결과"] = "양호"
-        results["현황"].append("Apache 홈 디렉터리 내 기본으로 생성되는 불필요한 파일 및 디렉터리가 제거되어 있습니다.")
+        results["현황"].append("No unnecessary web service files or directories found.")
 
-    return results
-
-def main():
-    results = check_unnecessary_web_files_removal()
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":

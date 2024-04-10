@@ -16,7 +16,7 @@ def check_sendmail_execution_restriction():
 
     try:
         # sendmail.cf 파일들 찾기
-        sendmail_cf_files = subprocess.check_output("find / -name 'sendmail.cf' -type f 2>/dev/null", shell=True, text=True).strip().split('\n')
+        sendmail_cf_files = subprocess.check_output("find / -name 'sendmail.cf' -type f 2>/dev/null", shell=True, universal_newlines=True).strip().split('\n')
 
         restriction_set = False
         for file_path in sendmail_cf_files:

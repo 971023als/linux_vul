@@ -18,7 +18,7 @@ def check_spam_mail_relay_restrictions():
     search_directory = '/etc/mail/'
     cmd = f"find {search_directory} -name 'sendmail.cf' -type f"
 
-    process = subprocess.run(cmd, shell=True, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if process.returncode == 0 and process.stdout:
         sendmail_cf_files = process.stdout.strip().split('\n')

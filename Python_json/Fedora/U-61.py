@@ -29,7 +29,7 @@ def check_ftp_service():
         results["현황"].append("/etc/services 파일을 찾을 수 없습니다.")
 
     # 실행 중인 FTP 서비스 확인 (ss 사용)
-    ss_output = subprocess.run(['ss', '-tuln'], stdout=subprocess.PIPE, text=True).stdout
+    ss_output = subprocess.run(['ss', '-tuln'], stdout=subprocess.PIPE, universal_newlines=True).stdout
     if any(port in ss_output for port in ftp_ports):
         results["현황"].append("FTP 서비스가 실행 중입니다.")
         ftp_found = True

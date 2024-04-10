@@ -18,7 +18,7 @@ def check_sendmail_version():
 
     # RPM-based systems에서 Sendmail 버전 확인
     cmd_rpm = "rpm -qa | grep 'sendmail'"
-    process_rpm = subprocess.run(cmd_rpm, shell=True, text=True, capture_output=True)
+    process_rpm = subprocess.run(cmd_rpm, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if process_rpm.returncode == 0:
         sendmail_version = re.search(r'sendmail-(\d+\.\d+\.\d+)', process_rpm.stdout)

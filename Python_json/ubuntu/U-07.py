@@ -4,10 +4,6 @@ import stat
 import json
 import sys
 
-# Python3의 경우, 표준 출력의 인코딩을 UTF-8로 설정
-if sys.version_info.major == 3:
-    sys.stdout.reconfigure(encoding='utf-8')
-
 def check_etc_passwd_permissions():
     results = {
         "분류": "파일 및 디렉터리 관리",

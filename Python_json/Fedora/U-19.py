@@ -25,7 +25,7 @@ def check_finger_service_disabled():
         results["현황"].append("/etc/services 파일을 찾을 수 없습니다.")
 
     # Finger 프로세스 실행 중인지 확인
-    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, text=True).stdout
+    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
     if 'finger' in ps_output.lower():
         results["현황"].append("Finger 서비스 프로세스가 실행 중입니다.")
         results["진단 결과"] = "취약"

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import subprocess
 import json
+import sys
 
 def check_nfs_services_disabled():
     results = {
@@ -15,13 +16,13 @@ def check_nfs_services_disabled():
 
     # NFS 관련 프로세스 확인을 위한 명령어 실행
     cmd = "ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd|'"
-    process = subprocess.run(cmd, shell=True, text=True, capture_output=True)
+    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     # 명령어 실행 결과가 비어 있지 않다면 NFS 서비스가 실행 중으로 간주
-    if process.returncode == 0:
+    if process.returncode == 0 and process.stdout.strip():
         results["진단 결과"] = "취약"
         results["현황"].append("불필요한 NFS 서비스 관련 데몬이 실행 중입니다.")
-    elif process.returncode == 1:
+    elif process.returncode == 0:
         results["진단 결과"] = "양호"
         results["현황"].append("NFS 서비스 관련 데몬이 비활성화되어 있습니다.")
     else:

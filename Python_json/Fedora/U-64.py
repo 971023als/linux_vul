@@ -9,7 +9,7 @@ def check_ftp_root_access_restriction():
         "코드": "U-64",
         "위험도": "중",
         "진단 항목": "ftpusers 파일 설정(FTP 서비스 root 계정 접근제한)",
-        "진단 결과": "",  # 초기 값 설정하지 않음
+        "진단 결과": "",
         "현황": [],
         "대응방안": "FTP 서비스가 활성화된 경우 root 계정 접속을 차단"
     }
@@ -20,8 +20,8 @@ def check_ftp_root_access_restriction():
         "/etc/vsftpd.user_list"
     ]
 
-    # Check for running FTP services
-    ftp_running = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, text=True).stdout
+    # Check for running FTP services, using universal_newlines for compatibility with Python 3.6
+    ftp_running = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
     if 'ftp' not in ftp_running and 'vsftpd' not in ftp_running and 'proftp' not in ftp_running:
         results["현황"].append("FTP 서비스가 비활성화 되어 있습니다.")
         results["진단 결과"] = "양호"
@@ -29,7 +29,7 @@ def check_ftp_root_access_restriction():
 
     root_access_restricted = False  # Assume root access is not restricted
 
-    # Check ftpusers files
+    # Check ftpusers files for root access restriction
     for ftpusers_file in ftpusers_files:
         if os.path.exists(ftpusers_file):
             with open(ftpusers_file, 'r') as file:
@@ -51,6 +51,7 @@ def check_ftp_root_access_restriction():
         results["현황"].append("FTP 서비스 root 계정 접근 제한 설정이 충분하지 않습니다.")
 
     return results
+
 
 def main():
     ftp_root_access_restriction_check_results = check_ftp_root_access_restriction()

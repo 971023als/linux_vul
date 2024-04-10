@@ -4,9 +4,8 @@ import stat
 import json
 import sys
 
-# Python3에서 표준 출력의 인코딩을 UTF-8로 설정
-if sys.version_info.major == 3:
-    sys.stdout.reconfigure(encoding='utf-8')
+# Python3에서 표준 출력의 인코딩 설정 코드 제거
+# Python 3.6에서는 sys.stdout.reconfigure 지원 안 함
 
 def check_suid_sgid_permissions():
     results = {

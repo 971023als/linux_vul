@@ -10,7 +10,7 @@ def parse_version(version_string):
 def check_command_exists(command):
     """Check if a command exists on the system."""
     try:
-        subprocess.check_output(["which", command], stderr=subprocess.PIPE)
+        subprocess.check_output(["which", command], stderr=subprocess.PIPE, universal_newlines=True)
         return True
     except subprocess.CalledProcessError:
         return False
@@ -18,14 +18,14 @@ def check_command_exists(command):
 def get_bind_version_rpm():
     """Get BIND version using rpm."""
     try:
-        return subprocess.check_output("rpm -qa | grep '^bind'", shell=True, text=True).strip()
+        return subprocess.check_output("rpm -qa | grep '^bind'", shell=True, universal_newlines=True).strip()
     except subprocess.CalledProcessError:
         return ""
 
 def get_bind_version_dpkg():
     """Get BIND version using dpkg."""
     try:
-        return subprocess.check_output("dpkg -l | grep '^ii' | grep 'bind9'", shell=True, text=True).strip()
+        return subprocess.check_output("dpkg -l | grep '^ii' | grep 'bind9'", shell=True, universal_newlines=True).strip()
     except subprocess.CalledProcessError:
         return ""
 

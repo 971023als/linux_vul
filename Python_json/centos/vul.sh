@@ -124,9 +124,9 @@ setup_apache_encoding() {
     if [[ "$ID" == "debian" ]] || [[ "$ID" == "ubuntu" ]]; then
         apache_config="/etc/apache2/apache2.conf"
         echo "Debian/Ubuntu 시스템 감지됨. Apache 설정 파일: $apache_config"
-    elif [[ "$ID" == "centos" ]] || [[ "$ID" == "rhel" ]] || [[ "$ID" == "fedora" ]]; then
+    elif [[ "$ID" == "centos" ]] || [[ "$ID" == "rhel" ]] || [[ "$ID" == "fedora" ]] || [[ "$ID" == "rocky" ]]; then
         apache_config="/etc/httpd/conf/httpd.conf"
-        echo "CentOS/RHEL/Fedora 시스템 감지됨. Apache 설정 파일: $apache_config"
+        echo "CentOS/RHEL/Fedora/Rocky 시스템 감지됨. Apache 설정 파일: $apache_config"
     else
         echo "지원되지 않는 리눅스 배포판입니다. Apache 설정 파일 경로를 수동으로 지정해야 합니다."
         return 1
@@ -148,7 +148,6 @@ setup_apache_encoding() {
 
     echo "Apache 인코딩 설정 완료."
 }
-
 
 # 보안 점검 스크립트 실행 및 결과 처리
 execute_security_checks() {

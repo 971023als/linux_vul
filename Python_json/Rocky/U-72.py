@@ -15,30 +15,31 @@ def check_system_logging_policy():
 
     filename = "/etc/rsyslog.conf"
     expected_content = [
-        "*.info;mail.none;authpriv.none;cron.none /var/log/messages",
-        "authpriv.* /var/log/secure",
-        "mail.* /var/log/maillog",
-        "cron.* /var/log/cron",
-        "*.alert /dev/console",
-        "*.emerg *"
+        "*.info;mail.none;authpriv.none;cron.none                /var/log/messages",
+        "authpriv.*                                              /var/log/secure",
+        "mail.*                                                  -/var/log/maillog",
+        "cron.*                                                  /var/log/cron",
+        "*.emerg                                                 :omusrmsg:*",
+        "*.alert                                                 /dev/console",
+        "*.emerg                                                 *"
     ]
 
-    # 로깅 파일 존재 여부 확인
-    if not subprocess.run(['test', '-e', filename]).returncode == 0:
+    # Improved file existence check using subprocess.call() for compatibility
+    file_exists = subprocess.call(['test', '-f', filename]) == 0
+
+    if not file_exists:
         results["진단 결과"] = "취약"
         results["현황"].append(f"{filename} 파일이 존재하지 않습니다.")
     else:
-        # 로깅 파일 내용 확인
         with open(filename, 'r') as file:
-            file_contents = file.read().splitlines()
+            file_contents = file.read()
+        
+        all_contents_found = all(any(line.strip() in file_contents for line in expected_content if line) for content in expected_content)
 
-        for content in expected_content:
-            if content not in file_contents:
-                results["진단 결과"] = "취약"
-                results["현황"].append(f"{filename} 파일의 내용이 잘못되었습니다.")
-                break
-
-        if results["진단 결과"] != "취약":
+        if not all_contents_found:
+            results["진단 결과"] = "취약"
+            results["현황"].append(f"{filename} 파일의 내용이 기대한 설정과 일치하지 않습니다.")
+        else:
             results["진단 결과"] = "양호"
             results["현황"].append(f"{filename} 파일의 내용이 정확합니다.")
 
@@ -46,7 +47,6 @@ def check_system_logging_policy():
 
 def main():
     system_logging_policy_check_results = check_system_logging_policy()
-    # JSON으로 변환하고, ensure_ascii=False 옵션을 사용하여 UTF-8로 인코딩된 문자열을 출력합니다.
     print(json.dumps(system_logging_policy_check_results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":

@@ -9,13 +9,13 @@ def check_snmp_community_string_complexity():
         "코드": "U-67",
         "위험도": "중",
         "진단 항목": "SNMP 서비스 Community String의 복잡성 설정",
-        "진단 결과": "",  # 초기 값 설정하지 않음
+        "진단 결과": "",
         "현황": "",
         "대응방안": "SNMP Community 이름이 public, private이 아닌 경우"
     }
 
-    # Check if SNMP service is running
-    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, text=True).stdout
+    # Check if SNMP service is running, using universal_newlines for compatibility
+    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
     if 'snmp' not in ps_output.lower():
         results["진단 결과"] = "양호"
         results["현황"] = "SNMP 서비스를 사용하지 않고 있습니다."
@@ -23,7 +23,7 @@ def check_snmp_community_string_complexity():
 
     # Search for snmpd.conf files
     find_command = ['find', '/', '-name', 'snmpd.conf', '-type', 'f']
-    find_result = subprocess.run(find_command, stdout=subprocess.PIPE, text=True, stderr=subprocess.DEVNULL)
+    find_result = subprocess.run(find_command, stdout=subprocess.PIPE, universal_newlines=True, stderr=subprocess.DEVNULL)
     snmpdconf_files = find_result.stdout.strip().split('\n')
 
     weak_string_found = False

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import subprocess
 import json
-import os  # 필요한 모듈 임포트 추가
+import os  # Necessary module import added
 
 def check_dns_zone_transfer_settings():
     results = {
@@ -16,9 +16,9 @@ def check_dns_zone_transfer_settings():
 
     named_conf_path = "/etc/named.conf"
 
-    # DNS 서비스 실행 여부 확인
+    # Check if DNS service is running
     try:
-        ps_output = subprocess.check_output("ps -ef | grep -i 'named' | grep -v 'grep'", shell=True, text=True).strip()
+        ps_output = subprocess.check_output("ps -ef | grep -i 'named' | grep -v 'grep'", shell=True, universal_newlines=True).strip()
         dns_service_running = bool(ps_output)
     except subprocess.CalledProcessError:
         dns_service_running = False
