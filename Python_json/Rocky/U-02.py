@@ -60,5 +60,11 @@ def main():
     results = check_password_complexity()
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
+    # 추가: '현황'에 대한 보다 가독성 있는 출력
+    print("현황:")
+    for status in results["현황"]:
+        print(status)
+
+
 if __name__ == "__main__":
     main()

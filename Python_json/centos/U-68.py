@@ -3,6 +3,18 @@ import subprocess
 import os
 import json
 
+def check_dns_security_settings():
+    dns_config_files = ['/etc/named.conf']
+    for config in dns_config_files:
+        if os.path.exists(config):
+            with open(config, 'r') as file:
+                if 'version' in file.read():
+                    return True
+    return False
+
+# DNS 설정 검사를 check_login_message 함수에 추가
+
+
 def check_login_message():
     results = {
         "분류": "서비스 관리",
@@ -52,6 +64,17 @@ def check_login_message():
 
     # Note for DNS service configuration check
     results["현황"].append("DNS 배너의 경우 '/etc/named.conf' 또는 '/var/named' 파일을 수동으로 점검하세요.")
+
+    # DNS 서비스 보안 설정 검사
+    if check_dns_security_settings():
+        message_found = True
+
+    if message_found:
+        results["진단 결과"] = "양호"
+        results["현황"].append("로그온 메시지 및 DNS 서비스 보안 설정이 적절히 구성되어 있습니다.")
+    else:
+        results["진단 결과"] = "취약"
+        results["현황"].append("일부 또는 모든 서비스에 로그온 메시지 또는 적절한 DNS 서비스 보안 설정이 구성되어 있지 않습니다.")
 
     return results
 
