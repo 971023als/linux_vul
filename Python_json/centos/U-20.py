@@ -10,7 +10,7 @@ def check_anonymous_ftp():
         "진단 항목": "Anonymous FTP 비활성화",
         "진단 결과": "",
         "현황": [],
-        "대응방안": "[양호]: Anonymous FTP (익명 ftp) 접속을 차단한 경우\n[취약]: Anonymous FTP (익명 ftp) 접속을 차단하지 않은 경우"
+        "대응방안": "Anonymous FTP 비활성화"
     }
 
     try:
