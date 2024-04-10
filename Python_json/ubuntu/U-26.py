@@ -16,7 +16,7 @@ def check_automountd_disabled():
 def check_service_running(service_name):
     try:
         # systemctl 명령을 사용하여 서비스의 상태를 확인
-        result = subprocess.run(["systemctl", "is-active", service_name], capture_output=True, text=True)
+        result = subprocess.run(["systemctl", "is-active", service_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         return result.stdout.strip() == "active"
     except Exception as e:
         # 오류가 발생하면 False를 반환
