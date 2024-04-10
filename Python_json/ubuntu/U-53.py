@@ -3,6 +3,14 @@ import os
 import json
 
 def check_user_shell():
+    # Define unnecessary_accounts inside the function to ensure it's accessible
+    unnecessary_accounts = [
+        "daemon", "bin", "sys", "adm", "listen", "nobody", "nobody4",
+        "noaccess", "diag", "operator", "gopher", "games", "ftp", "apache",
+        "httpd", "www-data", "mysql", "mariadb", "postgres", "mail", "postfix",
+        "news", "lp", "uucp", "nuucp"
+    ]
+
     results = {
         "분류": "계정관리",
         "코드": "U-53",
@@ -12,8 +20,6 @@ def check_user_shell():
         "현황": [],
         "대응방안": "로그인이 필요하지 않은 계정에 /bin/false 또는 /sbin/nologin 쉘 부여"
     }
-
-    # List of unnecessary accounts remains the same
     
     if os.path.isfile("/etc/passwd"):
         with open("/etc/passwd", 'r') as file:
@@ -25,7 +31,7 @@ def check_user_shell():
                     if username in unnecessary_accounts and shell not in ["/bin/false", "/sbin/nologin"]:
                         results["진단 결과"] = "취약"
                         results["현황"].append(f"계정 {username}에 /bin/false 또는 /sbin/nologin 쉘이 부여되지 않았습니다.")
-                        # Removed the break to check all accounts
+
     else:
         results["진단 결과"] = "취약"
         results["현황"].append("/etc/passwd 파일이 없습니다.")
