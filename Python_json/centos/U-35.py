@@ -105,7 +105,6 @@ def main():
 
     # Iterating over web_servers to check directory listing vulnerabilities
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking for {server_name}...")
         vulnerable, vulnerabilities = check_directory_listing_vulnerability(server_info['config_files'])
         if vulnerable:
             results["진단 결과"] = "취약"

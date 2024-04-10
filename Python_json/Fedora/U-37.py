@@ -76,7 +76,6 @@ def main():
     overall_vulnerable = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for upper directory access restrictions...")
         found_files = find_config_files(server_info['config_files'])
         vulnerable, vulnerabilities = check_access_restrictions(server_info, found_files)
         if vulnerable:

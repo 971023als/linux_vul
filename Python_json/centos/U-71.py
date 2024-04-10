@@ -108,7 +108,6 @@ def main():
     overall_configuration_set_correctly = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for information hiding...")
         configuration_set_correctly = check_information_hiding(server_info)
         overall_configuration_set_correctly |= configuration_set_correctly
 

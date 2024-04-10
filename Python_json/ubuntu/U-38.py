@@ -84,7 +84,6 @@ def main():
     overall_found_unnecessary_files = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for unnecessary web files...")
         server_root_directories = find_server_roots(server_info)
         found_files = check_unnecessary_files(server_info, server_root_directories)
         if found_files:

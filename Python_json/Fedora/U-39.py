@@ -96,7 +96,6 @@ def main():
     overall_vulnerable = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for symbolic link usage restrictions...")
         found_files = find_config_files(server_info['config_files'])
         vulnerabilities = check_link_usage_restriction(server_info, found_files)
         if vulnerabilities:

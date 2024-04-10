@@ -88,7 +88,6 @@ def main():
     overall_vulnerable = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for file upload and download restrictions...")
         found_files = find_config_files(server_info['config_files'])
         vulnerabilities = check_upload_download_restrictions(server_info, found_files)
         if vulnerabilities:

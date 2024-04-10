@@ -96,7 +96,6 @@ def main():
     overall_vulnerable = False
 
     for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for document root separation...")
         found_files = find_config_files(server_info['config_files'])
         document_root_set, vulnerable, file_path = check_document_root_settings(server_info, found_files)
         
