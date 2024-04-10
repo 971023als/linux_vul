@@ -49,11 +49,11 @@ cd root
 ```
 
 ```python
-sudo yum install git
+sudo yum install git -y
 ```
 
 ```python
-sudo apt-get install git
+sudo apt-get install git -y
 ```
 
 
