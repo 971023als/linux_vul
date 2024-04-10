@@ -10,7 +10,7 @@ def check_ftp_root_access_restriction():
         "위험도": "중",
         "진단 항목": "ftpusers 파일 설정(FTP 서비스 root 계정 접근제한)",
         "진단 결과": "",
-        "현황": "",
+        "현황": [],
         "대응방안": "FTP 서비스가 활성화된 경우 root 계정 접속을 차단"
     }
 

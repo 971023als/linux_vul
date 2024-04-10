@@ -44,8 +44,8 @@ def check_hosts_and_rhosts_files():
         "코드": "U-17",
         "위험도": "상",
         "진단 항목": "$HOME/.rhosts, hosts.equiv 사용 금지",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # 초기 값은 양호로 설정
+        "현황": [],
         "대응방안": "login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 $HOME/.rhosts 파일 소유자, 권한, 설정 검증"
     }
 

@@ -26,7 +26,7 @@ declare -A OS_EPEL_PACKAGE=(
     [rocky]=""
 )
 
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/Rocky/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="${WEB_DIRECTORY}/results_${NOW}.json"

@@ -9,8 +9,8 @@ def check_session_timeout():
         "코드": "U-54",
         "위험도": "하",
         "진단 항목": "Session Timeout 설정",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # Assume "Good" until proven otherwise
+        "현황": [],
         "대응방안": "Session Timeout을 600초(10분) 이하로 설정"
     }
 

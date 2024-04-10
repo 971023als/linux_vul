@@ -9,8 +9,8 @@ def check_unnecessary_accounts():
         "코드": "U-49",
         "위험도": "하",
         "진단 항목": "불필요한 계정 제거",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # Assume "Good" until proven otherwise
+        "현황": [],
         "대응방안": "불필요한 계정이 존재하지 않도록 관리"
     }
 

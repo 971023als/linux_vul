@@ -35,7 +35,7 @@ def find_files_without_owners(start_path='/tmp'):
         results["현황"].append(f"{no_owner_files}입니다.")
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append(f"소유자가 존재하지 않는 파일 및 디렉터리가 존재하지 않도록 설정되어 있습니다.")
+        results["현황"].append(f"소유자가 존재하지 않는 파일 및 디렉터리가 존재하지 않도록 설정합ㄴ니다.")
 
     return results
 

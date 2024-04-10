@@ -9,8 +9,8 @@ def check_su_restriction():
         "코드": "U-45",
         "위험도": "하",
         "진단 항목": "root 계정 su 제한",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # Assume "Good" until proven otherwise
+        "현황": [],
         "대응방안": "su 명령어 사용 특정 그룹 제한"
     }
 

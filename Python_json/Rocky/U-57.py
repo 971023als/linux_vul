@@ -10,8 +10,8 @@ def check_home_directory_ownership_and_permissions():
         "코드": "U-57",
         "위험도": "중",
         "진단 항목": "홈디렉토리 소유자 및 권한 설정",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # Initially assume all is well
+        "현황": [],
         "대응방안": "홈 디렉터리 소유자를 해당 계정으로 설정 및 타 사용자 쓰기 권한 제거"
     }
 

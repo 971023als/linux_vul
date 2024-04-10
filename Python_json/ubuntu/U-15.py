@@ -10,7 +10,7 @@ def find_world_writable_files(start_dir):
         "위험도": "상",
         "진단 항목": "world writable 파일 점검",
         "진단 결과": "",
-        "현황": "",
+        "현황": [],
         "대응방안": "시스템 중요 파일에 world writable 파일이 존재하지 않거나, 존재 시 설정 이유를 확인"
     }
 

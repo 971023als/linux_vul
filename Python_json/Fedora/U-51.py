@@ -8,8 +8,8 @@ def check_for_unnecessary_groups():
         "코드": "U-51",
         "위험도": "하",
         "진단 항목": "계정이 존재하지 않는 GID 금지",
-        "진단 결과": "",
-        "현황": "",
+        "진단 결과": "양호",  # Assume "Good" until proven otherwise
+        "현황": [],
         "대응방안": "계정이 없는 불필요한 그룹 삭제"
     }
 
