@@ -87,12 +87,17 @@ setup_pyenv_and_python() {
     elif [[ "$ID" == "centos" || "$ID" == "rhel" || "$ID" == "fedora" || "$ID" == "rocky" ]]; then
         sudo $PKG_MANAGER install -y gcc openssl-devel zlib-devel bzip2-devel \
         readline-devel sqlite-devel ncurses-devel xz-devel tk-devel libffi-devel \
-        liblzma-devel git wget curl patch
+        git wget curl patch
     else
         echo "Unsupported Linux distribution"
         return 1
     fi
 
+    # 기존의 .pyenv 디렉토리 처리
+    if [ -d "/root/.pyenv" ]; then
+        mv /root/.pyenv /root/.pyenv_backup
+    fi
+    
     # Pyenv 설치
     curl https://pyenv.run | bash
 
