@@ -111,6 +111,7 @@ def main():
                 for vulnerability in vulnerabilities:
                     results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 설정되어 있습니다.")
         else:
+            pass
 
     if overall_vulnerable:
         results["진단 결과"] = "취약"
