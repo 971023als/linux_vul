@@ -76,25 +76,40 @@ check_sudo() {
 
 # Pyenv를 사용하여 Python 3.7 설치 스크립트
 setup_pyenv_and_python() {
-    # Pyenv 종속성 설치
-    sudo $PKG_MANAGER install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
-    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
-    xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
-    
+    source /etc/os-release
+
+    # Debian 계열 배포판에 필요한 종속성
+    if [[ "$ID" == "debian" || "$ID" == "ubuntu" ]]; then
+        sudo $PKG_MANAGER install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
+        libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+        xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
+    # RHEL 계열 배포판에 필요한 종속성
+    elif [[ "$ID" == "centos" || "$ID" == "rhel" || "$ID" == "fedora" || "$ID" == "rocky" ]]; then
+        sudo $PKG_MANAGER install -y gcc openssl-devel zlib-devel bzip2-devel \
+        readline-devel sqlite-devel ncurses-devel xz-devel tk-devel libffi-devel \
+        liblzma-devel git wget curl patch
+    else
+        echo "Unsupported Linux distribution"
+        return 1
+    fi
+
     # Pyenv 설치
     curl https://pyenv.run | bash
-    
+
     # Pyenv 환경 변수 설정
-    export PATH="$HOME/.pyenv/bin:$PATH"
-    eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
-    
+    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+    echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+    echo 'eval "$(pyenv init --path)"' >> ~/.bash_profile
+    echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bash_profile
+    source ~/.bash_profile
+
     # Python 3.7 설치
     pyenv install 3.7.9
     pyenv global 3.7.9
-    
-    echo "Python 3.7.9과 Pyenv가 성공적으로 설치되었습니다."
+
+    echo "Python 3.7.9 and Pyenv 설치"
 }
+
 
 install_packages() {
     check_sudo
