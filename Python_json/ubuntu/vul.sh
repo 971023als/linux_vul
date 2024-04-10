@@ -111,8 +111,12 @@ install_packages() {
         sudo $PKG_MANAGER install "$PACKAGE" -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
 
+    # Pyenv와 Python 3.7 설치 호출
+    setup_pyenv_and_python
+
     setup_cron_job
 }
+
 
 # Cron 작업 설정 및 cronie 패키지 설치
 setup_cron_job() {
