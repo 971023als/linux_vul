@@ -7,16 +7,23 @@ declare -A OS_PACKAGE_MANAGER=(
     [centos]="yum"
     [rhel]="yum"
     [fedora]="dnf"
-    [rocky]="dnf" # OS_PACKAGE_MANAGER 배열에 추가  
+    [rocky]="dnf" # OS_PACKAGE_MANAGER 배열에 추가
 )
 
 declare -A OS_PACKAGES=(
     [debian]="apache2 libapache2-mod-wsgi-py3 python3-venv"
     [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3-venv"
-    [centos]="httpd mod_wsgi python3"
-    [rhel]="httpd mod_wsgi python3"
-    [fedora]="httpd mod_wsgi python3-virtualenv" # 여기를 수정했습니다
-    [rocky]="httpd mod_wsgi python3-virtualenv" # OS_PACKAGES 배열에 추가
+    [centos]="httpd python3"
+    [rhel]="httpd python3"
+    [fedora]="httpd python3-virtualenv"
+    [rocky]="httpd python3-virtualenv" # OS_PACKAGES 배열에 추가
+)
+
+declare -A OS_EPEL_PACKAGE=(
+    [centos]="epel-release"
+    [rhel]="epel-release"
+    [fedora]="epel-release"
+    [rocky]="epel-release"
 )
 
 CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
@@ -37,6 +44,7 @@ setup_environment() {
     source /etc/os-release
     PKG_MANAGER=${OS_PACKAGE_MANAGER[$ID]}
     PACKAGES=${OS_PACKAGES[$ID]}
+    EPEL_PACKAGE=${OS_EPEL_PACKAGE[$ID]}
     if [ -z "$PKG_MANAGER" ] || [ -z "$PACKAGES" ]; then
         echo "지원되지 않는 리눅스 배포판입니다."
         exit 1
@@ -45,6 +53,14 @@ setup_environment() {
     [ "$ID" == "centos" ] || [ "$ID" == "rhel" ] && [ "${VERSION_ID%%.*}" -ge 8 ] && PKG_MANAGER="dnf"
 
     install_packages
+}
+
+# EPEL 리포지토리 설치
+install_epel() {
+    if [ -n "$EPEL_PACKAGE" ]; then
+        echo "EPEL 리포지토리를 설치합니다."
+        sudo $PKG_MANAGER install $EPEL_PACKAGE -y || { echo "EPEL 리포지토리 설치 실패"; exit 1; }
+    fi
 }
 
 # 필요 패키지 설치 전 sudo 권한 확인
@@ -57,11 +73,14 @@ check_sudo() {
 
 install_packages() {
     check_sudo
+    install_epel # EPEL 리포지토리 설치 호출
     echo "필요한 패키지를 설치합니다: $PACKAGES"
     sudo $PKG_MANAGER update -y
     for PACKAGE in $PACKAGES; do
         sudo $PKG_MANAGER install $PACKAGE -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
+    # mod_wsgi 별도 설치
+    sudo $PKG_MANAGER install mod_wsgi -y || { echo "mod_wsgi 패키지 설치 실패. 수동 설치를 시도해보세요."; exit 1; }
     setup_cron_job
 }
 
