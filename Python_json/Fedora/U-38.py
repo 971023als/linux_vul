@@ -76,8 +76,8 @@ def main():
         "코드": "U-38",
         "위험도": "상",
         "진단 항목": "웹서비스 불필요한 파일 제거",
-        "진단 결과": None,
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "기본으로 생성되는 불필요한 파일 및 디렉터리 제거"
     }
 
@@ -89,13 +89,13 @@ def main():
         if found_files:
             overall_found_unnecessary_files = True
             for file in found_files:
-                results["현황"].append(f"Found unnecessary file or directory in {server_name}: {file}")
+                results["현황"].append(f"{server_name}: {file} 에서 불필요한 파일이나 디렉터리를 찾았습니다.")
 
     if overall_found_unnecessary_files:
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append("No unnecessary web service files or directories found.")
+        results["현황"].append(f"{server_name}: {file} 에서 불필요한 파일이나 디렉터리 제거된 상태입니다")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 

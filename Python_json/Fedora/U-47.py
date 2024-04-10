@@ -8,8 +8,8 @@ def check_password_max_usage_period():
         "코드": "U-47",
         "위험도": "중",
         "진단 항목": "패스워드 최대 사용기간 설정",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "패스워드 최대 사용기간 90일 이하로 설정"
     }
 

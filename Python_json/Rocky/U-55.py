@@ -9,8 +9,8 @@ def check_hosts_lpd_file():
         "코드": "U-55",
         "위험도": "하",
         "진단 항목": "hosts.lpd 파일 소유자 및 권한 설정",
-        "진단 결과": "양호",  # Initially assume the result is "Good"
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "hosts.lpd 파일이 없거나, root 소유 및 권한 600 설정"
     }
 

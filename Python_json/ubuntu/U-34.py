@@ -9,8 +9,8 @@ def check_dns_zone_transfer_settings():
         "코드": "U-34",
         "위험도": "상",
         "진단 항목": "DNS Zone Transfer 설정",
-        "진단 결과": "양호",  # 초기 상태를 '양호'로 가정
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "Zone Transfer를 허가된 사용자에게만 허용"
     }
 

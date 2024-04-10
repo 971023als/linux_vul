@@ -19,7 +19,7 @@ def check_etc_shadow_permissions():
         "위험도": "상",
         "진단 항목": "/etc/shadow 파일 소유자 및 권한 설정",
         "진단 결과": "",
-        "현황": [],
+        "현황": "",
         "대응방안": "/etc/shadow 파일의 소유자가 root이고, 권한이 400 이하인 경우"
     }
 

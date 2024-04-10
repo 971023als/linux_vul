@@ -94,8 +94,8 @@ def main():
         "코드": "U-36",
         "위험도": "상",
         "진단 항목": "웹서비스 웹 프로세스 권한 제한",
-        "진단 결과": None,
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "웹서버 프로세스의 권한을 적절히 제한하기"
     }
 
@@ -117,7 +117,7 @@ def main():
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append("웹서비스 프로세스의 권한이 적절히 제한되어 있습니다.")
+        results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 적절히 제한되어 있습니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 

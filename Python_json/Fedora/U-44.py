@@ -7,8 +7,8 @@ def check_for_non_root_uid_zero():
         "코드": "U-44",
         "위험도": "중",
         "진단 항목": "root 이외의 UID가 '0' 금지",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "root 계정 외 UID 0 사용 금지"
     }
 

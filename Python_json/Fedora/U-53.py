@@ -8,8 +8,8 @@ def check_user_shell():
         "코드": "U-53",
         "위험도": "하",
         "진단 항목": "사용자 shell 점검",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "로그인이 필요하지 않은 계정에 /bin/false 또는 /sbin/nologin 쉘 부여"
     }
 

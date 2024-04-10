@@ -11,7 +11,7 @@ def check_etc_services_permissions():
         "위험도": "상",
         "진단 항목": "/etc/services 파일 소유자 및 권한 설정",
         "진단 결과": "",
-        "현황": [],
+        "현황": "",
         "대응방안": "/etc/services 파일의 소유자가 root(또는 bin, sys)이고, 권한이 644 이하인 경우"
     }
 

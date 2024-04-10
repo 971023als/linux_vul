@@ -86,8 +86,8 @@ def main():
         "코드": "U-41",
         "위험도": "상",
         "진단 항목": "웹서비스 영역의 분리",
-        "진단 결과": None,
-        "현황": [],
+        "진단 결과": "",
+        "현황": "",
         "대응방안": "DocumentRoot 별도 디렉터리 지정"
     }
 
@@ -107,7 +107,7 @@ def main():
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append("모든 검사된 웹서비스의 DocumentRoot가 별도의 디렉터리로 적절히 설정되어 있습니다.")
+        results["현황"].append(f"{server_name}의 DocumentRoot가 기본 디렉터리 {file_path}로 적절히 설정되어 있습니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
