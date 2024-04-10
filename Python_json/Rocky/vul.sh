@@ -89,8 +89,6 @@ install_packages() {
         sudo $PKG_MANAGER install "$PACKAGE" -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
 
-    sudo pip install psutil
-
     setup_cron_job
 }
 
