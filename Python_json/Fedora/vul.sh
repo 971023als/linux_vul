@@ -26,7 +26,7 @@ declare -A OS_EPEL_PACKAGE=(
     [rocky]=""
 )
 
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/Rocky/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="${WEB_DIRECTORY}/results_${NOW}.json"
@@ -256,6 +256,7 @@ json_to_html()
 
 # Apache 서비스 재시작
 restart_apache() {
+    sudo systemctl start httpd
     local service_name=$(systemctl list-units --type=service --state=active | grep -E 'apache2|httpd' | awk '{print $1}')
     if [ -n "$service_name" ]; then
         sudo systemctl restart "$service_name" && echo "$service_name 서비스가 성공적으로 재시작되었습니다." || echo "$service_name 서비스 재시작에 실패했습니다."
