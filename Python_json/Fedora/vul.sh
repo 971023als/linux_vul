@@ -11,12 +11,12 @@ declare -A OS_PACKAGE_MANAGER=(
 )
 
 declare -A OS_PACKAGES=(
-    [debian]="apache2 libapache2-mod-wsgi-py3"  # Python 패키지는 Pyenv를 통해 관리
-    [ubuntu]="apache2 libapache2-mod-wsgi-py3"  # Python 패키지는 Pyenv를 통해 관리
-    [centos]="httpd"  # Python 패키지는 Pyenv를 통해 관리
-    [rhel]="httpd"    # Python 패키지는 Pyenv를 통해 관리
-    [fedora]="httpd"  # Python 패키지는 Pyenv를 통해 관리
-    [rocky]="httpd"   # Python 패키지는 Pyenv를 통해 관리
+    [debian]="apache2 libapache2-mod-wsgi-py3 python3-venv"
+    [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3-venv"
+    [centos]="httpd python3"
+    [rhel]="httpd python3"
+    [fedora]="httpd python3-virtualenv"
+    [rocky]="httpd python3-virtualenv"
 )
 
 declare -A OS_EPEL_PACKAGE=(
@@ -74,48 +74,6 @@ check_sudo() {
     fi
 }
 
-# Pyenv를 사용하여 Python 3.7 설치 스크립트
-setup_pyenv_and_python() {
-    source /etc/os-release
-
-    # Debian 계열 배포판에 필요한 종속성
-    if [[ "$ID" == "debian" || "$ID" == "ubuntu" ]]; then
-        sudo $PKG_MANAGER install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
-        libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
-        xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
-    # RHEL 계열 배포판에 필요한 종속성
-    elif [[ "$ID" == "centos" || "$ID" == "rhel" || "$ID" == "fedora" || "$ID" == "rocky" ]]; then
-        sudo $PKG_MANAGER install -y gcc openssl-devel zlib-devel bzip2-devel \
-        readline-devel sqlite-devel ncurses-devel xz-devel tk-devel libffi-devel \
-        git wget curl patch
-    else
-        echo "Unsupported Linux distribution"
-        return 1
-    fi
-
-    # 기존의 .pyenv 디렉토리 처리
-    if [ -d "/root/.pyenv" ]; then
-        mv /root/.pyenv /root/.pyenv_backup
-    fi
-    
-    # Pyenv 설치
-    curl https://pyenv.run | bash
-
-    # Pyenv 환경 변수 설정
-    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
-    echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
-    echo 'eval "$(pyenv init --path)"' >> ~/.bash_profile
-    echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bash_profile
-    source ~/.bash_profile
-
-    # Python 3.7 설치
-    pyenv install 3.7.9
-    pyenv global 3.7.9
-
-    echo "Python 3.7.9 and Pyenv 설치"
-}
-
-
 install_packages() {
     check_sudo
     install_epel # EPEL 리포지토리 설치 호출
@@ -131,12 +89,8 @@ install_packages() {
         sudo $PKG_MANAGER install "$PACKAGE" -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
 
-    # Pyenv와 Python 3.7 설치 호출
-    setup_pyenv_and_python
-
     setup_cron_job
 }
-
 
 # Cron 작업 설정 및 cronie 패키지 설치
 setup_cron_job() {
