@@ -58,55 +58,55 @@ sudo apt-get install git
 
 
 ```python
-sudo git clone https://github.com/971023als/linux_vuln
+sudo git clone https://github.com/971023als/linux_vul
 ```
 
 ## 5-1 파이썬 진단 스크립트 실행방법(ubuntu 기준)
 ```python
-cd linux_vuln/Python_json/ubuntu/
+cd linux_vul/Python_json/ubuntu/
 ```
 
 
 ## 5-2 파이썬 진단 스크립트 실행방법(centos 기준)
 
 ```python
-cd linux_vuln/Python_json/centos/
+cd linux_vul/Python_json/centos/
 ```
 
 ## 5-3 파이썬 진단 스크립트 실행방법(Fedora 기준)
 
 ```python
-cd linux_vuln/Python_json/Fedora/
+cd linux_vul/Python_json/Fedora/
 ```
 
 ## 5-4 파이썬 진단 스크립트 실행방법(Rocky 기준)
 ```python
-cd linux_vuln/Python_json/Rocky/
+cd linux_vul/Python_json/Rocky/
 ```
 
 ## 5-5 쉘스크립트 진단 스크립트 실행방법(ubuntu 기준)
 ```python
-cd linux_vuln/shell scirpt/ubuntu/
+cd linux_vul/shell scirpt/ubuntu/
 ```
 
 ## 5-6 쉘스크립트 진단 스크립트 실행방법(centos 기준)
 ```python
-cd linux_vuln/shell scirpt/centos/
+cd linux_vul/shell scirpt/centos/
 ```
 
 ## 5-7 쉘스크립트 진단 스크립트 실행방법(Fedora 기준)
 ```python
-cd linux_vuln/shell scirpt/Fedora/
+cd linux_vul/shell scirpt/Fedora/
 ```
 
 ## 5-8 쉘스크립트 진단 스크립트 실행방법(Rocky 기준)
 ```python
-cd linux_vuln/shell scirpt/Rocky/
+cd linux_vul/shell scirpt/Rocky/
 ```
 
 ## 5-9 쉘스크립트 조치 스크립트 실행방법(ubuntu 기준)
 ```python
-cd linux_vuln/shell scirpt/
+cd linux_vul/change/
 ```
 
 ```python
