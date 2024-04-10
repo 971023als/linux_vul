@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 import subprocess
+import json
 
 def check_nis_processes():
     nis_processes = ['ypserv', 'ypbind', 'ypxfrd', 'rpc.yppasswdd', 'rpc.ypupdated']
