@@ -61,10 +61,6 @@ def check_login_message():
     else:
         results["진단 결과"] = "취약"
         results["현황"].append("일부 또는 모든 서비스에 로그온 메시지가 설정되어 있지 않습니다.")
-
-    # Note for DNS service configuration check
-    results["현황"].append("DNS 배너의 경우 '/etc/named.conf' 또는 '/var/named' 파일을 수동으로 점검하세요.")
-
     # DNS 서비스 보안 설정 검사
     if check_dns_security_settings():
         message_found = True

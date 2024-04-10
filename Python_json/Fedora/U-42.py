@@ -3,6 +3,17 @@ import json
 import subprocess
 import platform  # 시스템 정보를 가져오기 위한 모듈
 
+def get_linux_distribution():
+    try:
+        with open("/etc/os-release") as f:
+            os_release_info = {}
+            for line in f:
+                key, value = line.strip().split("=", 1)
+                os_release_info[key] = value.strip('"')
+            return os_release_info.get("NAME", "").lower(), os_release_info.get("VERSION_ID", "")
+    except FileNotFoundError:
+        return "unknown", "unknown"
+
 def check_security_patches_and_recommendations():
     results = {
         "분류": "패치 관리",
@@ -14,7 +25,7 @@ def check_security_patches_and_recommendations():
         "대응방안": "패치 적용 정책 수립 및 주기적인 패치 관리"
     }
 
-    dist_name = platform.linux_distribution()[0].lower()
+    dist_name, _ = get_linux_distribution()
     if 'ubuntu' in dist_name:
         try:
             output = subprocess.check_output(["sudo", "unattended-upgrades", "--dry-run", "--debug"], stderr=subprocess.STDOUT, universal_newlines=True)

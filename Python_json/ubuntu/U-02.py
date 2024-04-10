@@ -46,7 +46,7 @@ def check_password_complexity():
                         configuration_status["complexity_requirements_met"] &= True
                     else:
                         configuration_status["complexity_requirements_met"] = False
-                        results["현황"].append(f"{file_path}에서 {key} 설정이 없어 패스워드 복잡성 요구사항을 충족하지 않습니다.\n")
+                        results["현황"].append(f"{file_path}에서 {key} 설정이 없어 패스워드 복잡성 요구사항을 충족하지 않습니다.")
 
     if configuration_status["min_length_set"] and configuration_status["complexity_requirements_met"]:
         results["진단 결과"] = "양호"
@@ -59,12 +59,6 @@ def check_password_complexity():
 def main():
     results = check_password_complexity()
     print(json.dumps(results, ensure_ascii=False, indent=4))
-
-    # 추가: '현황'에 대한 보다 가독성 있는 출력
-    print("현황:")
-    for status in results["현황"]:
-        print(status)
-
 
 if __name__ == "__main__":
     main()

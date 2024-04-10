@@ -42,27 +42,7 @@ def main():
     # Example: search in the current user's home directory
     home_directory = os.path.expanduser('~')
     hidden_items_check_results = search_hidden_files_and_directories(home_directory)
-
-    # 결과를 가독성 좋게 출력
-    print("분류:", hidden_items_check_results["분류"])
-    print("코드:", hidden_items_check_results["코드"])
-    print("위험도:", hidden_items_check_results["위험도"])
-    print("진단 항목:", hidden_items_check_results["진단 항목"])
-    print("진단 결과:", hidden_items_check_results["진단 결과"])
-    if hidden_items_check_results["진단 결과"] == "취약":
-        if "숨겨진 파일" in hidden_items_check_results["현황"]:
-            print("\n숨겨진 파일:")
-            for file in hidden_items_check_results["현황"]["숨겨진 파일"]:
-                print(file)
-        if "숨겨진 디렉터리" in hidden_items_check_results["현황"]:
-            print("\n숨겨진 디렉터리:")
-            for dir in hidden_items_check_results["현황"]["숨겨진 디렉터리"]:
-                print(dir)
-    else:
-        print(hidden_items_check_results["현황"])
-
-    print("대응방안:", hidden_items_check_results["대응방안"])
-
+    print(json.dumps(hidden_items_check_results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":
     main()
