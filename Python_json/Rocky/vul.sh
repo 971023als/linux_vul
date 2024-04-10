@@ -7,7 +7,7 @@ declare -A OS_PACKAGE_MANAGER=(
     [centos]="yum"
     [rhel]="yum"
     [fedora]="dnf"
-    [rocky]="dnf" # OS_PACKAGE_MANAGER 배열에 추가
+    [rocky]="dnf"
 )
 
 declare -A OS_PACKAGES=(
@@ -16,23 +16,23 @@ declare -A OS_PACKAGES=(
     [centos]="httpd python3"
     [rhel]="httpd python3"
     [fedora]="httpd python3-virtualenv"
-    [rocky]="httpd python3-virtualenv" # OS_PACKAGES 배열에 추가
+    [rocky]="httpd python3-virtualenv"
 )
 
 declare -A OS_EPEL_PACKAGE=(
     [centos]="epel-release"
     [rhel]="epel-release"
-    [fedora]="epel-release"
-    [rocky]="epel-release"
+    [fedora]=""
+    [rocky]=""
 )
 
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/Rocky/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
-RESULTS_PATH="$WEB_DIRECTORY/results_${NOW}.json"
-ERRORS_PATH="$WEB_DIRECTORY/errors_${NOW}.log"
-CSV_PATH="$WEB_DIRECTORY/results_${NOW}.csv"
-HTML_PATH="$WEB_DIRECTORY/index.html"
+RESULTS_PATH="${WEB_DIRECTORY}/results_${NOW}.json"
+ERRORS_PATH="${WEB_DIRECTORY}/errors_${NOW}.log"
+CSV_PATH="${WEB_DIRECTORY}/results_${NOW}.csv"
+HTML_PATH="${WEB_DIRECTORY}/index.html"
 
 # 운영체제 확인 및 패키지 관리자 설정
 setup_environment() {
@@ -50,7 +50,10 @@ setup_environment() {
         exit 1
     fi
 
-    [ "$ID" == "centos" ] || [ "$ID" == "rhel" ] && [ "${VERSION_ID%%.*}" -ge 8 ] && PKG_MANAGER="dnf"
+    # CentOS/RHEL 8+ 버전일 경우 패키지 매니저를 dnf로 설정
+    if { [ "$ID" == "centos" ] || [ "$ID" == "rhel" ]; } && [ "${VERSION_ID%%.*}" -ge 8 ]; then
+        PKG_MANAGER="dnf"
+    fi
 
     install_packages
 }
@@ -75,12 +78,17 @@ install_packages() {
     check_sudo
     install_epel # EPEL 리포지토리 설치 호출
     echo "필요한 패키지를 설치합니다: $PACKAGES"
-    sudo $PKG_MANAGER update -y
+    
+    if [ "$PKG_MANAGER" == "yum" ]; then
+        sudo $PKG_MANAGER makecache fast
+    else
+        sudo $PKG_MANAGER update -y
+    fi
+    
     for PACKAGE in $PACKAGES; do
-        sudo $PKG_MANAGER install $PACKAGE -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
+        sudo $PKG_MANAGER install "$PACKAGE" -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
     done
-    # mod_wsgi 별도 설치
-    sudo $PKG_MANAGER install mod_wsgi -y || { echo "mod_wsgi 패키지 설치 실패. 수동 설치를 시도해보세요."; exit 1; }
+
     setup_cron_job
 }
 
