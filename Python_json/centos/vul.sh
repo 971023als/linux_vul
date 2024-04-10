@@ -7,6 +7,7 @@ declare -A OS_PACKAGE_MANAGER=(
     [centos]="yum"
     [rhel]="yum"
     [fedora]="dnf"
+    [rocky]="dnf" # OS_PACKAGE_MANAGER 배열에 추가  
 )
 
 declare -A OS_PACKAGES=(
@@ -15,6 +16,7 @@ declare -A OS_PACKAGES=(
     [centos]="httpd mod_wsgi python3"
     [rhel]="httpd mod_wsgi python3"
     [fedora]="httpd mod_wsgi python3-virtualenv" # 여기를 수정했습니다
+    [rocky]="httpd mod_wsgi python3-virtualenv" # OS_PACKAGES 배열에 추가
 )
 
 CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
