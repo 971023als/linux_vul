@@ -1,105 +1,46 @@
 #!/usr/bin/python3
-import os
 import subprocess
-import re
+import os
 import json
 
-# Mapping of web servers to their relevant details for directory access restriction checks
-web_servers = {
-    'Apache': {
-        'config_files': ['httpd.conf', 'apache2.conf', '.htaccess'],
-        'restriction_setting': 'AllowOverride None'
-    },
-    'Nginx': {
-        'config_files': ['nginx.conf'],
-        'restriction_setting': 'deny all;'
-    },
-    'LiteSpeed': {
-        'config_files': ['httpd_config.conf', '.htaccess'],
-        # LiteSpeed is compatible with Apache's .htaccess files for many directives
-        'restriction_setting': 'AllowOverride None'
-    },
-    'Microsoft-IIS': {
-        # IIS uses web.config for directory and application-level configuration
-        'config_files': ['web.config'],
-        'restriction_setting': '<authorization><deny users="?" /></authorization>'  # Example to deny access to unauthorized users
-    },
-    'Node.js': {
-        # Node.js doesn't have a centralized server configuration; access control is handled programmatically in the application
-        'config_files': [],
-        'restriction_setting': 'Use middleware for access control (e.g., helmet, express-jwt)'
-    },
-    'Envoy': {
-        # Envoy's configuration is very flexible and defined in YAML files; exact settings depend on the filters and routes used
-        'config_files': ['envoy.yaml'],
-        'restriction_setting': 'Apply RBAC policies in configuration to restrict access'
-    },
-    'Caddy': {
-        'config_files': ['Caddyfile'],
-        'restriction_setting': 'respond /forbidden/* 403'  # Example to deny access
-    },
-    'Tomcat': {
-        # Tomcat uses web.xml for security constraints among other configurations
-        'config_files': ['web.xml'],
-        'restriction_setting': '<security-constraint><web-resource-collection><url-pattern>/restricted/*</url-pattern></web-resource-collection><auth-constraint /></security-constraint>'  # Example to restrict access
-    }
-    # Additional web servers could be added here.
-}
-
-
-def find_config_files(config_files):
-    found_files = []
-    for conf_file in config_files:
-        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
-        try:
-            find_output = subprocess.check_output(find_command, shell=True, text=True).strip().split('\n')
-            found_files.extend(find_output)
-        except subprocess.CalledProcessError:
-            continue
-    return found_files
-
-def check_access_restrictions(server_info, found_files):
-    vulnerable = False
-    vulnerabilities = []
-
-    for file_path in found_files:
-        if file_path:
-            with open(file_path, 'r') as file:
-                content = file.read()
-                if server_info['restriction_setting'] not in content:
-                    vulnerable = True
-                    vulnerabilities.append(file_path)
-
-    return vulnerable, vulnerabilities
-
-def main():
+def check_web_directory_access_restriction():
     results = {
         "분류": "서비스 관리",
         "코드": "U-37",
         "위험도": "상",
         "진단 항목": "웹서비스 상위 디렉토리 접근 금지",
-        "진단 결과": None,
+        "진단 결과": None,  # 초기 상태 설정, 검사 후 결과에 따라 업데이트
         "현황": [],
-        "대응방안": "상위 디렉터리에 이동 제한 설정"
+        "대응방안": "상위 디렉터리에 이동제한 설정"
     }
 
-    overall_vulnerable = False
+    webconf_files = [".htaccess", "httpd.conf", "apache2.conf", "userdir.conf"]
+    found_vulnerability = False
 
-    for server_name, server_info in web_servers.items():
-        print(f"\nChecking {server_name} for upper directory access restrictions...")
-        found_files = find_config_files(server_info['config_files'])
-        vulnerable, vulnerabilities = check_access_restrictions(server_info, found_files)
-        if vulnerable:
-            overall_vulnerable = True
-            for vulnerability in vulnerabilities:
-                results["현황"].append(f"{vulnerability} 파일에서 {server_name} 상위 디렉터리 접근 제한 설정이 부적절합니다.")
+    for conf_file in webconf_files:
+        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
+        try:
+            find_output = subprocess.check_output(find_command, shell=True, text=True).strip().split('\n')
+            for file_path in find_output:
+                if file_path:
+                    with open(file_path, 'r') as file:
+                        content = file.read()
+                        if 'AllowOverride None' not in content:
+                            found_vulnerability = True
+                            results["진단 결과"] = "취약"
+                            results["현황"].append(f"{file_path} 파일에 상위 디렉터리 접근 제한 설정이 없습니다.")
+                            break
+        except subprocess.CalledProcessError:
+            continue  # find 명령어 실행 중 오류가 발생하면 다음 파일로 넘어감
 
-    if overall_vulnerable:
-        results["진단 결과"] = "취약"
-    else:
+    if not found_vulnerability:
         results["진단 결과"] = "양호"
         results["현황"].append("웹서비스 상위 디렉터리 접근에 대한 제한이 적절히 설정되어 있습니다.")
 
+    return results
+
+def main():
+    results = check_web_directory_access_restriction()
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":

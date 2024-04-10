@@ -14,7 +14,7 @@ declare -A OS_PACKAGES=(
     [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3-venv"
     [centos]="httpd mod_wsgi python3"
     [rhel]="httpd mod_wsgi python3"
-    [fedora]="httpd mod_wsgi python3-virtualenv" # 여기를 수정했습니다
+    [fedora]="httpd mod_wsgi python3-venv"
 )
 
 CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/ubuntu/vul.sh"

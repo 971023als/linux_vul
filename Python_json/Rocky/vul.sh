@@ -17,7 +17,7 @@ declare -A OS_PACKAGES=(
     [fedora]="httpd mod_wsgi python3-virtualenv" # 여기를 수정했습니다
 )
 
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/Rocky/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="$WEB_DIRECTORY/results_${NOW}.json"
