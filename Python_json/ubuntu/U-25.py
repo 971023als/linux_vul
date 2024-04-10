@@ -15,7 +15,7 @@ def check_nfs_access_control():
     }
 
     cmd = "ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd|'"
-    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.run(cmd, shell=True, text=True, capture_output=True)
 
     if process.returncode == 0:
         # NFS 서비스 실행 상태 확인 성공
@@ -44,7 +44,7 @@ def check_nfs_access_control():
         results["현황"].append("NFS 서비스가 실행 중이지 않습니다.")
     else:
         results["진단 결과"] = "오류"
-        results["현황"].append(f"NFS 서비스 확인 중 오류 발생: {process.stderr.decode()}")
+        results["현황"].append(f"NFS 서비스 확인 중 오류 발생: {process.stderr}")
 
     # 진단 결과가 명시적으로 설정되지 않은 경우 기본값을 "양호"로 설정
     if results["진단 결과"] is None:
