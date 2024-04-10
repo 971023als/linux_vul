@@ -43,7 +43,7 @@ def check_ftp_service():
 
 
     # 일반 FTP 서비스 프로세스 확인
-    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, text=True).stdout
+    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
     if re.search(r'ftpd|vsftpd|proftpd', ps_output, re.IGNORECASE):
         results["현황"].append("FTP 관련 프로세스가 실행 중입니다.")
         ftp_found = True
