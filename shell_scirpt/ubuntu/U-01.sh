@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # 결과를 저장할 JSON 형태의 문자열 초기화
-results='{
+read -r -d '' results <<'EOF'
+{
     "분류": "계정관리",
     "코드": "U-01",
     "위험도": "상",
@@ -9,7 +10,8 @@ results='{
     "진단 결과": "양호",
     "현황": [],
     "대응방안": "원격 터미널 서비스 사용 시 root 직접 접속을 차단"
-}'
+}
+EOF
 
 # Telnet 서비스 검사
 telnet_status=$(grep -E "telnet\s+\d+/tcp" /etc/services)
@@ -36,5 +38,4 @@ else
 fi
 
 # 결과 출력
-echo $results | jq .
-
+echo "$results" | jq .
