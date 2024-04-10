@@ -1,3 +1,7 @@
+#!/usr/bin/python3
+import json
+import subprocess
+
 def check_system_logging_policy():
     results = {
         "분류": "로그 관리",
