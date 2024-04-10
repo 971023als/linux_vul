@@ -36,7 +36,7 @@ def check_ftp_service():
 
      # vsftpd 및 proftpd 설정 파일 확인
     for ftp_conf in ['vsftpd.conf', 'proftpd.conf']:
-        find_conf = subprocess.run(['find', '/', '-name', ftp_conf], stdout=subprocess.PIPE, text=True).stdout.splitlines()
+        find_conf = subprocess.run(['find', '/', '-name', ftp_conf], stdout=subprocess.PIPE, universal_newlines=True).stdout.splitlines()
         if find_conf:
             results["현황"].append(f"{ftp_conf} 파일이 시스템에 존재합니다.")
             ftp_found = True
