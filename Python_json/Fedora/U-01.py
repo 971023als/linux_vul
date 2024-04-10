@@ -16,7 +16,7 @@ def check_remote_root_access_restriction():
 
     # Telnet 서비스 검사
     try:
-        telnet_status = subprocess.run(["grep", "-E", "telnet\s+\d+/tcp", "/etc/services"], capture_output=True, text=True)
+        telnet_status = subprocess.run(["grep", "-E", "telnet\s+\d+/tcp", "/etc/services"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if telnet_status.stdout:
             results["현황"].append("Telnet 서비스 포트가 활성화되어 있습니다.")
             results["진단 결과"] = "취약"

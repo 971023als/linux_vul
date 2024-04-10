@@ -2,6 +2,7 @@
 import subprocess
 import json
 import sys
+import psutil
 
 def check_nfs_services_disabled():
     results = {
@@ -14,27 +15,33 @@ def check_nfs_services_disabled():
         "대응방안": "불필요한 NFS 서비스 관련 데몬 비활성화"
     }
 
-    # NFS 관련 프로세스 확인을 위한 명령어 실행
-    cmd = "ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd|'"
-    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def check_nfs_processes():
+    nfs_processes = ["nfs", "rpc.statd", "statd", "rpc.lockd", "lockd"]
+    processes = psutil.process_iter()
 
-    # 명령어 실행 결과가 비어 있지 않다면 NFS 서비스가 실행 중으로 간주
-    if process.returncode == 0 and process.stdout.strip():
-        results["진단 결과"] = "취약"
-        results["현황"].append("불필요한 NFS 서비스 관련 데몬이 실행 중입니다.")
-    elif process.returncode == 0:
-        results["진단 결과"] = "양호"
-        results["현황"].append("NFS 서비스 관련 데몬이 비활성화되어 있습니다.")
-    else:
-        # subprocess 실행 중 오류 처리
+    nfs_process_running = False
+    for process in processes:
+        for name in nfs_processes:
+            if name in process.name().lower():
+                nfs_process_running = True
+                break
+
+    return nfs_process_running
+
+def main():
+    results = {"진단 결과": "", "현황": []}
+    try:
+        if check_nfs_processes():
+            results["진단 결과"] = "취약"
+            results["현황"].append("불필요한 NFS 서비스 관련 데몬이 실행 중입니다.")
+        else:
+            results["진단 결과"] = "양호"
+            results["현황"].append("NFS 서비스 관련 데몬이 비활성화되어 있습니다.")
+    except Exception as e:
         results["진단 결과"] = "오류"
-        results["현황"].append(f"서비스 확인 중 오류 발생: {process.stderr}")
+        results["현황"].append(f"서비스 확인 중 오류 발생: {str(e)}")
 
     return results
 
-def main():
-    results = check_nfs_services_disabled()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
 if __name__ == "__main__":
-    main()
+    print(main())

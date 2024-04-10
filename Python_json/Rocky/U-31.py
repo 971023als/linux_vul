@@ -38,7 +38,7 @@ def check_spam_mail_relay_restrictions():
             results["진단 결과"] = "양호"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append("sendmail.cf 파일을 찾을 수 없거나 접근할 수 없습니다.")
+        results["현황"].append("sendmail.cf 파일을 찾을 수 없습니다.")
 
     return results
 

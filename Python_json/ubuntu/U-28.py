@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import subprocess
 import json
+import psutil
 
 def check_nis_services_status():
     results = {
@@ -13,27 +14,33 @@ def check_nis_services_status():
         "대응방안": "NIS 서비스 비활성화 혹은 필요 시 NIS+ 사용"
     }
 
-    cmd = "ps -ef | grep '[y]pserv\|[y]pbind\|[y]pxfrd\|[r]pc.yppasswdd\|[r]pc.ypupdated'"
-    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def check_nis_processes():
+    nis_processes = ['ypserv', 'ypbind', 'ypxfrd', 'rpc.yppasswdd', 'rpc.ypupdated']
+    processes = psutil.process_iter()
 
-    if process.returncode == 0 and process.stdout.strip():
-        # NIS 관련 프로세스가 실행 중임
-        results["진단 결과"] = "취약"
-        results["현황"].append("NIS 서비스가 실행 중입니다.")
-    elif process.returncode == 0:
-        # NIS 관련 프로세스가 실행 중이지 않음
-        results["진단 결과"] = "양호"
-        results["현황"].append("NIS 서비스가 비활성화되어 있습니다.")
-    else:
-        # 명령어 실행 중 오류 발생
+    for process in processes:
+        try:
+            for nis_process in nis_processes:
+                if nis_process in process.name().lower():
+                    return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return False
+
+def main():
+    results = {"진단 결과": "", "현황": []}
+    try:
+        if check_nis_processes():
+            results["진단 결과"] = "취약"
+            results["현황"].append("NIS 서비스가 실행 중입니다.")
+        else:
+            results["진단 결과"] = "양호"
+            results["현황"].append("NIS 서비스가 비활성화되어 있습니다.")
+    except Exception as e:
         results["진단 결과"] = "오류"
-        results["현황"].append(f"NIS 서비스 확인 중 오류 발생: {process.stderr}")
+        results["현황"].append(f"NIS 서비스 확인 중 오류 발생: {str(e)}")
 
     return results
 
-def main():
-    results = check_nis_services_status()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
 if __name__ == "__main__":
-    main()
+    print(main())

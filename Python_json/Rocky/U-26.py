@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import subprocess
 import json
+import psutil
 
 def check_automountd_disabled():
     results = {
@@ -13,27 +14,29 @@ def check_automountd_disabled():
         "대응방안": "automountd 서비스 비활성화"
     }
 
-    cmd = "ps -ef | grep -iE '[a]utomount|[a]utofs'"
-    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def check_service_running(service_name):
+    for process in psutil.process_iter():
+        try:
+            if service_name in process.name().lower():
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
+    return False
 
-    if process.returncode == 0 and process.stdout.strip():
-        # automountd 또는 autofs 서비스가 실행 중임
-        results["진단 결과"] = "취약"
-        results["현황"].append("automountd 서비스가 실행 중입니다.")
-    elif process.returncode == 0:
-        # automountd 또는 autofs 서비스가 실행 중이지 않음
-        results["진단 결과"] = "양호"
-        results["현황"].append("automountd 서비스가 비활성화되어 있습니다.")
-    else:
-        # 명령어 실행 중 오류 발생
+def main():
+    results = {"진단 결과": "", "현황": []}
+    try:
+        if check_service_running("automountd") or check_service_running("autofs"):
+            results["진단 결과"] = "취약"
+            results["현황"].append("automountd 서비스가 실행 중입니다.")
+        else:
+            results["진단 결과"] = "양호"
+            results["현황"].append("automountd 서비스가 비활성화되어 있습니다.")
+    except Exception as e:
         results["진단 결과"] = "오류"
-        results["현황"].append(f"automountd 서비스 확인 중 오류 발생: {process.stderr}")
+        results["현황"].append(f"automountd 서비스 확인 중 오류 발생: {str(e)}")
 
     return results
 
-def main():
-    results = check_automountd_disabled()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
 if __name__ == "__main__":
-    main()
+    print(main())

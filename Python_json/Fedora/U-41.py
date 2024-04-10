@@ -107,7 +107,7 @@ def main():
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append(f"{server_name}의 DocumentRoot가 기본 디렉터리 {file_path}로 적절히 설정되어 있습니다.")
+        results["현황"].append(f"DocumentRoot가 기본 디렉터리 {file_path}로 적절히 설정되어 있습니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
