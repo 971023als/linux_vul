@@ -95,9 +95,11 @@ def main():
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append(f"{server_name}: {file} 에서 불필요한 파일이나 디렉터리 제거된 상태입니다")
+        # Use a general message instead of referencing 'file' and 'server_name'
+        results["현황"].append("모든 검사된 서버에서 불필요한 파일이나 디렉터리가 제거된 상태입니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":
     main()
+

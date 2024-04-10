@@ -10,7 +10,7 @@ def find_files_without_owners(start_path='/tmp'):
         "위험도": "상",
         "진단 항목": "파일 및 디렉터리 소유자 설정",
         "진단 결과": "",
-        "현황": "",
+        "현황": [],
         "대응방안": "소유자가 존재하지 않는 파일 및 디렉터리가 존재하지 않도록 설정"
     }
 
@@ -32,10 +32,10 @@ def find_files_without_owners(start_path='/tmp'):
 
     if no_owner_files:
         results["진단 결과"] = "취약"
-        results["현황"].append(f"{no_owner_files}입니다.")
+        results["현황"].append(f"{no_owner_files}입니다.")  # This works as intended now
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append(f"소유자가 존재하지 않는 파일 및 디렉터리가 존재하지 않도록 설정합ㄴ니다.")
+        results["현황"] = ["소유자가 존재하지 않는 파일 및 디렉터리가 존재하지 않도록 설정합니다."]  # Replace the list's contents instead of append
 
     return results
 

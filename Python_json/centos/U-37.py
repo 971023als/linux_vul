@@ -87,9 +87,11 @@ def main():
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append((f"{vulnerability} 파일에서 {server_name} 상위 디렉터리 접근 제한 설정이 적절히 설정되어 있습니다.")
+        # Corrected to remove the incorrect variable reference and fixed the syntax issue
+        results["현황"].append("모든 검사된 파일에서 상위 디렉터리 접근 제한 설정이 적절히 설정되어 있습니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
 if __name__ == "__main__":
     main()
+

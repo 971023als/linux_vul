@@ -102,7 +102,6 @@ def main():
     overall_vulnerable = False
 
     for server_name, server_info in web_servers.items():
-        # Check if 'config_files' key exists in the server_info dictionary
         if 'config_files' in server_info:
             found_files = find_config_files(server_info['config_files'])
             vulnerable, vulnerabilities = check_permissions(server_info, found_files)
@@ -111,13 +110,15 @@ def main():
                 for vulnerability in vulnerabilities:
                     results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 설정되어 있습니다.")
         else:
+            # Perhaps handle servers without config_files differently or log a message
             pass
 
     if overall_vulnerable:
         results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "양호"
-        results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 적절히 제한되어 있습니다.")
+        # Update this line to provide a general message without referencing 'vulnerability'
+        results["현황"].append("모든 검사된 서버 데몬들이 적절히 권한 제한이 되어 있습니다.")
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 
