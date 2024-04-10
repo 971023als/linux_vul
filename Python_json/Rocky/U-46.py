@@ -8,7 +8,7 @@ def check_password_min_length():
         "코드": "U-46",
         "위험도": "중",
         "진단 항목": "패스워드 최소 길이 설정",
-        "진단 결과": "양호",  # 초기 상태는 "양호"로 가정
+        "진단 결과": "",  # 최초 상태 설정
         "현황": [],
         "대응방안": "패스워드 최소 길이 8자 이상으로 설정"
     }
@@ -41,14 +41,17 @@ def check_password_min_length():
                             elif min_length:
                                 appropriate_settings_count += 1
 
+    # 모든 조건을 평가한 후의 상태 업데이트
     if file_exists_count == 0:
         results["진단 결과"] = "취약"
         results["현황"].append("패스워드 최소 길이를 설정하는 파일이 없습니다.")
-    elif minlen_file_exists_count > 0 and appropriate_settings_count == minlen_file_exists_count:
+    elif minlen_file_exists_count == appropriate_settings_count:
+        results["진단 결과"] = "양호"
         results["현황"].append("모든 검사된 파일에서 패스워드 최소 길이 설정이 적절히 구성되어 있습니다.")
-    elif minlen_file_exists_count == 0:
+    else:
         results["진단 결과"] = "취약"
-        results["현황"].append("패스워드 최소 길이 설정이 발견되지 않았습니다.")
+        if not results["현황"]:  # 현황이 비어있다면 추가 메시지 제공
+            results["현황"].append("일부 파일에서 패스워드 최소 길이 설정이 부적절하게 구성되어 있습니다.")
 
     return results
 

@@ -118,7 +118,7 @@ def main():
         results["진단 결과"] = "양호"
     else:
         results["진단 결과"] = "취약"
-        results["현황"] += "웹 서버에서 정보 숨김 설정이 적절히 구성되어 있지 않습니다."
+        results["현황"] += f"{server_name} 웹 서버에서 정보 숨김 설정이 적절히 구성되어 있지 않습니다."
 
     print(json.dumps(results, ensure_ascii=False, indent=4))
 

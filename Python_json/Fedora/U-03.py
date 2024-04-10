@@ -43,11 +43,17 @@ def check_account_lockout_threshold():
     if not config_found:
         results["현황"].append("계정 잠금 임계값을 설정하는 파일에서 관련 설정을 찾을 수 없습니다.")
         results["진단 결과"] = "취약"
-    elif threshold_appropriate:
-        results["진단 결과"] = "양호"
-        results["현황"].append("모든 검사된 파일에서 계정 잠금 임계값이 적절히 설정되어 있습니다.")
     else:
-        results["진단 결과"] = "취약"
+        if threshold_appropriate:
+            results["진단 결과"] = "양호"
+            results["현황"].append("모든 검사된 파일에서 계정 잠금 임계값이 적절히 설정되어 있습니다.")
+        else:
+            # 여기서 threshold_appropriate이 False일 경우 취약으로 표시합니다.
+            # 이전 로직에서는 config_found는 True이지만, threshold_appropriate가 False인 경우를 구분하지 못했습니다.
+            results["진단 결과"] = "취약"
+            if not results["현황"]:  # 현황이 비어있으면 추가 정보를 제공합니다.
+                results["현황"].append("검사된 파일들에서 적절한 계정 잠금 임계값 설정이 부적절하거나 설정되지 않았습니다.")
+
 
     return results
 
