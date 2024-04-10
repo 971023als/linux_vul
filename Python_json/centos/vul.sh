@@ -11,13 +11,14 @@ declare -A OS_PACKAGE_MANAGER=(
 )
 
 declare -A OS_PACKAGES=(
-    [debian]="apache2 libapache2-mod-wsgi-py3 python3-venv"
-    [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3-venv"
-    [centos]="httpd python3"
-    [rhel]="httpd python3"
-    [fedora]="httpd python3-virtualenv"
-    [rocky]="httpd python3-virtualenv"
+    [debian]="apache2 libapache2-mod-wsgi-py3 python3.7-venv"  # Debian과 Ubuntu에서 python3.7-venv는 존재하지 않을 수 있음
+    [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3.7-venv"  # 대신 ppa를 통해 Python 3.7을 설치한 후 python3-venv를 사용할 수 있음
+    [centos]="httpd python3.7"  # CentOS와 RHEL에서는 SCL을 통해 Python 3.7을 설치해야 할 수 있음
+    [rhel]="httpd python3.7"    # 예: centos-release-scl 패키지 설치 후, rh-python37를 설치
+    [fedora]="httpd python3.7-virtualenv"  # Fedora에서는 dnf 모듈을 통해 python3.7을 설치할 수 있음
+    [rocky]="httpd python3.7-virtualenv"   # Rocky Linux는 CentOS와 유사한 방법을 사용할 수 있음
 )
+
 
 declare -A OS_EPEL_PACKAGE=(
     [centos]="epel-release"
