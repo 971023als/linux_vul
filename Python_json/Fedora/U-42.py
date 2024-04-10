@@ -1,67 +1,33 @@
 #!/usr/bin/python3
-import os
 import json
-import subprocess
-import re  # re 모듈을 임포트합니다.
-
-def get_linux_distro():
-    if os.path.isfile("/etc/os-release"):
-        with open("/etc/os-release") as f:
-            for line in f:
-                if line.startswith("ID="):
-                    return line.strip().split("=")[1].strip("\"")
-    return None
-
-def check_security_patches(distro):
-    if distro == "ubuntu":
-        command = ["apt", "list", "--upgradable"]
-    elif distro in ["centos", "rhel", "fedora"]:
-        command = ["dnf", "list", "sec"]
-    else:
-        return "Unsupported distribution."
-    
-    try:
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT, text=True)
-        return output
-    except subprocess.CalledProcessError as e:
-        return f"Command failed: {e.output}"
+import subprocess  # Import the 'subprocess' module
 
 def check_security_patches_and_recommendations():
-    distro = get_linux_distro()
     results = {
         "분류": "패치 관리",
         "코드": "U-42",
         "위험도": "상",
         "진단 항목": "최신 보안패치 및 벤더 권고사항 적용",
-        "진단 결과": None,
+        "진단 결과": None,  # 초기 상태 설정, 검사 후 결과에 따라 업데이트
         "현황": [],
         "대응방안": "패치 적용 정책 수립 및 주기적인 패치 관리"
     }
 
-    output = check_security_patches(distro)
-    if "Command failed" in output:
-        results["진단 결과"] = "오류"
-        results["현황"].append(output)
-    elif "Unsupported distribution." in output:
-        results["진단 결과"] = "오류"
-        results["현황"].append(output)
-    else:
-        if distro == "ubuntu":
-            upgradable = re.findall(r'^\S+', output, re.MULTILINE)
-            if upgradable:
-                results["진단 결과"] = "취약"
-                results["현황"].append("업그레이드 가능한 패키지: " + ", ".join(upgradable))
-            else:
-                results["진단 결과"] = "양호"
-                results["현황"].append("모든 패키지가 최신 상태입니다.")
-        elif distro in ["centos", "rhel", "fedora"]:
-            if "No security updates needed" not in output:
-                results["진단 결과"] = "취약"
-                security_updates = re.findall(r'^\S+', output, re.MULTILINE)
-                results["현황"].append("필요한 보안 패치: " + ", ".join(security_updates))
-            else:
-                results["진단 결과"] = "양호"
-                results["현황"].append("필요한 보안 패치가 없습니다.")
+    try:
+        # Ubuntu 시스템에서 보안 패치를 확인하는 명령어입니다.
+        output = subprocess.check_output(["sudo", "unattended-upgrades", "--dry-run", "--debug"], stderr=subprocess.STDOUT, universal_newlines=True)
+        
+        # 출력 내용에서 보안 패치 여부를 확인합니다.
+        if "All upgrades installed" in output:
+            results["진단 결과"] = "양호"
+            results["현황"] = "시스템은 최신 보안 패치를 보유하고 있습니다."
+        else:
+            results["진단 결과"] = "취약"
+            results["현황"] = "시스템에 보안 패치가 필요합니다."
+
+    except subprocess.CalledProcessError as e:
+        results["진단 결과"] = "취약"
+        results["현황"] = "오류로 인해 보안 패치 상태를 확인할 수 없습니다."
 
     return results
 

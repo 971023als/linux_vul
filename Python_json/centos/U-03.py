@@ -41,13 +41,13 @@ def check_account_lockout_threshold():
                                         results["현황"].append(f"{file_path}에서 설정된 계정 잠금 임계값이 10회를 초과합니다.")
 
     if not deny_files_checked:
-        results["현황"].append(f"{file_path}에서 계정 잠금 임계값을 설정하는 파일을 찾을 수 없습니다.")
+        results["현황"].append("계정 잠금 임계값을 설정하는 파일을 찾을 수 없습니다.")
         results["진단 결과"] = "취약"
     elif not account_lockout_threshold_set:
-        results["현황"].append(f"{file_path}에서 적절한 계정 잠금 임계값 설정이 없습니다.")
+        results["현황"].append("적절한 계정 잠금 임계값 설정이 없습니다.")
         results["진단 결과"] = "취약"
     else:
-        results["현황"].append(f"{file_path}에서 계정 잠금 임계값이 적절히 설정되었습니다.")
+        results["현황"].append("계정 잠금 임계값이 적절히 설정되었습니다.")
         results["진단 결과"] = "양호"
 
     return results

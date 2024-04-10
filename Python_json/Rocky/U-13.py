@@ -35,8 +35,8 @@ def check_suid_sgid_permissions():
             if mode & (stat.S_ISUID | stat.S_ISGID):
                 vulnerable_files.append({
                     "파일 경로": executable,
-                    "SUID 설정": "설정됨" if bool(mode & stat.S_ISUID) else "설정되지 않음",
-                    "SGID 설정": "설정됨" if bool(mode & stat.S_ISGID) else "설정되지 않음"
+                    "SUID 설정": bool(mode & stat.S_ISUID),
+                    "SGID 설정": bool(mode & stat.S_ISGID)
                 })
 
     if vulnerable_files:

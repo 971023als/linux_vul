@@ -35,6 +35,7 @@ def check_shadow_password_usage():
             shadow_used = False
 
     if not shadow_used:
+        results["현황"].append("쉐도우 패스워드를 사용하고 있지 않거나 /etc/shadow 파일의 권한 설정이 적절하지 않습니다.")
         results["진단 결과"] = "취약"
     else:
         results["현황"].append("쉐도우 패스워드를 사용하고 있으며 /etc/shadow 파일의 권한 설정이 적절합니다.")

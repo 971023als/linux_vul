@@ -39,17 +39,9 @@ def check_umask_settings():
             checked_files += 1
             umask_values = get_umask_values_from_file(file_path)
             for value in umask_values:
-                # 빈 문자열이거나 숫자로만 이루어져 있지 않은 경우 건너뜀
-                if not value or not value.isdigit():
-                    continue
-                # 올바른 8진수 값인지 확인
-                try:
-                    if int(value, 8) < int('022', 8):
-                        results["진단 결과"] = "취약"
-                        results["현황"].append(f"{file_path} 파일에서 UMASK 값 ({value})이 022 이상으로 설정되지 않았습니다.")
-                except ValueError:
-                    # int 변환 실패 시 에러 핸들링
-                    results["현황"].append(f"{file_path} 파일에 잘못된 UMASK 값 ({value})이 있습니다.")
+                if int(value, 8) < int('022', 8):
+                    results["진단 결과"] = "취약"
+                    results["현황"].append(f"{file_path} 파일에서 UMASK 값 ({value})이 022 이상으로 설정되지 않았습니다.")
     if results["진단 결과"] == "양호" and checked_files > 0:
         results["현황"].append("모든 검사된 파일에서 UMASK 값이 022 이상으로 적절히 설정되었습니다.")
 
@@ -57,7 +49,6 @@ def check_umask_settings():
         results["현황"].append("검사할 파일이 없습니다.")
 
     return results
-
 
 def main():
     umask_settings_check_results = check_umask_settings()

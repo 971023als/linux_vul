@@ -41,7 +41,6 @@ def check_syslog_file_permissions():
             results["진단 결과"] = "취약"
     else:
         results["진단 결과"] = "파일 없음"
-        results["현황"].append(f"{file_path} 파일이 없습니다")
 
     return results
 

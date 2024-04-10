@@ -8,16 +8,9 @@ declare -A OS_PACKAGE_MANAGER=(
     [rhel]="yum"
     [fedora]="dnf"
 )
+PACKAGES="apache2 libapache2-mod-wsgi-py3 python3-venv"
 
-declare -A OS_PACKAGES=(
-    [debian]="apache2 libapache2-mod-wsgi-py3 python3-venv"
-    [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3-venv"
-    [centos]="httpd mod_wsgi python3"
-    [rhel]="httpd mod_wsgi python3"
-    [fedora]="httpd mod_wsgi python3-venv"
-)
-
-CRON_JOB="/usr/bin/python3 /root/linux_vuln/Python_json/centos/vul.sh"
+CRON_JOB="/usr/bin/python3 /root/vul/linux/Python_json/ubuntu/vul.sh"
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="$WEB_DIRECTORY/results_${NOW}.json"
@@ -34,8 +27,7 @@ setup_environment() {
 
     source /etc/os-release
     PKG_MANAGER=${OS_PACKAGE_MANAGER[$ID]}
-    PACKAGES=${OS_PACKAGES[$ID]}
-    if [ -z "$PKG_MANAGER" ] || [ -z "$PACKAGES" ]; then
+    if [ -z "$PKG_MANAGER" ]; then
         echo "지원되지 않는 리눅스 배포판입니다."
         exit 1
     fi
@@ -55,25 +47,14 @@ check_sudo() {
 
 install_packages() {
     check_sudo
-    echo "필요한 패키지를 설치합니다: $PACKAGES"
-    sudo $PKG_MANAGER update -y
-    for PACKAGE in $PACKAGES; do
-        sudo $PKG_MANAGER install $PACKAGE -y || { echo "$PACKAGE 패키지 설치 실패"; exit 1; }
-    done
+    echo "필요한 패키지를 설치합니다."
+    sudo $PKG_MANAGER update
+    sudo $PKG_MANAGER install $PACKAGES -y || { echo "패키지 설치 실패"; exit 1; }
     setup_cron_job
 }
 
-# Cron 작업 설정 및 cronie 패키지 설치
+# Cron 작업 설정
 setup_cron_job() {
-    # crontab 명령이 존재하는지 확인
-    if ! command -v crontab &> /dev/null; then
-        echo "crontab 명령을 찾을 수 없습니다. cronie 패키지를 설치합니다."
-        sudo $PKG_MANAGER install cronie -y
-        sudo systemctl enable crond.service
-        sudo systemctl start crond.service
-    fi
-
-    # Cron 작업 추가
     (crontab -l 2>/dev/null | grep -Fq "$CRON_JOB") && echo "Cron job이 이미 존재합니다." || {
         (crontab -l 2>/dev/null; echo "0 0 * * * $CRON_JOB # 매일 스크립트 실행") | crontab - &&
         echo "Cron job을 추가했습니다." || {
@@ -82,7 +63,6 @@ setup_cron_job() {
         }
     }
 }
-
 
 # Apache 인코딩 설정
 setup_apache_encoding() {
@@ -224,31 +204,16 @@ json_to_html()
 }
 
 
-# Apache 서비스 재시작 개선된 버전
+
+# Apache 서비스 재시작
 restart_apache() {
-    local service_names=("apache2.service" "httpd.service") # 서비스 파일 이름 명시
-    local service_found=false
-
-    for name in "${service_names[@]}"; do
-        # 시스템에 서비스 파일이 존재하는지 확인
-        if systemctl list-unit-files | grep -qw "$name"; then
-            echo "$name 서비스를 재시작합니다."
-            if sudo systemctl restart "$name"; then
-                echo "$name 서비스가 성공적으로 재시작되었습니다."
-                service_found=true
-                break
-            else
-                echo "$name 서비스 재시작에 실패했습니다."
-            fi
-        fi
-    done
-
-    if [ "$service_found" = false ]; then
-        echo "Apache/Httpd 서비스를 찾을 수 없습니다. 시스템에 서비스가 설치되어 있는지 확인해주세요."
+    local service_name=$(systemctl list-units --type=service --state=active | grep -E 'apache2|httpd' | awk '{print $1}')
+    if [ -n "$service_name" ]; then
+        sudo systemctl restart "$service_name" && echo "$service_name 서비스가 성공적으로 재시작되었습니다." || echo "$service_name 서비스 재시작에 실패했습니다."
+    else
+        echo "Apache/Httpd 서비스를 찾을 수 없습니다."
     fi
 }
-
-
 
 # 메인 로직 실행
 main() {
