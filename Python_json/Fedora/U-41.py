@@ -76,7 +76,6 @@ def check_document_root_settings(server_info, found_files):
                             vulnerable = True
                             return document_root_set, vulnerable, file_path
         except IOError:
-            print(f"Error accessing {file_path}.")
             continue
 
     return document_root_set, vulnerable, ''
