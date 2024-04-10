@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 import subprocess
+import os
+import re
 import json
 
 def check_nis_services_status():
