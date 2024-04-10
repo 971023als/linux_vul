@@ -11,14 +11,13 @@ declare -A OS_PACKAGE_MANAGER=(
 )
 
 declare -A OS_PACKAGES=(
-    [debian]="apache2 libapache2-mod-wsgi-py3 python3.7-venv"  # Debian과 Ubuntu에서 python3.7-venv는 존재하지 않을 수 있음
-    [ubuntu]="apache2 libapache2-mod-wsgi-py3 python3.7-venv"  # 대신 ppa를 통해 Python 3.7을 설치한 후 python3-venv를 사용할 수 있음
-    [centos]="httpd python3.7"  # CentOS와 RHEL에서는 SCL을 통해 Python 3.7을 설치해야 할 수 있음
-    [rhel]="httpd python3.7"    # 예: centos-release-scl 패키지 설치 후, rh-python37를 설치
-    [fedora]="httpd python3.7-virtualenv"  # Fedora에서는 dnf 모듈을 통해 python3.7을 설치할 수 있음
-    [rocky]="httpd python3.7-virtualenv"   # Rocky Linux는 CentOS와 유사한 방법을 사용할 수 있음
+    [debian]="apache2 libapache2-mod-wsgi-py3"  # Python 패키지는 Pyenv를 통해 관리
+    [ubuntu]="apache2 libapache2-mod-wsgi-py3"  # Python 패키지는 Pyenv를 통해 관리
+    [centos]="httpd"  # Python 패키지는 Pyenv를 통해 관리
+    [rhel]="httpd"    # Python 패키지는 Pyenv를 통해 관리
+    [fedora]="httpd"  # Python 패키지는 Pyenv를 통해 관리
+    [rocky]="httpd"   # Python 패키지는 Pyenv를 통해 관리
 )
-
 
 declare -A OS_EPEL_PACKAGE=(
     [centos]="epel-release"
@@ -73,6 +72,28 @@ check_sudo() {
         echo "이 스크립트를 실행하기 위해서는 sudo 권한이 필요합니다."
         exit 1
     fi
+}
+
+# Pyenv를 사용하여 Python 3.7 설치 스크립트
+setup_pyenv_and_python() {
+    # Pyenv 종속성 설치
+    sudo $PKG_MANAGER install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+    xz-utils tk-dev libffi-dev liblzma-dev python-openssl git
+    
+    # Pyenv 설치
+    curl https://pyenv.run | bash
+    
+    # Pyenv 환경 변수 설정
+    export PATH="$HOME/.pyenv/bin:$PATH"
+    eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
+    
+    # Python 3.7 설치
+    pyenv install 3.7.9
+    pyenv global 3.7.9
+    
+    echo "Python 3.7.9과 Pyenv가 성공적으로 설치되었습니다."
 }
 
 install_packages() {
