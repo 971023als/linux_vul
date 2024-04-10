@@ -27,7 +27,7 @@ def check_automountd_disabled():
     else:
         # 명령어 실행 중 오류 발생
         results["진단 결과"] = "오류"
-        results["현황"].append(f"automountd 서비스 확인 중 오류 발생: {process.stderr.decode()}")
+        results["현황"].append(f"automountd 서비스 확인 중 오류 발생: {process.stderr}")
 
     return results
 
