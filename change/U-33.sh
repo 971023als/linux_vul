@@ -1,73 +1,30 @@
-#!/usr/bin/python3
-import subprocess
-import json
-import re
+#!/bin/bash
 
-def parse_version(version_string):
-    """Parse version string to a tuple of integers."""
-    return tuple(map(int, re.findall(r'\d+', version_string)))
+# 최소 요구 BIND 버전
+minimum_version="9.18.7"
 
-def check_command_exists(command):
-    """Check if a command exists on the system."""
-    try:
-        subprocess.check_output(["which", command], stderr=subprocess.PIPE, universal_newlines=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
+# 버전 비교 함수
+version_gt() { test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1"; }
 
-def get_bind_version_rpm():
-    """Get BIND version using rpm."""
-    try:
-        return subprocess.check_output("rpm -qa | grep '^bind'", shell=True, universal_newlines=True).strip()
-    except subprocess.CalledProcessError:
-        return ""
+# 시스템 패키지 관리자를 통해 설치된 BIND 버전 확인
+if command -v rpm &> /dev/null; then
+    installed_version=$(rpm -q --qf "%{VERSION}\n" bind | sort -V | tail -n 1)
+elif command -v dpkg &> /dev/null; then
+    installed_version=$(dpkg -l | grep -oP 'bind9\s+\K[\d.]+')
+else
+    echo "지원되지 않는 패키지 관리자입니다. rpm 또는 dpkg를 사용해주세요."
+    exit 1
+fi
 
-def get_bind_version_dpkg():
-    """Get BIND version using dpkg."""
-    try:
-        return subprocess.check_output("dpkg -l | grep '^ii' | grep 'bind9'", shell=True, universal_newlines=True).strip()
-    except subprocess.CalledProcessError:
-        return ""
-
-def check_dns_security_patch():
-    results = {
-        "분류": "서비스 관리",
-        "코드": "U-33",
-        "위험도": "상",
-        "진단 항목": "DNS 보안 버전 패치",
-        "진단 결과": "양호",  # Default state
-        "현황": [],
-        "대응방안": "DNS 서비스 주기적 패치 관리"
-    }
-
-    minimum_version = "9.18.7"
-
-    if check_command_exists("rpm"):
-        bind_version_output = get_bind_version_rpm()
-    elif check_command_exists("dpkg"):
-        bind_version_output = get_bind_version_dpkg()
-
-    if bind_version_output:
-        version_match = re.search(r'bind(?:9)?-(\d+\.\d+\.\d+)', bind_version_output)
-        if version_match:
-            current_version = version_match.group(1)
-            if parse_version(current_version) < parse_version(minimum_version):
-                results["진단 결과"] = "취약"
-                results["현황"].append(f"BIND 버전이 최신 버전({minimum_version}) 이상이 아닙니다: {current_version}")
-            else:
-                results["현황"].append(f"BIND 버전이 최신 버전({minimum_version}) 이상입니다: {current_version}")
-        else:
-            results["진단 결과"] = "양호"
-            results["현황"].append("BIND 버전 확인 중 오류 발생 (버전 정보 없음)")
-    else:
-        results["진단 결과"] = "오류"
-        results["현황"].append("BIND가 설치되어 있지 않거나 rpm/dpkg 명령어 실행 실패")
-
-    return results
-
-def main():
-    results = check_dns_security_patch()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+# 버전 확인 및 업데이트 권장
+if [ -z "$installed_version" ]; then
+    echo "BIND가 설치되어 있지 않습니다."
+elif version_gt "$minimum_version" "$installed_version"; then
+    echo "현재 BIND 버전($installed_version)은 최신 보안 패치 버전($minimum_version) 이하입니다. 업데이트를 권장합니다."
+    # 업데이트 명령 예시 (실제 사용 전에 적절한 패키지 관리자 명령으로 수정 필요)
+    # yum update bind
+    # 또는
+    # apt-get install bind9
+else
+    echo "U-33 현재 BIND 버전($installed_version)은 최신 보안 패치 버전($minimum_version) 이상입니다."
+fi
