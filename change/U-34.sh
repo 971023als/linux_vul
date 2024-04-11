@@ -1,28 +1,47 @@
-#!/bin/bash
+#!/usr/bin/python3
+import subprocess
+import json
+import os  # Necessary module import added
 
-read -p "허가된 IP 주소를 입력하세요 (예: 192.168.1.100): " allowed_ip
+def check_dns_zone_transfer_settings():
+    results = {
+        "분류": "서비스 관리",
+        "코드": "U-34",
+        "위험도": "상",
+        "진단 항목": "DNS Zone Transfer 설정",
+        "진단 결과": "양호",  # 초기 상태를 '양호'로 가정
+        "현황": [],
+        "대응방안": "Zone Transfer를 허가된 사용자에게만 허용"
+    }
 
-named_conf_path="/etc/named.conf"
+    named_conf_path = "/etc/named.conf"
 
-# named.conf 파일이 존재하는지 확인
-if [ -f "$named_conf_path" ]; then
-    # allow-transfer 옵션이 설정된 부분을 찾아 입력받은 IP로 변경
-    if grep -q "allow-transfer" "$named_conf_path"; then
-        sed -i "/allow-transfer/c\allow-transfer { $allowed_ip; };" "$named_conf_path"
-        echo "DNS Zone Transfer 설정이 업데이트되었습니다: $allowed_ip 에게만 허용"
-    else
-        # allow-transfer 옵션이 없는 경우, options 섹션에 추가
-        sed -i "/options {/a \\\tallow-transfer { $allowed_ip; };" "$named_conf_path"
-        echo "DNS Zone Transfer 설정이 추가되었습니다: $allowed_ip 에게만 허용"
-    fi
-else
-    echo "/etc/named.conf 파일이 존재하지 않습니다. DNS 서비스 설정 파일을 찾을 수 없습니다."
-fi
+    # Check if DNS service is running
+    try:
+        ps_output = subprocess.check_output("ps -ef | grep -i 'named' | grep -v 'grep'", shell=True, universal_newlines=True).strip()
+        dns_service_running = bool(ps_output)
+    except subprocess.CalledProcessError:
+        dns_service_running = False
 
-# DNS 서비스 재시작 (BIND9 예시)
-if systemctl is-active --quiet named; then
-    systemctl restart named
-    echo "DNS 서비스(named)가 재시작되었습니다."
-else
-    echo "DNS 서비스(named)가 실행 중이지 않습니다. 설정 변경 후 수동으로 서비스를 시작하세요."
-fi
+    if dns_service_running:
+        if os.path.isfile(named_conf_path):
+            with open(named_conf_path, 'r') as file:
+                named_conf_contents = file.read()
+                if "allow-transfer { any; }" in named_conf_contents:
+                    results["진단 결과"] = "취약"
+                    results["현황"].append("/etc/named.conf 파일에 allow-transfer { any; } 설정이 있습니다.")
+                else:
+                    results["현황"].append("DNS Zone Transfer가 허가된 사용자에게만 허용되어 있습니다.")
+        else:
+            results["현황"].append("/etc/named.conf 파일이 존재하지 않습니다. DNS 서비스 미사용 가능성.")
+    else:
+        results["현황"].append("DNS 서비스가 실행 중이지 않습니다.")
+
+    return results
+
+def main():
+    results = check_dns_zone_transfer_settings()
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
