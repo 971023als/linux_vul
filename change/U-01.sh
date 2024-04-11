@@ -1,31 +1,52 @@
-#!/bin/bash
+#!/usr/bin/python3
+import json
+import subprocess
+import re
 
-# Telnet 서비스 비활성화
-# /etc/xinetd.d/telnet이 존재하는 경우, disable = yes로 설정
-if [ -f /etc/xinetd.d/telnet ]; then
-    sed -i 's/disable\s*=\s*no/disable = yes/g' /etc/xinetd.d/telnet
-    echo "Telnet 서비스가 비활성화되었습니다."
-fi
+def check_remote_root_access_restriction():
+    results = {
+        "분류": "계정관리",
+        "코드": "U-01",
+        "위험도": "상",
+        "진단 항목": "root 계정 원격접속 제한",
+        "진단 결과": "양호",  # 기본 값을 "양호"로 가정
+        "현황": [],
+        "대응방안": "원격 터미널 서비스 사용 시 root 직접 접속을 차단"
+    }
 
-# /etc/inetd.conf에서 telnet 서비스 주석 처리
-if grep -q "^telnet" /etc/inetd.conf; then
-    sed -i '/^telnet/s/^/#/' /etc/inetd.conf
-    echo "Telnet 서비스가 /etc/inetd.conf에서 비활성화되었습니다."
-fi
+    # Telnet 서비스 검사
+    try:
+        telnet_status = subprocess.run(["grep", "-E", "telnet\s+\d+/tcp", "/etc/services"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if telnet_status.stdout:
+            results["현황"].append("Telnet 서비스 포트가 활성화되어 있습니다.")
+            results["진단 결과"] = "취약"
+    except Exception as e:
+        results["현황"].append(f"Telnet 서비스 검사 중 오류 발생: {e}")
 
-# SSH 서비스에서 root 계정의 원격 접속 제한
-# /etc/ssh/sshd_config 파일에서 PermitRootLogin을 no로 설정
-if grep -Eq 'PermitRootLogin\s+(yes|without-password)' /etc/ssh/sshd_config; then
-    sed -i '/^PermitRootLogin/c\PermitRootLogin no' /etc/ssh/sshd_config
-    echo "SSH 서비스에서 root 계정의 원격 접속이 제한되었습니다."
-elif ! grep -q '^PermitRootLogin' /etc/ssh/sshd_config; then
-    echo "PermitRootLogin no" >> /etc/ssh/sshd_config
-    echo "SSH 서비스 설정에 root 계정의 원격 접속 제한이 추가되었습니다."
-fi
+    # SSH 서비스 검사
+    root_login_restricted = True  # root 로그인이 제한되었다고 가정
+    for sshd_config in subprocess.getoutput("find /etc/ssh -name 'sshd_config'").splitlines():
+        try:
+            with open(sshd_config, 'r') as file:
+                for line in file:
+                    if 'PermitRootLogin' in line and not line.strip().startswith('#'):
+                        if 'yes' in line or 'without-password' in line or 'prohibit-password' not in line or 'forced-commands-only' not in line:
+                            root_login_restricted = False  # root 로그인이 제한되지 않음
+                            break
+        except Exception as e:
+            results["현황"].append(f"{sshd_config} 파일 읽기 중 오류 발생: {e}")
 
-# sshd 서비스 재시작
-service sshd restart || systemctl restart sshd
-echo "sshd 서비스가 재시작되었습니다."
+    if not root_login_restricted:
+        results["현황"].append("SSH 서비스에서 root 계정의 원격 접속이 허용되고 있습니다.")
+        results["진단 결과"] = "취약"
+    else:
+        results["현황"].append("SSH 서비스에서 root 계정의 원격 접속이 제한되어 있습니다.")
 
-# 모든 조치 완료 메시지 출력
-echo "모든 조치가 완료되었습니다. 시스템이 '양호' 상태로 설정되었습니다."
+    return results
+
+def main():
+    results = check_remote_root_access_restriction()
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()

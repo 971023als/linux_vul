@@ -1,16 +1,31 @@
-#!/bin/bash
+#!/usr/bin/python3
+import json
+import pwd
 
-# FTP 사용자 계정 비활성화
-if grep -q "^ftp:" /etc/passwd; then
-    # FTP 사용자의 로그인 쉘을 /sbin/nologin으로 설정하여 로그인을 차단
-    usermod -s /sbin/nologin ftp
-    echo "FTP 사용자 계정의 로그인이 차단되었습니다."
+def check_anonymous_ftp():
+    results = {
+        "분류": "시스템 설정",
+        "코드": "U-20",
+        "위험도": "상",
+        "진단 항목": "Anonymous FTP 비활성화",
+        "진단 결과": "",
+        "현황": [],
+        "대응방안": "Anonymous FTP 비활성화"
+    }
 
-    # 필요에 따라 FTP 사용자 계정을 시스템에서 삭제
-    # userdel ftp
-    # echo "FTP 사용자 계정이 삭제되었습니다."
-else
-    echo "FTP 사용자 계정이 이미 존재하지 않습니다."
-fi
+    try:
+        pwd.getpwnam('ftp')
+        results["진단 결과"] = "취약"
+        results["현황"].append("FTP 계정이 /etc/passwd 파일에 있습니다.")
+    except KeyError:
+        results["진단 결과"] = "양호"
+        results["현황"].append("FTP 계정이 /etc/passwd 파일에 없습니다.")
 
-echo "Anonymous FTP 접속 차단 조치가 완료되었습니다."
+    return results
+
+def main():
+    results = check_anonymous_ftp()
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
