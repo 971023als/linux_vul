@@ -1,22 +1,50 @@
-#!/bin/bash
+#!/usr/bin/python3
+import subprocess
+import os
+import re
+import json
 
-search_directory='/etc/mail/'
-relay_restrictions='R$\* $: $(check_relay $)'
+def check_spam_mail_relay_restrictions():
+    results = {
+        "분류": "서비스 관리",
+        "코드": "U-31",
+        "위험도": "상",
+        "진단 항목": "스팸 메일 릴레이 제한",
+        "진단 결과": None,
+        "현황": [],
+        "대응방안": "SMTP 서비스 릴레이 제한 설정"
+    }
 
-# sendmail.cf 파일 검색 및 릴레이 제한 설정
-find "$search_directory" -name 'sendmail.cf' -type f | while read -r file_path; do
-    if [ -f "$file_path" ]; then
-        # 릴레이 제한 설정이 이미 존재하는지 확인
-        if grep -qE 'R\$\*' "$file_path" || grep -qEi 'Relaying denied' "$file_path"; then
-            echo "$file_path 파일에 릴레이 제한이 이미 적절히 설정되어 있습니다."
-        else
-            # 릴레이 제한 설정 추가
-            echo "$relay_restrictions" >> "$file_path"
-            echo "$file_path 파일에 릴레이 제한 설정을 추가했습니다."
-        fi
-    else
-        echo "sendmail.cf 파일을 찾을 수 없습니다."
-    fi
-done
+    search_directory = '/etc/mail/'
+    cmd = f"find {search_directory} -name 'sendmail.cf' -type f"
 
-echo "스팸 메일 릴레이 제한 설정이 완료되었습니다."
+    process = subprocess.run(cmd, shell=True, universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    if process.returncode == 0 and process.stdout:
+        sendmail_cf_files = process.stdout.strip().split('\n')
+        vulnerable_found = False
+        for file_path in sendmail_cf_files:
+            if os.path.isfile(file_path):
+                with open(file_path, 'r') as file:
+                    content = file.read()
+                    if re.search(r'R\$\*', content) or re.search(r'Relaying denied', content, re.IGNORECASE):
+                        results["현황"].append(f"{file_path} 파일에 릴레이 제한이 적절히 설정되어 있습니다.")
+                    else:
+                        vulnerable_found = True
+                        results["현황"].append(f"{file_path} 파일에 릴레이 제한 설정이 없습니다.")
+        if vulnerable_found:
+            results["진단 결과"] = "취약"
+        else:
+            results["진단 결과"] = "양호"
+    else:
+        results["진단 결과"] = "양호"
+        results["현황"].append("sendmail.cf 파일을 찾을 수 없습니다.")
+
+    return results
+
+def main():
+    results = check_spam_mail_relay_restrictions()
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
