@@ -1,45 +1,97 @@
-#!/bin/bash
+#!/usr/bin/python3
+import subprocess
+import json
 
-# Apache 구성 파일 경로 설정
-apache_conf_files=(
-    "/etc/apache2/apache2.conf"
-    "/etc/apache2/conf-enabled/*.conf"
-    "/etc/httpd/conf/httpd.conf"
-)
-
-# 상위 디렉터리 접근 금지 설정 함수
-restrict_directory_access() {
-    local conf_file=$1
-    if [ -f "$conf_file" ]; then
-        # AllowOverride 설정 확인 및 업데이트
-        if grep -q "AllowOverride None" "$conf_file"; then
-            echo "$conf_file 파일에 이미 상위 디렉터리 접근 제한 설정이 적용되어 있습니다."
-        else
-            echo "<Directory />" >> "$conf_file"
-            echo "    AllowOverride None" >> "$conf_file"
-            echo "    Require all denied" >> "$conf_file"
-            echo "</Directory>" >> "$conf_file"
-            echo "$conf_file 파일에 상위 디렉터리 접근 제한 설정을 추가했습니다."
-        fi
-    else
-        echo "$conf_file 파일을 찾을 수 없습니다."
-    fi
+web_servers = {
+    'Apache': {
+        'config_files': ['httpd.conf', 'apache2.conf', '.htaccess'],
+        'restriction_setting': 'AllowOverride None'
+    },
+    'Nginx': {
+        'config_files': ['nginx.conf'],
+        'restriction_setting': 'deny all;'
+    },
+    'LiteSpeed': {
+        'config_files': ['httpd_config.conf', '.htaccess'],
+        'restriction_setting': 'AllowOverride None'
+    },
+    'Microsoft-IIS': {
+        'config_files': ['web.config'],
+        'restriction_setting': '<authorization><deny users="?" /></authorization>'
+    },
+    'Node.js': {
+        'config_files': [],
+        'restriction_setting': 'Use middleware for access control (e.g., helmet, express-jwt)'
+    },
+    'Envoy': {
+        'config_files': ['envoy.yaml'],
+        'restriction_setting': 'Apply RBAC policies in configuration to restrict access'
+    },
+    'Caddy': {
+        'config_files': ['Caddyfile'],
+        'restriction_setting': 'respond /forbidden/* 403'
+    },
+    'Tomcat': {
+        'config_files': ['web.xml'],
+        'restriction_setting': '<security-constraint><web-resource-collection><url-pattern>/restricted/*</url-pattern></web-resource-collection><auth-constraint /></security-constraint>'
+    }
 }
 
-# 모든 지정된 Apache 구성 파일 업데이트
-for conf_file in "${apache_conf_files[@]}"; do
-    restrict_directory_access "$conf_file"
-done
+def find_config_files(config_files):
+    found_files = []
+    for conf_file in config_files:
+        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
+        try:
+            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
+            found_files.extend(find_output)
+        except subprocess.CalledProcessError:
+            continue
+    return found_files
 
-# Apache 서비스 재시작
-if systemctl is-active --quiet apache2; then
-    systemctl restart apache2
-    echo "Apache2 서비스가 재시작되었습니다."
-elif systemctl is-active --quiet httpd; then
-    systemctl restart httpd
-    echo "HTTPD 서비스가 재시작되었습니다."
-else
-    echo "Apache 서비스가 실행 중이지 않거나 인식되지 않습니다."
-fi
+def check_access_restrictions(server_info, found_files):
+    vulnerable = False
+    vulnerabilities = []
 
-echo "웹서비스 상위 디렉터리 접근 금지 설정이 완료되었습니다."
+    for file_path in found_files:
+        if file_path:
+            with open(file_path, 'r') as file:
+                content = file.read()
+                if server_info['restriction_setting'] not in content:
+                    vulnerable = True
+                    vulnerabilities.append(file_path)
+
+    return vulnerable, vulnerabilities
+
+def main():
+    results = {
+        "분류": "서비스 관리",
+        "코드": "U-37",
+        "위험도": "상",
+        "진단 항목": "웹서비스 상위 디렉토리 접근 금지",
+        "진단 결과": None,
+        "현황": [],
+        "대응방안": "상위 디렉터리에 이동 제한 설정"
+    }
+
+    overall_vulnerable = False
+
+    for server_name, server_info in web_servers.items():
+        found_files = find_config_files(server_info['config_files'])
+        vulnerable, vulnerabilities = check_access_restrictions(server_info, found_files)
+        if vulnerable:
+            overall_vulnerable = True
+            for vulnerability in vulnerabilities:
+                results["현황"].append(f"{vulnerability} 파일에서 {server_name} 상위 디렉터리 접근 제한 설정이 부적절합니다.")
+
+    if overall_vulnerable:
+        results["진단 결과"] = "취약"
+    else:
+        results["진단 결과"] = "양호"
+        # Corrected to remove the incorrect variable reference and fixed the syntax issue
+        results["현황"].append("모든 검사된 파일에서 상위 디렉터리 접근 제한 설정이 적절히 설정되어 있습니다.")
+
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
+
