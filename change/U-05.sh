@@ -1,9 +1,7 @@
 #!/bin/bash
 
-echo "시스템의 PATH 환경변수 설정을 검사합니다."
-
-# 글로벌 설정 파일 목록
-GLOBAL_FILES=(
+# 글로벌 환경 설정 파일
+global_files=(
     "/etc/profile"
     "/etc/.login"
     "/etc/csh.cshrc"
@@ -11,36 +9,41 @@ GLOBAL_FILES=(
     "/etc/environment"
 )
 
-# 사용자별 설정 파일 목록
-USER_FILES=(
-    ".profile"
-    ".cshrc"
-    ".login"
-    ".kshrc"
-    ".bash_profile"
-    ".bashrc"
-    ".bash_login"
-)
+# 수정 함수
+remove_dot_from_path() {
+    local file=$1
+    # PATH에서 '.' 제거
+    if grep -E 'PATH=.*(\.|::)' "$file" > /dev/null; then
+        echo "Modifying $file to remove '.' from PATH..."
+        # 'sed'를 사용하여 PATH 변수 내의 '.' 제거
+        sed -i -e 's/\b\.\b//g' -e 's/::/:/g' -e 's/:$//g' -e 's/^://g' "$file"
+    fi
+}
 
-# 글로벌 설정 파일에서 검사
-for file in "${GLOBAL_FILES[@]}"; do
+# 글로벌 설정 파일 검사 및 수정
+for file in "${global_files[@]}"; do
     if [ -f "$file" ]; then
-        if grep -E '\b\.\b|(^|:)\.(:|$)' "$file" > /dev/null; then
-            echo "경고: $file 파일 내의 PATH 환경 변수에 '.' 또는 '::' 이 포함되어 있습니다."
-        fi
+        remove_dot_from_path "$file"
     fi
 done
 
-# 모든 사용자의 홈 디렉터리에서 검사
-while IFS=: read -r user _ _ _ _ home _; do
-    for file in "${USER_FILES[@]}"; do
-        full_path="$home/$file"
+# 사용자 홈 디렉터리 설정 파일 검사 및 수정
+getent passwd | while IFS=: read -r name password uid gid gecos home shell; do
+    user_files=(
+        ".profile"
+        ".cshrc"
+        ".login"
+        ".kshrc"
+        ".bash_profile"
+        ".bashrc"
+        ".bash_login"
+    )
+    for user_file in "${user_files[@]}"; do
+        full_path="$home/$user_file"
         if [ -f "$full_path" ]; then
-            if grep -E '\b\.\b|(^|:)\.(:|$)' "$full_path" > /dev/null; then
-                echo "경고: $full_path 파일 내의 PATH 환경 변수에 '.' 또는 '::' 이 포함되어 있습니다."
-            fi
+            remove_dot_from_path "$full_path"
         fi
     done
-done < /etc/passwd
+done
 
-echo "PATH 환경변수 설정 검사가 완료되었습니다."
+echo ""U-05 PATH 환경변수에 '.' 이 맨 앞이나 중간에 포함되지 않도록 설정."
