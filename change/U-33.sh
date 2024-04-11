@@ -1,55 +1,73 @@
-#!/bin/bash
+#!/usr/bin/python3
+import subprocess
+import json
+import re
 
-# 최소 요구 버전 설정
-minimum_version="9.18.7"
+def parse_version(version_string):
+    """Parse version string to a tuple of integers."""
+    return tuple(map(int, re.findall(r'\d+', version_string)))
 
-# 버전 비교 함수 정의
-version_compare() {
-    if [[ "$1" == "$2" ]]
-    then
-        return 0
-    fi
-    local IFS=.
-    local i ver1=($1) ver2=($2)
-    # fill empty fields in ver1 with zeros
-    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
-    do
-        ver1[i]=0
-    done
-    for ((i=0; i<${#ver1[@]}; i++))
-    do
-        if [[ -z ${ver2[i]} ]]
-        then
-            # fill empty fields in ver2 with zeros
-            ver2[i]=0
-        fi
-        if ((10#${ver1[i]} < 10#${ver2[i]}))
-        then
-            return 1
-        elif ((10#${ver1[i]} > 10#${ver2[i]}))
-        then
-            return 2
-        fi
-    done
-    return 0
-}
+def check_command_exists(command):
+    """Check if a command exists on the system."""
+    try:
+        subprocess.check_output(["which", command], stderr=subprocess.PIPE, universal_newlines=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
-# BIND 버전 확인
-bind_version=$(named -v | grep -oP 'BIND \K[\d\.]+')
+def get_bind_version_rpm():
+    """Get BIND version using rpm."""
+    try:
+        return subprocess.check_output("rpm -qa | grep '^bind'", shell=True, universal_newlines=True).strip()
+    except subprocess.CalledProcessError:
+        return ""
 
-# 버전 확인 결과에 따른 조치
-if [[ -n $bind_version ]]
-then
-    version_compare $bind_version $minimum_version
-    result=$?
-    if [[ $result -eq 2 ]] || [[ $result -eq 0 ]]
-    then
-        echo "BIND 버전 ($bind_version)이 최소 요구 버전 ($minimum_version) 이상입니다."
-    else
-        echo "BIND 버전 ($bind_version)이 최소 요구 버전 ($minimum_version) 이하입니다. 업데이트가 필요합니다."
-        # 업데이트 권장 메시지
-        echo "BIND를 업데이트하려면, 시스템의 패키지 관리자를 사용하세요."
-    fi
-else
-    echo "BIND 버전을 확인할 수 없습니다. BIND가 설치되어 있는지 확인하세요."
-fi
+def get_bind_version_dpkg():
+    """Get BIND version using dpkg."""
+    try:
+        return subprocess.check_output("dpkg -l | grep '^ii' | grep 'bind9'", shell=True, universal_newlines=True).strip()
+    except subprocess.CalledProcessError:
+        return ""
+
+def check_dns_security_patch():
+    results = {
+        "분류": "서비스 관리",
+        "코드": "U-33",
+        "위험도": "상",
+        "진단 항목": "DNS 보안 버전 패치",
+        "진단 결과": "양호",  # Default state
+        "현황": [],
+        "대응방안": "DNS 서비스 주기적 패치 관리"
+    }
+
+    minimum_version = "9.18.7"
+
+    if check_command_exists("rpm"):
+        bind_version_output = get_bind_version_rpm()
+    elif check_command_exists("dpkg"):
+        bind_version_output = get_bind_version_dpkg()
+
+    if bind_version_output:
+        version_match = re.search(r'bind(?:9)?-(\d+\.\d+\.\d+)', bind_version_output)
+        if version_match:
+            current_version = version_match.group(1)
+            if parse_version(current_version) < parse_version(minimum_version):
+                results["진단 결과"] = "취약"
+                results["현황"].append(f"BIND 버전이 최신 버전({minimum_version}) 이상이 아닙니다: {current_version}")
+            else:
+                results["현황"].append(f"BIND 버전이 최신 버전({minimum_version}) 이상입니다: {current_version}")
+        else:
+            results["진단 결과"] = "양호"
+            results["현황"].append("BIND 버전 확인 중 오류 발생 (버전 정보 없음)")
+    else:
+        results["진단 결과"] = "오류"
+        results["현황"].append("BIND가 설치되어 있지 않거나 rpm/dpkg 명령어 실행 실패")
+
+    return results
+
+def main():
+    results = check_dns_security_patch()
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
