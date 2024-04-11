@@ -1,44 +1,23 @@
-#!/usr/bin/python3
-import subprocess
-import re
-import json
+#!/bin/bash
 
-def check_finger_service_disabled():
-    results = {
-        "분류": "서비스 관리",
-        "코드": "U-19",
-        "위험도": "상",
-        "진단 항목": "Finger 서비스 비활성화",
-        "진단 결과": None,  # 초기 상태 설정, 결과에 따라 업데이트 예정
-        "현황": [],
-        "대응방안": "Finger 서비스가 비활성화 되어 있는 경우"
-    }
+# Finger 서비스 비활성화 (xinetd를 통해 제공되는 경우)
+if [ -f /etc/xinetd.d/finger ]; then
+    echo "disabling" > /etc/xinetd.d/finger
+    echo "Finger 서비스를 xinetd를 통해 비활성화합니다."
+fi
 
-    # /etc/services에서 Finger 서비스 정의 확인
-    try:
-        with open('/etc/services', 'r') as services_file:
-            services_contents = services_file.read()
-            if re.search(r'^finger.*tcp', services_contents, re.MULTILINE | re.IGNORECASE):
-                results["현황"].append("Finger 서비스 포트가 /etc/services에 정의되어 있습니다.")
-                results["진단 결과"] = "취약"
-    except FileNotFoundError:
-        results["현황"].append("/etc/services 파일을 찾을 수 없습니다.")
+# systemd를 사용하는 시스템에서 Finger 서비스 비활성화
+if systemctl is-enabled finger.socket &> /dev/null; then
+    systemctl stop finger.socket
+    systemctl disable finger.socket
+    echo "Finger 서비스를 systemd를 통해 비활성화하고, 실행 중인 소켓을 중지합니다."
+fi
 
-    # Finger 프로세스 실행 중인지 확인
-    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
-    if 'finger' in ps_output.lower():
-        results["현황"].append("Finger 서비스 프로세스가 실행 중입니다.")
-        results["진단 결과"] = "취약"
+# Finger 프로세스 중지
+pgrep -f finger &> /dev/null
+if [ $? -eq 0 ]; then
+    pkill -f finger
+    echo "실행 중인 Finger 프로세스를 중지합니다."
+fi
 
-    if not results["진단 결과"]:
-        results["진단 결과"] = "양호"
-        results["현황"].append("Finger 서비스가 비활성화되어 있거나 실행 중이지 않습니다.")
-
-    return results
-
-def main():
-    results = check_finger_service_disabled()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+echo "U-19 Finger 서비스 비활성화 작업이 완료되었습니다."

@@ -1,31 +1,32 @@
-#!/usr/bin/python3
-import json
-import pwd
+#!/bin/bash
 
-def check_anonymous_ftp():
-    results = {
-        "분류": "시스템 설정",
-        "코드": "U-20",
-        "위험도": "상",
-        "진단 항목": "Anonymous FTP 비활성화",
-        "진단 결과": "",
-        "현황": [],
-        "대응방안": "Anonymous FTP 비활성화"
-    }
+# Anonymous FTP 사용자 계정 확인
+if getent passwd ftp > /dev/null; then
+    echo "FTP 사용자 계정이 존재합니다. Anonymous FTP가 활성화되어 있을 수 있습니다."
 
-    try:
-        pwd.getpwnam('ftp')
-        results["진단 결과"] = "취약"
-        results["현황"].append("FTP 계정이 /etc/passwd 파일에 있습니다.")
-    except KeyError:
-        results["진단 결과"] = "양호"
-        results["현황"].append("FTP 계정이 /etc/passwd 파일에 없습니다.")
+    # vsftpd 사용 시
+    if [ -f /etc/vsftpd.conf ]; then
+        # anonymous_enable=YES를 anonymous_enable=NO로 변경
+        sed -i 's/anonymous_enable=YES/anonymous_enable=NO/g' /etc/vsftpd.conf
+        echo "vsftpd.conf에서 Anonymous FTP를 비활성화했습니다."
+    fi
 
-    return results
+    # proftpd 사용 시
+    if [ -f /etc/proftpd/proftpd.conf ]; then
+        # Anonymous 섹션 주석 처리
+        sed -i '/<Anonymous /,/\/Anonymous>/ s/^/#/' /etc/proftpd/proftpd.conf
+        echo "proftpd.conf에서 Anonymous FTP 섹션을 주석 처리했습니다."
+    fi
 
-def main():
-    results = check_anonymous_ftp()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
+    # FTP 사용자 계정 비활성화 (선택적)
+    #usermod -s /sbin/nologin ftp
+    #echo "FTP 사용자의 쉘 로그인을 비활성화했습니다."
 
-if __name__ == "__main__":
-    main()
+    # FTP 서비스 재시작
+    systemctl restart vsftpd
+    systemctl restart proftpd
+    echo "FTP 서비스를 재시작했습니다."
+
+else
+    echo "U-20 FTP 사용자 계정이 존재하지 않습니다. Anonymous FTP가 비활성화되어 있습니다."
+fi
