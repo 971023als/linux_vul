@@ -1,32 +1,42 @@
-#!/bin/bash
+#!/usr/bin/python3
+import os
+import json
+from collections import Counter
 
-min_regular_user_uid=1000
-declare -A uid_counts
-duplicate_uids=()
+def check_duplicate_uids():
+    results = {
+        "분류": "계정관리",
+        "코드": "U-52",
+        "위험도": "중",
+        "진단 항목": "동일한 UID 금지",
+        "진단 결과": "양호",
+        "현황": [],
+        "대응방안": "동일한 UID로 설정된 사용자 계정을 제거하거나 수정"
+    }
 
-if [ -f "/etc/passwd" ]; then
-    # UID를 추출하고, 정규 사용자 UID(>=1000)에 대해 중복을 검사합니다.
-    while IFS=: read -r username _ uid _; do
-        if [ "$uid" -ge "$min_regular_user_uid" ]; then
-            uid_counts["$uid"]=$((uid_counts["$uid"]+1))
-        fi
-    done < <(grep -v '^#' /etc/passwd)
+    min_regular_user_uid = 1000
 
-    for uid in "${!uid_counts[@]}"; do
-        if [ "${uid_counts[$uid]}" -gt 1 ]; then
-            duplicate_uids+=("UID $uid (${uid_counts[$uid]}x)")
-        fi
-    done
+    if os.path.isfile("/etc/passwd"):
+        with open("/etc/passwd", 'r') as file:
+            uids = [line.split(":")[2] for line in file if line.strip() and not line.startswith("#") and int(line.split(":")[2]) >= min_regular_user_uid]
+            uid_counts = Counter(uids)
+            duplicate_uids = {uid: count for uid, count in uid_counts.items() if count > 1}
 
-    if [ ${#duplicate_uids[@]} -gt 0 ]; then
-        duplicates_formatted=$(IFS=, ; echo "${duplicate_uids[*]}")
-        jq --arg duplicates "$duplicates_formatted" '.진단 결과 = "취약" | .현황 += ["동일한 UID로 설정된 사용자 계정이 존재합니다: " + $duplicates]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-    else
-        jq '.현황 += ["동일한 UID를 공유하는 사용자 계정이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-    fi
-else
-    jq '.진단 결과 = "취약" | .현황 += ["/etc/passwd 파일이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-fi
+            if duplicate_uids:
+                results["진단 결과"] = "취약"
+                duplicates_formatted = ", ".join([f"UID {uid} ({count}x)" for uid, count in duplicate_uids.items()])
+                results["현황"].append(f"동일한 UID로 설정된 사용자 계정이 존재합니다: {duplicates_formatted}")
+            else:
+                results["현황"].append("동일한 UID를 공유하는 사용자 계정이 없습니다.")
+    else:
+        results["진단 결과"] = "취약"
+        results["현황"].append("/etc/passwd 파일이 없습니다.")
 
-# 결과 출력
-cat $results_file
+    return results
+
+def main():
+    duplicate_uids_check_results = check_duplicate_uids()
+    print(json.dumps(duplicate_uids_check_results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()
