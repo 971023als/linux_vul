@@ -1,44 +1,31 @@
-#!/usr/bin/python3
-import json
-import subprocess
+#!/bin/bash
 
-def check_log_review_and_reporting():
-    results = {
-        "분류": "로그 관리",
-        "코드": "U-43",
-        "위험도": "상",
-        "진단 항목": "로그의 정기적 검토 및 보고",
-        "진단 결과": "양호",
-        "현황": [],
-        "대응방안": "보안 로그, 응용 프로그램 및 시스템 로그 기록의 정기적 검토, 분석, 리포트 작성 및 보고 조치 실행"
-    }
+# 로그 파일의 존재를 확인하고, 존재하지 않는 경우 생성
+check_and_create_log() {
+    local log_path="$1"
 
-    log_files = {
-        "UTMP": "/var/log/utmp",
-        "WTMP": "/var/log/wtmp",
-        "BTMP": "/var/log/btmp",
-        "SULOG": "/var/log/sulog",
-        "XFERLOG": "/var/log/xferlog"
-    }
+    if [ ! -f "$log_path" ]; then
+        echo "Creating missing log file: $log_path"
+        touch "$log_path"
+    else
+        echo "Log file exists: $log_path"
+    fi
+}
 
-    for log_name, log_path in log_files.items():
-        if check_file_existence(log_path):
-            results["현황"].append({"파일명": log_name, "결과": "존재함"})
-        else:
-            results["현황"].append({"파일명": log_name, "결과": "존재하지 않음"})
+main() {
+    declare -A log_files=(
+        ["/var/log/utmp"]=""
+        ["/var/log/wtmp"]=""
+        ["/var/log/btmp"]=""
+        ["/var/log/sulog"]=""
+        ["/var/log/xferlog"]=""
+    )
 
-    return results
+    for log_path in "${!log_files[@]}"; do
+        check_and_create_log "$log_path"
+    done
 
-def check_file_existence(file_path):
-    try:
-        with open(file_path, 'r'):
-            return True
-    except FileNotFoundError:
-        return False
+    echo "U-43 Log review and reporting script completed."
+}
 
-def main():
-    results = check_log_review_and_reporting()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+main

@@ -1,46 +1,34 @@
 #!/bin/bash
 
-# Check for SMTP service
-if ! ps -ef | grep -Ei 'smtp|sendmail' | grep -v 'grep' > /dev/null; then
-    result="양호"
-    status="SMTP 서비스 미사용."
-else
-    # Find sendmail.cf files
-    sendmailcf_files=$(find / -name sendmail.cf -type f 2>/dev/null)
-    if [[ -z "$sendmailcf_files" ]]; then
-        result="취약"
-        status="SMTP 서비스 사용 중이나, noexpn, novrfy 또는 goaway 옵션을 설정할 수 있는 sendmail.cf 파일이 없습니다."
-    else
-        modified=false
-        for file_path in $sendmailcf_files; do
-            if [[ -f "$file_path" ]]; then
-                # Check and set PrivacyOptions for noexpn and novrfy
-                if ! grep -Eiq 'PrivacyOptions.*noexpn' "$file_path"; then
-                    echo "O PrivacyOptions=noexpn,novrfy" >> "$file_path"
-                    modified=true
-                fi
-                if ! grep -Eiq 'PrivacyOptions.*novrfy' "$file_path"; then
-                    echo "O PrivacyOptions=novrfy,noexpn" >> "$file_path"
-                    modified=true
-                fi
-            fi
-        done
-
-        if $modified; then
-            result="조치 완료"
-            status="noexpn 및 novrfy 옵션이 sendmail.cf 파일에 추가되었습니다."
-        else
-            result="양호"
-            status="SMTP 서비스에서 noexpn 및 novrfy 옵션이 적절히 설정되어 있습니다."
-        fi
-    fi
+# SMTP 또는 sendmail 서비스 실행 중인지 확인
+ps_output=$(ps -ef | grep -E "smtp|sendmail" | grep -v grep)
+if [ -z "$ps_output" ]; then
+    echo "SMTP 서비스 미사용."
+    exit 0
 fi
 
-# Print the results
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황: $status"
-echo "대응방안: $recommendation"
+# sendmail.cf 파일 찾기
+sendmail_cf_paths=$(find / -name sendmail.cf -type f 2>/dev/null)
+
+if [ -z "$sendmail_cf_paths" ]; then
+    echo "SMTP 서비스 사용 중이나, sendmail.cf 파일을 찾을 수 없습니다."
+    exit 1
+fi
+
+# noexpn 및 novrfy 옵션 설정
+for file_path in $sendmail_cf_paths; do
+    privacy_options=$(grep "PrivacyOptions" $file_path)
+    if [[ $privacy_options == *"noexpn"* ]] && [[ $privacy_options == *"novrfy"* ]]; then
+        echo "U-70 $file_path 에서 이미 noexpn 및 novrfy 옵션이 설정되어 있습니다."
+    elif [[ $privacy_options == *"goaway"* ]]; then
+        echo "U-70 $file_path 에서 goaway 옵션이 설정되어 있으므로 추가 조치가 필요하지 않습니다."
+    else
+        # PrivacyOptions 줄이 있는 경우, 옵션 추가
+        if grep -q "PrivacyOptions" $file_path; then
+            sudo sed -i "/PrivacyOptions/c\O PrivacyOptions=noexpn,novrfy" $file_path
+        else
+            echo "O PrivacyOptions=noexpn,novrfy" | sudo tee -a $file_path > /dev/null
+        fi
+        echo "U-70 $file_path 에 noexpn 및 novrfy 옵션을 추가하였습니다."
+    fi
+done

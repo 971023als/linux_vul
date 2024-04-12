@@ -1,60 +1,45 @@
 #!/bin/bash
 
+# SSH, Telnet, FTP 서비스 상태 확인 및 Telnet과 FTP 비활성화 스크립트
+
 # SSH 서비스 상태 확인
-if systemctl is-active --quiet ssh; then
-    ssh_status="활성화"
-else
-    ssh_status="비활성화"
-fi
-
-# Telnet 서비스 상태 확인
-if pgrep -f telnetd > /dev/null; then
-    telnet_status="활성화"
-else
-    telnet_status="비활성화"
-fi
-
-# FTP 서비스 상태 확인
-if pgrep -f ftpd > /dev/null; then
-    ftp_status="활성화"
-else
-    ftp_status="비활성화"
-fi
-
-# 전체 보안 상태 결정
-if [ "$ssh_status" == "활성화" ] && [ "$telnet_status" == "비활성화" ] && [ "$ftp_status" == "비활성화" ]; then
-    result="양호"
-else
-    result="취약"
-    # Telnet과 FTP 서비스 비활성화 조치
-    if [ "$telnet_status" == "활성화" ]; then
-        systemctl stop telnetd
-        systemctl disable telnetd
-        echo "Telnet 서비스가 비활성화되었습니다."
+check_ssh() {
+    echo "SSH 서비스 상태 확인 중..."
+    if systemctl is-active --quiet sshd || systemctl is-active --quiet ssh; then
+        echo "U-60 SSH 서비스가 활성화되어 있습니다."
+    else
+        echo "U-60 SSH 서비스가 비활성화되어 있습니다."
     fi
-    if [ "$ftp_status" == "활성화" ]; then
-        systemctl stop ftpd
-        systemctl disable ftpd
-        echo "FTP 서비스가 비활성화되었습니다."
-    fi
-    # SSH 서비스 활성화 조치
-    if [ "$ssh_status" == "비활성화" ]; then
-        systemctl start ssh
-        systemctl enable ssh
-        echo "SSH 서비스가 활성화되었습니다."
-        ssh_status="활성화" # 상태 업데이트
-    fi
-    result="양호" # 모든 조치 후 결과 업데이트
-fi
+}
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황:"
-echo "SSH 서비스 상태: $ssh_status"
-echo "Telnet 서비스 상태: $telnet_status"
-echo "FTP 서비스 상태: $ftp_status"
-echo "대응방안: $recommendation"
+# Telnet 서비스 비활성화
+disable_telnet() {
+    echo "Telnet 서비스 비활성화 중..."
+    if systemctl is-active --quiet telnet.socket; then
+        systemctl stop telnet.socket
+        systemctl disable telnet.socket
+        echo "U-60 Telnet 서비스를 비활성화했습니다."
+    else
+        echo "U-60 Telnet 서비스가 이미 비활성화되어 있습니다."
+    fi
+}
+
+# FTP 서비스 비활성화
+disable_ftp() {
+    echo "FTP 서비스 비활성화 중..."
+    if systemctl is-active --quiet vsftpd; then
+        systemctl stop vsftpd
+        systemctl disable vsftpd
+        echo "U-60 FTP 서비스를 비활성화했습니다."
+    else
+        echo "U-60 FTP 서비스가 이미 비활성화되어 있습니다."
+    fi
+}
+
+main() {
+    check_ssh
+    disable_telnet
+    disable_ftp
+}
+
+main

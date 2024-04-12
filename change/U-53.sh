@@ -1,44 +1,31 @@
 #!/bin/bash
 
-# 결과를 저장할 JSON 파일 초기화
-results_file="results.json"
-echo '{
-    "분류": "계정관리",
-    "코드": "U-53",
-    "위험도": "하",
-    "진단 항목": "사용자 shell 점검",
-    "진단 결과": "양호",
-    "현황": [],
-    "대응방안": "로그인이 필요하지 않은 계정에 /bin/false 또는 /sbin/nologin 쉘 부여"
-}' > $results_file
+# 로그인이 필요하지 않은 계정에 적절한 쉘 설정하기
+set_proper_shell_for_unnecessary_accounts() {
+    echo "로그인이 필요하지 않은 계정에 대한 쉘 설정 조치 시작..."
 
-# 불필요한 계정 목록
-unnecessary_accounts=(
-    "daemon" "bin" "sys" "adm" "listen" "nobody" "nobody4"
-    "noaccess" "diag" "operator" "gopher" "games" "ftp" "apache"
-    "httpd" "www-data" "mysql" "mariadb" "postgres" "mail" "postfix"
-    "news" "lp" "uucp" "nuucp"
-)
+    # 로그인이 필요하지 않은 계정 목록
+    unnecessary_accounts=(
+        "daemon" "bin" "sys" "adm" "listen" "nobody" "nobody4"
+        "noaccess" "diag" "operator" "gopher" "games" "ftp" "apache"
+        "httpd" "www-data" "mysql" "mariadb" "postgres" "mail" "postfix"
+        "news" "lp" "uucp" "nuucp"
+    )
 
-found_issues=false
-
-if [ -f "/etc/passwd" ]; then
+    # /etc/passwd 파일을 순회하면서 필요한 조치 실행
     while IFS=: read -r username _ _ _ _ _ shell; do
-        for account in "${unnecessary_accounts[@]}"; do
-            if [ "$username" == "$account" ] && [ "$shell" != "/bin/false" ] && [ "$shell" != "/sbin/nologin" ]; then
-                jq --arg username "$username" '.진단 결과 = "취약" | .현황 += ["계정 " + $username + "에 /bin/false 또는 /sbin/nologin 쉘이 부여되지 않았습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-                found_issues=true
-                break
-            fi
-        done
+        if [[ " ${unnecessary_accounts[@]} " =~ " ${username} " ]] && [[ "$shell" != "/bin/false" && "$shell" != "/sbin/nologin" ]]; then
+            echo "조치: $username 계정의 쉘을 /sbin/nologin으로 변경합니다."
+            # 사용자 계정의 쉘을 /sbin/nologin으로 변경
+            usermod -s /sbin/nologin "$username"
+        fi
     done < /etc/passwd
-else
-    jq '.진단 결과 = "취약" | .현황 += ["/etc/passwd 파일이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-fi
 
-if [ "$found_issues" = false ]; then
-    jq '.현황 += ["모든 불필요한 계정에 /bin/false 또는 /sbin/nologin 쉘이 부여되었습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-fi
+    echo "U-53 모든 조치 완료."
+}
 
-# 결과 출력
-cat $results_file
+main() {
+    set_proper_shell_for_unnecessary_accounts
+}
+
+main

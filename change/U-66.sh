@@ -1,38 +1,22 @@
 #!/bin/bash
 
-# 초기 진단 결과 및 현황 설정
-category="서비스 관리"
-code="U-66"
-severity="중"
-check_item="SNMP 서비스 구동 점검"
-result=""
-status=""
-recommendation="SNMP 서비스 사용을 필요로 하지 않는 경우, 서비스를 비활성화"
+# SNMP 서비스 사용 점검 및 비활성화 스크립트
 
-# SNMP 서비스 실행 여부 확인
-if ps -ef | grep -i "snmp" | grep -v "grep" > /dev/null; then
-    # SNMP 서비스 비활성화 조치
-    systemctl stop snmpd.service > /dev/null 2>&1
-    systemctl disable snmpd.service > /dev/null 2>&1
-    
-    # 조치 후 다시 확인
-    if ps -ef | grep -i "snmp" | grep -v "grep" > /dev/null; then
-        result="취약"
-        status="SNMP 서비스를 비활성화 시도했으나 여전히 사용 중입니다. 수동 점검이 필요합니다."
+# SNMP 서비스 상태 점검
+snmp_service_status=$(ps -ef | grep '[s]nmp')
+
+if [ -n "$snmp_service_status" ]; then
+    echo "SNMP 서비스가 활성화되어 있습니다. 비활성화를 권장합니다."
+
+    # SNMP 서비스 비활성화 (systemctl이 사용 가능한 경우)
+    if command -v systemctl > /dev/null 2>&1; then
+        echo "systemctl을 사용하여 SNMP 서비스를 비활성화합니다."
+        systemctl stop snmpd
+        systemctl disable snmpd
+        echo "U-66 SNMP 서비스가 비활성화되었습니다."
     else
-        result="양호"
-        status="SNMP 서비스를 비활성화하였습니다."
+        echo "U-66 systemctl을 사용할 수 없습니다. SNMP 서비스를 수동으로 비활성화하세요."
     fi
 else
-    result="양호"
-    status="SNMP 서비스를 사용하지 않고 있습니다."
+    echo "U-66 SNMP 서비스가 비활성화되어 있거나 사용되지 않고 있습니다. 양호합니다."
 fi
-
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황: $status"
-echo "대응방안: $recommendation"

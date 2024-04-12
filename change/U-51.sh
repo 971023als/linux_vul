@@ -1,50 +1,33 @@
-#!/usr/bin/python3
-import os
-import json
+#!/bin/bash
 
-def check_for_unnecessary_groups():
-    results = {
-        "분류": "계정관리",
-        "코드": "U-51",
-        "위험도": "하",
-        "진단 항목": "계정이 존재하지 않는 GID 금지",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
-        "현황": [],
-        "대응방안": "계정이 없는 불필요한 그룹 삭제"
-    }
+# 불필요한 그룹을 찾고 제거하는 함수
+remove_unnecessary_groups() {
+    if [[ ! -f "/etc/group" || ! -f "/etc/passwd" ]]; then
+        echo "/etc/group 또는 /etc/passwd 파일이 없습니다."
+        return
+    fi
 
-    if os.path.isfile("/etc/group") and os.path.isfile("/etc/passwd"):
-        with open("/etc/group", 'r') as group_file:
-            groups = group_file.readlines()
+    # /etc/passwd에서 사용 중인 GID 추출
+    gids_in_use=$(cut -d: -f4 /etc/passwd | sort -u)
 
-        with open("/etc/passwd", 'r') as passwd_file:
-            passwd_lines = passwd_file.readlines()
+    # GID >= 500인 그룹 찾기
+    grep -E ":[0-9]{3,}:" /etc/group | while read -r group_line; do
+        gid=$(echo "$group_line" | cut -d: -f3)
+        group_name=$(echo "$group_line" | cut -d: -f1)
+        members=$(echo "$group_line" | cut -d: -f4)
 
-        # Extract GIDs from /etc/passwd
-        gids_in_use = set(line.split(":")[3] for line in passwd_lines)
+        # GID가 사용 중인지 및 멤버가 있는지 확인
+        if [[ ! " $gids_in_use " =~ " $gid " ]] && [[ -z "$members" ]]; then
+            echo "불필요한 그룹 '$group_name'을(를) 제거합니다."
+            groupdel "$group_name"
+        fi
+    done
+}
 
-        unnecessary_groups = []
-        for group in groups:
-            group_fields = group.strip().split(":")
-            gid = group_fields[2]
-            members = group_fields[3]
+main() {
+    echo "계정이 없는 불필요한 그룹 제거 시작..."
+    remove_unnecessary_groups
+    echo "U-51 계정이 없는 불필요한 그룹 제거 완료."
+}
 
-            # Check if GID is >= 500 and has no members
-            if gid >= "500" and (not members or all(member not in gids_in_use for member in members.split(','))):
-                unnecessary_groups.append(group_fields[0])
-
-        if unnecessary_groups:
-            results["진단 결과"] = "취약"
-            results["현황"].append("계정이 없는 불필요한 그룹이 존재합니다: " + ", ".join(unnecessary_groups))
-    else:
-        results["진단 결과"] = "취약"
-        results["현황"].append("/etc/group 또는 /etc/passwd 파일이 없습니다.")
-
-    return results
-
-def main():
-    unnecessary_groups_check_results = check_for_unnecessary_groups()
-    print(json.dumps(unnecessary_groups_check_results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+main

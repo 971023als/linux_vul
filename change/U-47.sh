@@ -1,44 +1,28 @@
-#!/usr/bin/python3
-import os
-import json  # Import the json module
+#!/bin/bash
 
-def check_password_max_usage_period():
-    results = {
-        "분류": "계정관리",
-        "코드": "U-47",
-        "위험도": "중",
-        "진단 항목": "패스워드 최대 사용기간 설정",
-        "진단 결과": "양호",  # Assume "Good" until proven otherwise
-        "현황": [],
-        "대응방안": "패스워드 최대 사용기간 90일 이하로 설정"
-    }
+# /etc/login.defs 파일에서 패스워드 최대 사용 기간 설정
+update_login_defs() {
+    # 패스워드 최대 사용 기간을 90일로 설정
+    echo "패스워드 최대 사용 기간을 90일로 설정합니다."
+    sed -i '/^PASS_MAX_DAYS/ s/[0-9]\+/90/' /etc/login.defs
+}
 
-    login_defs_path = "/etc/login.defs"
-    if os.path.isfile(login_defs_path):
-        with open(login_defs_path, 'r') as file:
-            for line in file:
-                if "PASS_MAX_DAYS" in line and not line.strip().startswith("#"):
-                    max_days = line.split()[1]
-                    if max_days.isdigit() and int(max_days) > 90:
-                        results["진단 결과"] = "취약"
-                        results["현황"].append(f"/etc/login.defs 파일에 패스워드 최대 사용 기간이 90일을 초과하여 {max_days}일로 설정되어 있습니다.")
-                    else:
-                        # If PASS_MAX_DAYS is set to 90 or less, it's considered Good and we don't need to update anything.
-                        pass
-                    break
-            else:
-                # If PASS_MAX_DAYS is not found in the file
-                results["진단 결과"] = "취약"
-                results["현황"].append("/etc/login.defs 파일에 패스워드 최대 사용 기간이 설정되어 있지 않습니다.")
-    else:
-        results["진단 결과"] = "취약"
-        results["현황"].append("/etc/login.defs 파일이 없습니다.")
+# PAM 설정에서 패스워드 최대 사용 기간 설정
+update_pam() {
+    # /etc/pam.d/common-password 파일에서 패스워드 정책을 수정
+    if grep -q "pam_pwhistory.so" "/etc/pam.d/common-password"; then
+        echo "PAM 설정에서 패스워드 최대 사용 기간을 90일로 설정합니다."
+        sed -i '/pam_pwhistory.so/ s/remember=[0-9]\+/remember=90/' /etc/pam.d/common-password
+    else
+        echo "pam_pwhistory.so 설정이 /etc/pam.d/common-password 파일에 없습니다."
+    fi
+}
 
-    return results
+main() {
+    echo "패스워드 최대 사용 기간 설정을 업데이트합니다..."
+    update_login_defs
+    update_pam
+    echo "U-47 업데이트 완료."
+}
 
-def main():
-    password_max_usage_period_check_results = check_password_max_usage_period()
-    print(json.dumps(password_max_usage_period_check_results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+main

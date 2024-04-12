@@ -1,56 +1,28 @@
-#!/usr/bin/python3
-import json
-import subprocess
-import platform  # 시스템 정보를 가져오기 위한 모듈
+#!/bin/bash
 
-def get_linux_distribution():
-    try:
-        with open("/etc/os-release") as f:
-            os_release_info = {}
-            for line in f:
-                key, value = line.strip().split("=", 1)
-                os_release_info[key] = value.strip('"')
-            return os_release_info.get("NAME", "").lower(), os_release_info.get("VERSION_ID", "")
-    except FileNotFoundError:
-        return "unknown", "unknown"
+# 파일 업로드 제한 설정
+upload_limit="10M"  # 예시 값
 
-def check_security_patches_and_recommendations():
-    results = {
-        "분류": "패치 관리",
-        "코드": "U-42",
-        "위험도": "상",
-        "진단 항목": "최신 보안패치 및 벤더 권고사항 적용",
-        "진단 결과": None,
-        "현황": [],
-        "대응방안": "패치 적용 정책 수립 및 주기적인 패치 관리"
-    }
+# Apache 웹 서버 업로드 제한 설정
+apache_config_files=("/etc/httpd/conf/httpd.conf" "/etc/apache2/apache2.conf")
+for config_file in "${apache_config_files[@]}"; do
+    if [ -f "$config_file" ]; then
+        echo "Setting upload limit in $config_file..."
+        sed -i "/<Directory \/var\/www\/>/,/<\/Directory>/ s/LimitRequestBody.*/LimitRequestBody $upload_limit/" "$config_file"
+    fi
+done
+systemctl restart httpd || systemctl restart apache2
 
-    dist_name, _ = get_linux_distribution()
-    if 'ubuntu' in dist_name:
-        try:
-            output = subprocess.check_output(["sudo", "unattended-upgrades", "--dry-run", "--debug"], stderr=subprocess.STDOUT, universal_newlines=True)
-            if "All upgrades installed" in output:
-                results["진단 결과"] = "양호"
-                results["현황"] = "시스템은 최신 보안 패치를 보유하고 있습니다."
-            else:
-                results["진단 결과"] = "취약"
-                results["현황"] = "시스템에 보안 패치가 필요합니다."
-        except subprocess.CalledProcessError as e:
-            if "command not found" in e.output:
-                results["진단 결과"] = "오류"
-                results["현황"] = "unattended-upgrades 명령어를 찾을 수 없습니다. 'sudo apt-get install unattended-upgrades'를 실행하여 설치해 주세요."
-            else:
-                results["진단 결과"] = "취약"
-                results["현황"] = "오류로 인해 보안 패치 상태를 확인할 수 없습니다."
-    else:
-        results["진단 결과"] = "오류"
-        results["현황"] = f"{dist_name}은(는) 이 스크립트에서 지원하지 않는 배포판입니다. 해당 배포판의 보안 패치 확인 방법을 참고해 주세요."
+# Nginx 웹 서버 업로드 제한 설정
+nginx_config_file="/etc/nginx/nginx.conf"
+if [ -f "$nginx_config_file" ]; then
+    echo "Setting upload limit in $nginx_config_file..."
+    sed -i "/http {/a \    client_max_body_size $upload_limit;" "$nginx_config_file"
+    systemctl restart nginx
+fi
 
-    return results
+# 기타 웹 서버 설정이 필요한 경우 여기에 추가합니다.
+# 예를 들어, LiteSpeed, Microsoft-IIS, Node.js 등 다른 웹 서버의 경우,
+# 각 서버의 설정 방식에 따라 적절한 명령어를 추가해야 합니다.
 
-def main():
-    results = check_security_patches_and_recommendations()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+echo "U-42 Web server file upload limits have been updated."

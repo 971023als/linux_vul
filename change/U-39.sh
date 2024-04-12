@@ -1,114 +1,47 @@
-#!/usr/bin/python3
-import subprocess
-import json
+#!/bin/bash
 
-# Mapping of web servers to their configuration files and symbolic link usage restrictions
-web_servers = {
-    'Apache': {
-        'config_files': ['httpd.conf', 'apache2.conf', '.htaccess'],
-        'link_restriction_directive': 'Options FollowSymLinks',
-        'correct_restriction_setting': 'Options -FollowSymLinks'
-    },
-    'Nginx': {
-        'config_files': ['nginx.conf'],
-        'link_restriction_directive': 'disable_symlinks',  # Nginx directive to disable symlinks
-        'correct_restriction_setting': 'disable_symlinks if_not_owner from=$document_root;'
-    },
-    'LiteSpeed': {
-        'config_files': ['httpd_config.conf', '.htaccess'],
-        'link_restriction_directive': 'Options FollowSymLinks',
-        'correct_restriction_setting': 'Options -FollowSymLinks',
-        # Note: LiteSpeed is compatible with Apache's .htaccess files for many directives
-    },
-    'Microsoft-IIS': {
-        # IIS manages file access through NTFS permissions, not specific directives in config files
-        'config_files': ['web.config'],
-        'link_restriction_directive': '',
-        'correct_restriction_setting': ''
-    },
-    'Node.js': {
-        # Node.js server behavior is largely defined by the application code rather than server-wide config files
-        'config_files': [],
-        'link_restriction_directive': '',
-        'correct_restriction_setting': ''
-    },
-    'Envoy': {
-        # Envoy configuration does not typically involve direct filesystem access or symlink restrictions
-        'config_files': ['envoy.yaml'],
-        'link_restriction_directive': '',
-        'correct_restriction_setting': ''
-    },
-    'Caddy': {
-        'config_files': ['Caddyfile'],
-        # Caddy does not have a direct equivalent for symlink restrictions; behavior is controlled at the filesystem level
-        'link_restriction_directive': '',
-        'correct_restriction_setting': ''
-    },
-    'Tomcat': {
-        'config_files': ['server.xml', 'web.xml'],
-        # Tomcat's handling of symbolic links is set on a per-context basis in the server.xml file
-        'link_restriction_directive': 'allowLinking',
-        'correct_restriction_setting': 'allowLinking="false"',
-    }
-    # Additional web servers could be added here.
+# 웹 서버 구성 파일 및 필요한 수정사항 정의
+declare -A web_servers=(
+    ["Apache"]="/etc/apache2/apache2.conf /etc/httpd/conf/httpd.conf"
+    ["Nginx"]="/etc/nginx/nginx.conf"
+    # LiteSpeed, Caddy, Tomcat 등 추가 서버 구성 파일 경로
+)
+
+# Apache에 대한 심볼릭 링크 사용 금지 설정
+restrict_apache() {
+    for conf_file in ${web_servers["Apache"]}; do
+        if [ -f "$conf_file" ]; then
+            echo "Updating $conf_file to restrict symbolic link usage..."
+            # 'FollowSymLinks'를 '-FollowSymLinks'로 변경합니다.
+            sed -i 's/Options Indexes FollowSymLinks/Options Indexes -FollowSymLinks/' "$conf_file"
+            # Apache 서버를 재시작합니다.
+            systemctl restart apache2 || systemctl restart httpd
+        fi
+    done
 }
 
+# Nginx에 대한 심볼릭 링크 사용 금지 설정
+restrict_nginx() {
+    for conf_file in ${web_servers["Nginx"]}; do
+        if [ -f "$conf_file" ]; then
+            echo "Updating $conf_file to restrict symbolic link usage..."
+            # 'disable_symlinks' 지시어를 추가합니다.
+            if ! grep -q "disable_symlinks" "$conf_file"; then
+                sed -i '/server_name/a \    disable_symlinks from=$document_root;' "$conf_file"
+                # Nginx 서버를 재시작합니다.
+                systemctl restart nginx
+            fi
+        fi
+    done
+}
 
-def find_config_files(config_files):
-    found_files = []
-    for conf_file in config_files:
-        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
-        try:
-            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
-            found_files.extend(find_output)
-        except subprocess.CalledProcessError:
-            continue
-    return found_files
+# 메인 실행 함수
+main() {
+    echo "Restricting symbolic link usage for web servers..."
+    restrict_apache
+    restrict_nginx
+    # 추가 웹 서버에 대한 함수 호출
+    echo "U-39 Symbolic link usage restriction process completed."
+}
 
-def check_link_usage_restriction(server_info, found_files):
-    vulnerabilities = []
-
-    for file_path in found_files:
-        try:
-            with open(file_path, 'r') as file:
-                for line in file:
-                    # Checking both for the directive and ensuring it is set correctly
-                    if server_info['link_restriction_directive'] in line and not server_info['correct_restriction_setting'] in line:
-                        vulnerabilities.append(file_path)
-                        break  # No need to check further once a vulnerability is found
-        except IOError:
-            continue
-
-    return vulnerabilities
-
-def main():
-    results = {
-        "분류": "서비스 관리",
-        "코드": "U-39",
-        "위험도": "상",
-        "진단 항목": "웹서비스 링크 사용금지",
-        "진단 결과": None,
-        "현황": [],
-        "대응방안": "심볼릭 링크, aliases 사용 제한"
-    }
-
-    overall_vulnerable = False
-
-    for server_name, server_info in web_servers.items():
-        found_files = find_config_files(server_info['config_files'])
-        vulnerabilities = check_link_usage_restriction(server_info, found_files)
-        if vulnerabilities:
-            overall_vulnerable = True
-            for vulnerability in vulnerabilities:
-                results["현황"].append(f"{vulnerability} 파일에서 {server_name} 심볼릭 링크 사용 제한 설정이 부적절합니다.")
-
-    if overall_vulnerable:
-        results["진단 결과"] = "취약"
-    else:
-        results["진단 결과"] = "양호"
-        results["현황"].append("모든 검사된 웹서비스 설정 파일에서 심볼릭 링크 사용이 적절히 제한되어 있습니다.")
-
-    print(json.dumps(results, ensure_ascii=False, indent=4))
-
-if __name__ == "__main__":
-    main()
+main

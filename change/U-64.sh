@@ -1,56 +1,54 @@
 #!/bin/bash
 
-# 검사할 ftpusers 파일 및 설정 파일 목록
+# FTP 서비스 root 계정 접근 제한 설정 스크립트
+
+# FTP 서비스 구성 파일 목록
 ftpusers_files=(
     "/etc/ftpusers" "/etc/ftpd/ftpusers" "/etc/proftpd.conf"
     "/etc/vsftp/ftpusers" "/etc/vsftp/user_list" "/etc/vsftpd.ftpusers"
     "/etc/vsftpd.user_list"
 )
 
-# 실행 중인 FTP 서비스 확인
-if ! pgrep -f -e ftpd && ! pgrep -f -e vsftpd && ! pgrep -f -e proftpd; then
-    status+=("FTP 서비스가 비활성화 되어 있습니다.")
-    result="양호"
-else
-    root_access_restricted=false
+restrict_root_access() {
+    echo "FTP 서비스 root 계정 접근 제한 설정 중..."
 
+    # proftpd의 경우
+    if grep -q 'RootLogin on' /etc/proftpd.conf; then
+        echo "'RootLogin on' 설정을 'RootLogin off'로 변경합니다."
+        sed -i 's/RootLogin on/RootLogin off/' /etc/proftpd.conf
+    fi
+
+    # vsftpd의 경우
+    if [ -f "/etc/vsftpd.conf" ]; then
+        if ! grep -q "^userlist_deny=NO" /etc/vsftpd.conf; then
+            echo "userlist_deny=NO 설정을 /etc/vsftpd.conf에 추가합니다."
+            echo "userlist_deny=NO" >> /etc/vsftpd.conf
+        fi
+        if ! grep -q "^userlist_enable=YES" /etc/vsftpd.conf; then
+            echo "userlist_enable=YES 설정을 /etc/vsftpd.conf에 추가합니다."
+            echo "userlist_enable=YES" >> /etc/vsftpd.conf
+        fi
+        if ! grep -q "^root" /etc/vsftpd.user_list; then
+            echo "root 계정을 /etc/vsftpd.user_list에 추가하여 접근을 차단합니다."
+            echo "root" >> /etc/vsftpd.user_list
+        fi
+    fi
+
+    # 일반 ftpusers 파일 처리
     for ftpusers_file in "${ftpusers_files[@]}"; do
         if [ -f "$ftpusers_file" ]; then
-            # proftpd.conf의 경우 'RootLogin on' 설정 확인 및 수정
-            if [[ "$ftpusers_file" == *proftpd.conf* ]]; then
-                if grep -q "RootLogin on" "$ftpusers_file"; then
-                    sed -i 's/RootLogin on/RootLogin off/' "$ftpusers_file"
-                    status+=("$ftpusers_file 파일에서 'RootLogin on'을 'RootLogin off'로 변경하였습니다.")
-                    root_access_restricted=true
-                fi
-            # 다른 ftpusers 파일에 'root' 추가
-            else
-                if ! grep -q "^root$" "$ftpusers_file"; then
-                    echo "root" >> "$ftpusers_file"
-                    status+=("$ftpusers_file 파일에 root 계정 접근을 차단하는 설정을 추가하였습니다.")
-                    root_access_restricted=true
-                fi
+            if ! grep -q "^root" "$ftpusers_file"; then
+                echo "root 계정을 $ftpusers_file 파일에 추가하여 접근을 차단합니다."
+                echo "root" >> "$ftpusers_file"
             fi
         fi
     done
 
-    if $root_access_restricted; then
-        result="양호"
-        status=("모든 설정에서 FTP 서비스 root 계정 접근이 제한되었습니다.")
-    else
-        result="취약"
-        status=("FTP 서비스 root 계정 접근 제한 설정이 충분하지 않습니다.")
-    fi
-fi
+    echo "U-64 FTP 서비스 root 계정 접근 제한 설정 완료."
+}
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황:"
-for i in "${status[@]}"; do
-    echo "- $i"
-done
-echo "대응방안: $recommendation"
+main() {
+    restrict_root_access
+}
+
+main

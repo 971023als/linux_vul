@@ -1,40 +1,36 @@
 #!/bin/bash
 
-# Files and patterns to check for session timeout settings
-check_files=("/etc/profile" "/etc/csh.login" "/etc/csh.cshrc")
-check_patterns="/home/*/.profile"
+# 세션 타임아웃을 600초(10분) 이하로 설정하는 스크립트
+set_session_timeout() {
+    echo "세션 타임아웃 설정 조치 시작..."
 
-file_exists_count=0
-no_tmout_setting_file=0
+    # 세션 타임아웃 설정할 파일 목록
+    declare -a files=("/etc/profile" "/etc/bash.bashrc")
 
-# Check specific files
-for file_path in ${check_files[@]}; do
-    if [ -f "$file_path" ]; then
-        ((file_exists_count++))
-        if ! grep -Eq "TMOUT|autologout" "$file_path"; then
-            ((no_tmout_setting_file++))
+    # 세션 타임아웃 설정값
+    timeout_value=600  # 600초 (10분)
+
+    for file in "${files[@]}"; do
+        if [[ -f "$file" ]]; then
+            echo "$file 파일을 조치합니다."
+            if ! grep -q "readonly TMOUT" "$file"; then
+                echo "export TMOUT=$timeout_value" >> "$file"
+                echo "readonly TMOUT" >> "$file"
+                echo "export HISTFILE" >> "$file"
+                echo "$file 파일에 세션 타임아웃 설정을 추가했습니다."
+            else
+                echo "$file 파일에 이미 세션 타임아웃 설정이 존재합니다."
+            fi
+        else
+            echo "$file 파일이 존재하지 않습니다. 건너뜁니다."
         fi
-    fi
-done
+    done
 
-# Check files matching patterns
-for file_path in $check_patterns; do
-    if [ -f "$file_path" ]; then
-        ((file_exists_count++))
-        if ! grep -Eq "TMOUT|autologout" "$file_path"; then
-            ((no_tmout_setting_file++))
-        fi
-    fi
-done
+    echo "U-54 모든 조치 완료."
+}
 
-# Final assessment
-if [ $file_exists_count -eq 0 ]; then
-    jq '.진단 결과 = "취약" | .현황 += ["세션 타임아웃을 설정하는 파일이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-elif [ $file_exists_count -eq $no_tmout_setting_file ]; then
-    jq '.진단 결과 = "취약" | .현황 += ["세션 타임아웃을 설정한 파일이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-else
-    jq '.현황 += ["세션 타임아웃 설정이 적절히 구성되어 있습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-fi
+main() {
+    set_session_timeout
+}
 
-# Print the results
-cat $results_file
+main
