@@ -1,13 +1,23 @@
 #!/bin/bash
 
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+fi
+
 # 변수 설정
 분류="파일 및 디렉터리 관리"
 코드="U-10"
 위험도="상"
-진단_항목="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
+진단항목="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
 대응방안="/etc/(x)inetd.conf 파일과 /etc/xinetd.d 디렉터리 내 파일의 소유자가 root이고, 권한이 600 미만인 경우"
-현황=()
-진단_결과=""
+현황=""
+진단결과=""
+
+TMP1=$(basename "$0").log
+> $TMP1
 
 # 파일 소유자 및 권한 검사 함수
 check_file_ownership_and_permissions() {
@@ -48,33 +58,45 @@ files_to_check=('/etc/inetd.conf' '/etc/xinetd.conf')
 directories_to_check=('/etc/xinetd.d')
 
 for file_path in "${files_to_check[@]}"; do
-    if ! check_file_ownership_and_permissions "$file_path"; then
-        현황+=("$file_path 파일의 소유자가 root가 아니거나 권한이 600 미만입니다.")
+    check_file_ownership_and_permissions "$file_path"
+    result=$?
+    if [ $result -eq 1 ]; then
+        현황+="$file_path 파일이 없습니다. "
+        check_passed=false
+    elif [ $result -eq 2 ]; then
+        현황+="$file_path 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
         check_passed=false
     fi
 done
 
 for directory_path in "${directories_to_check[@]}"; do
-    if ! check_directory_files_ownership_and_permissions "$directory_path"; then
-        현황+=("$directory_path 디렉터리 내 파일의 소유자가 root가 아니거나 권한이 600 미만입니다.")
+    check_directory_files_ownership_and_permissions "$directory_path"
+    result=$?
+    if [ $result -eq 1 ]; then
+        현황+="$directory_path 디렉터리가 없습니다. "
+        check_passed=false
+    elif [ $result -eq 2 ]; then
+        현황+="$directory_path 디렉터리 내 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
         check_passed=false
     fi
 done
 
 # 검사 결과에 따라 진단 결과 업데이트
 if $check_passed; then
-    진단_결과="양호"
+    진단결과="양호"
 else
-    진단_결과="취약"
+    진단결과="취약"
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "현황: $item"
-done
+# 결과를 로그 파일에 기록
+echo "현황: $현황" >> $TMP1
+
+# CSV 파일에 결과 추가
+echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
+
+# 로그 파일 출력
+cat $TMP1
+
+# CSV 파일 출력
+echo ; echo
+cat $OUTPUT_CSV
