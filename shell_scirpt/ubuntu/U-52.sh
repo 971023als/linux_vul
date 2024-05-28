@@ -1,22 +1,30 @@
 #!/bin/bash
 
-# 결과를 저장할 JSON 파일 초기화
-results_file="results.json"
-echo '{
-    "분류": "계정관리",
-    "코드": "U-52",
-    "위험도": "중",
-    "진단 항목": "동일한 UID 금지",
-    "진단 결과": "양호",
-    "현황": [],
-    "대응방안": "동일한 UID로 설정된 사용자 계정을 제거하거나 수정"
-}' > $results_file
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정관리"
+code="U-52"
+riskLevel="중"
+diagnosisItem="동일한 UID 금지"
+service="Account Management"
+diagnosisResult=""
+status="양호"
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 
 min_regular_user_uid=1000
+declare -A uid_counts
 duplicate_uids=()
 
 if [ -f "/etc/passwd" ]; then
-    # UID를 추출하고, 정규 사용자 UID(>=1000)에 대해 중복을 검사합니다.
+    # Extract UIDs and check for duplicates for regular user UIDs (>=1000)
     while IFS=: read -r _ _ uid _; do
         if [ "$uid" -ge "$min_regular_user_uid" ]; then
             uid_counts["$uid"]=$((uid_counts["$uid"]+1))
@@ -30,14 +38,22 @@ if [ -f "/etc/passwd" ]; then
     done
 
     if [ ${#duplicate_uids[@]} -gt 0 ]; then
-        duplicates_formatted=$(IFS=, ; echo "${duplicate_uids[*]}")
-        jq --arg duplicates "$duplicates_formatted" '.진단 결과 = "취약" | .현황 += ["동일한 UID로 설정된 사용자 계정이 존재합니다: " + $duplicates]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+        diagnosisResult="동일한 UID로 설정된 사용자 계정이 존재합니다: ${duplicate_uids[*]}"
+        status="취약"
+        echo "WARN: $diagnosisResult"
+        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
     else
-        jq '.현황 += ["동일한 UID를 공유하는 사용자 계정이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+        diagnosisResult="동일한 UID를 공유하는 사용자 계정이 없습니다."
+        status="양호"
+        echo "OK: $diagnosisResult"
+        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
     fi
 else
-    jq '.진단 결과 = "취약" | .현황 += ["/etc/passwd 파일이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+    diagnosisResult="/etc/passwd 파일이 없습니다."
+    status="취약"
+    echo "WARN: $diagnosisResult"
+    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-# 결과 출력
-cat $results_file
+# Output CSV
+cat $OUTPUT_CSV
