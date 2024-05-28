@@ -1,39 +1,67 @@
 #!/bin/bash
 
-# 결과를 저장할 JSON 파일 초기화
-results_file="results.json"
-echo '{
-    "분류": "서비스 관리",
-    "코드": "U-40",
-    "위험도": "상",
-    "진단 항목": "웹서비스 파일 업로드 및 다운로드 제한",
-    "진단 결과": null,
-    "현황": [],
-    "대응방안": "파일 업로드 및 다운로드 제한 설정"
-}' > $results_file
+. function.sh
+
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="서비스 관리"
+code="U-40"
+riskLevel="상"
+diagnosisItem="웹서비스 파일 업로드 및 다운로드 제한"
+service="Account Management"
+diagnosisResult=""
+status=""
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+TMP1=$(basename "$0").log
+> $TMP1
+
+cat << EOF >> $TMP1
+[양호]: 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다.
+[취약]: 웹서비스 설정 파일에 파일 업로드 및 다운로드 제한 설정이 없습니다.
+EOF
 
 webconf_files=(".htaccess" "httpd.conf" "apache2.conf" "userdir.conf")
-found_vulnerability=false
+file_exists_count=0
 
-for conf_file in "${webconf_files[@]}"; do
-    find_output=$(find / -name $conf_file -type f 2>/dev/null)
-    for file_path in $find_output; do
-        if [[ -n "$file_path" ]]; then
-            content=$(cat "$file_path")
-            if ! grep -q "LimitRequestBody" "$file_path"; then
-                found_vulnerability=true
-                jq --arg path "$file_path" '.현황 += [$path + " 파일에 파일 업로드 및 다운로드 제한 설정이 없습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
-                break 2
-            fi
+for webconf_file in "${webconf_files[@]}"; do
+    find_webconf_files=($(find / -name "$webconf_file" -type f 2>/dev/null))
+    for file in "${find_webconf_files[@]}"; do
+        ((file_exists_count++))
+        if ! grep -q "LimitRequestBody" "$file"; then
+            diagnosisResult="$file 파일에 파일 업로드 및 다운로드 제한 설정이 없습니다."
+            status="취약"
+            echo "WARN: $diagnosisResult" >> $TMP1
+            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+            cat $TMP1
+            echo ; echo
+            exit 0
         fi
     done
 done
 
-if [ "$found_vulnerability" = false ]; then
-    jq '.진단 결과 = "양호" | .현황 += ["웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+if [ $file_exists_count -eq 0 ]; then
+    diagnosisResult="Apache 설정 파일을 찾을 수 없습니다."
+    status="정보 없음"
+    echo "INFO: $diagnosisResult" >> $TMP1
+    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 else
-    jq '.진단 결과 = "취약"' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+    diagnosisResult="웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다."
+    status="양호"
+    echo "OK: $diagnosisResult" >> $TMP1
+    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-# 결과 출력
-cat $results_file
+cat $TMP1
+
+echo ; echo
+
+cat $OUTPUT_CSV
