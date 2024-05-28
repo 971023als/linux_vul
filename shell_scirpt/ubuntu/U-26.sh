@@ -1,31 +1,45 @@
 #!/bin/bash
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-26"
-위험도="상"
-진단_항목="automountd 제거"
-대응방안="automountd 서비스 비활성화"
-현황=()
+OUTPUT_CSV="output.csv"
 
-# automountd 또는 autofs 서비스 실행 상태 확인
-if ps -ef | grep -iE '[a]utomount|[a]utofs' &> /dev/null; then
-    # automountd 또는 autofs 서비스가 실행 중임
-    진단_결과="취약"
-    현황+=("automountd 서비스가 실행 중입니다.")
-else
-    # automountd 또는 autofs 서비스가 실행 중이지 않음
-    진단_결과="양호"
-    현황+=("automountd 서비스가 비활성화되어 있습니다.")
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "$item"
-done
+# Initial Values
+category="서비스 관리"
+code="U-26"
+riskLevel="상"
+diagnosisItem="automountd 제거"
+solution="automountd 서비스 비활성화"
+diagnosisResult=""
+status=""
+
+TMP1=$(basename "$0").log
+> $TMP1
+
+cat << EOF >> $TMP1
+[양호]: automountd 서비스가 비활성화되어 있습니다.
+[취약]: automountd 서비스가 실행 중입니다.
+EOF
+
+# Check if automountd or autofs services are running
+if ps -ef | grep -iE '[a]utomount|[a]utofs' &> /dev/null; then
+    diagnosisResult="automountd 서비스가 실행 중입니다."
+    status="취약"
+    echo "WARN: $diagnosisResult" >> $TMP1
+else
+    diagnosisResult="automountd 서비스가 비활성화되어 있습니다."
+    status="양호"
+    echo "OK: $diagnosisResult" >> $TMP1
+fi
+
+# Write results to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+cat $TMP1
+
+echo ; echo
+
+cat $OUTPUT_CSV
