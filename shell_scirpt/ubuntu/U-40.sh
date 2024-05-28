@@ -1,107 +1,126 @@
-#!/usr/bin/python3
-import subprocess
-import json
+#!/bin/bash
 
-# Mapping of web servers to their configuration files and directives for file upload and download restrictions
-web_servers = {
-    'Apache': {
-        'config_files': ['httpd.conf', 'apache2.conf', '.htaccess'],
-        'upload_directive': 'LimitRequestBody',  # Apache directive to limit request body size
-        'download_directive': ''  # For Apache, download restrictions are typically managed at the application level
-    },
-    'Nginx': {
-        'config_files': ['nginx.conf'],
-        'upload_directive': 'client_max_body_size',  # Nginx directive to limit request body size
-        'download_directive': ''  # For Nginx, download restrictions are typically managed at the application level
-    },
-    'LiteSpeed': {
-        'config_files': ['httpd_config.conf', '.htaccess'],
-        'upload_directive': 'MaxRequestBodySize',  # LiteSpeed supports Apache's LimitRequestBody directive
-        'download_directive': ''  # Similar to Apache, LiteSpeed would manage download restrictions at the application level
-    },
-    'Microsoft-IIS': {
-        'config_files': ['web.config'],
-        'upload_directive': 'maxAllowedContentLength',  # IIS directive to limit request body size in web.config
-        'download_directive': ''  # IIS download restrictions are typically managed at the application level or via ASP.NET settings
-    },
-    'Node.js': {
-        'config_files': [],  # Node.js applications specify these limits in code, not in a server-wide config file
-        'upload_directive': 'body-parser limit',  # Example using body-parser middleware for Express.js
-        'download_directive': ''  # Node.js does not have a server-wide setting for download limits; this is managed in application code
-    },
-    'Envoy': {
-        'config_files': ['envoy.yaml'],
-        'upload_directive': 'max_request_bytes',  # Directive to limit request body size in Envoy configuration
-        'download_directive': ''  # Download restrictions are not directly configurable in Envoy
-    },
-    'Caddy': {
-        'config_files': ['Caddyfile'],
-        'upload_directive': 'max_request_body',  # Directive in Caddy to limit request body size
-        'download_directive': ''  # Download limits in Caddy are not specified through a simple directive
-    },
-    'Tomcat': {
-        'config_files': ['server.xml', 'web.xml'],
-        'upload_directive': 'maxPostSize',  # Attribute in Tomcat's <Connector> element to limit request body size
-        'download_directive': ''  # Tomcat download restrictions are typically managed at the application level
-    }
-    # Additional web servers could be added here.
+. function.sh
+
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="서비스 관리"
+code="U-40"
+riskLevel="상"
+diagnosisItem="웹서비스 파일 업로드 및 다운로드 제한"
+service=""
+diagnosisResult=""
+status=""
+
+BAR
+
+CODE="U-40"
+diagnosisItem="웹서비스 파일 업로드 및 다운로드 제한"
+
+# Write initial values to CSV
+echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+TMP1=$(basename "$0").log
+> $TMP1
+
+BAR
+
+cat << EOF >> $TMP1
+[양호]: 모든 검사된 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다.
+[취약]: 파일 업로드 및 다운로드 제한 설정이 부적절합니다.
+EOF
+
+BAR
+
+declare -A web_servers
+web_servers=(
+    ["Apache"]="httpd.conf apache2.conf .htaccess LimitRequestBody"
+    ["Nginx"]="nginx.conf client_max_body_size"
+    ["LiteSpeed"]="httpd_config.conf .htaccess MaxRequestBodySize"
+    ["Microsoft-IIS"]="web.config maxAllowedContentLength"
+    ["Node.js"]="body-parser limit"
+    ["Envoy"]="envoy.yaml max_request_bytes"
+    ["Caddy"]="Caddyfile max_request_body"
+    ["Tomcat"]="server.xml web.xml maxPostSize"
+)
+
+find_config_files() {
+    local config_files=($1)
+    local found_files=()
+
+    for conf_file in "${config_files[@]}"; do
+        find_command=$(find / -name "$conf_file" -type f 2>/dev/null)
+        for file_path in $find_command; do
+            if [ -f "$file_path" ]; then
+                found_files+=("$file_path")
+            fi
+        done
+    done
+
+    echo "${found_files[@]}"
 }
 
+check_upload_download_restrictions() {
+    local found_files=($1)
+    local upload_directive=$2
+    local download_directive=$3
+    local vulnerabilities=()
 
-def find_config_files(config_files):
-    found_files = []
-    for conf_file in config_files:
-        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
-        try:
-            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
-            found_files.extend(find_output)
-        except subprocess.CalledProcessError:
-            continue
-    return found_files
+    for file_path in "${found_files[@]}"; do
+        while IFS= read -r line; do
+            if [[ $line == *"$upload_directive"* ]] && [[ $line != *"$download_directive"* ]]; then
+                vulnerabilities+=("$file_path")
+                break
+            fi
+        done < "$file_path"
+    done
 
-def check_upload_download_restrictions(server_info, found_files):
-    vulnerabilities = []
+    echo "${vulnerabilities[@]}"
+}
 
-    for file_path in found_files:
-        try:
-            with open(file_path, 'r') as file:
-                content = file.read()
-                if (server_info['upload_directive'] and server_info['upload_directive'] not in content) or \
-                   (server_info['download_directive'] and server_info['download_directive'] not in content):
-                    vulnerabilities.append(file_path)
-        except IOError:
-            continue
+overall_vulnerable=false
+vulnerabilities_overall=()
 
-    return vulnerabilities
+for server_name in "${!web_servers[@]}"; do
+    IFS=' ' read -r -a config_and_directives <<< "${web_servers[$server_name]}"
+    config_files=("${config_and_directives[@]:0:${#config_and_directives[@]}-2}")
+    upload_directive="${config_and_directives[-2]}"
+    download_directive="${config_and_directives[-1]}"
 
-def main():
-    results = {
-        "분류": "서비스 관리",
-        "코드": "U-40",
-        "위험도": "상",
-        "진단 항목": "웹서비스 파일 업로드 및 다운로드 제한",
-        "진단 결과": None,
-        "현황": [],
-        "대응방안": "파일 업로드 및 다운로드 제한 설정"
-    }
+    found_files=($(find_config_files "${config_files[@]}"))
+    vulnerabilities=($(check_upload_download_restrictions "${found_files[@]}" "$upload_directive" "$download_directive"))
 
-    overall_vulnerable = False
+    if [ "${#vulnerabilities[@]}" -gt 0 ]; then
+        overall_vulnerable=true
+        for vulnerability in "${vulnerabilities[@]}"; do
+            vulnerabilities_overall+=("$server_name: $vulnerability 파일에서 파일 업로드 및 다운로드 제한 설정이 부적절합니다.")
+        done
+    fi
+done
 
-    for server_name, server_info in web_servers.items():
-        found_files = find_config_files(server_info['config_files'])
-        vulnerabilities = check_upload_download_restrictions(server_info, found_files)
-        if vulnerabilities:
-            overall_vulnerable = True
-            for vulnerability in vulnerabilities:
-                results["현황"].append(f"{vulnerability} 파일에서 {server_name}의 파일 업로드 및 다운로드 제한 설정이 부적절합니다.")
+if [ "$overall_vulnerable" == "true" ]; then
+    diagnosisResult="취약"
+    status="취약"
+    for vulnerability in "${vulnerabilities_overall[@]}"; do
+        echo "WARN: $vulnerability" >> $TMP1
+        echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$vulnerability,$status" >> $OUTPUT_CSV
+    done
+else
+    diagnosisResult="양호"
+    status="양호"
+    diagnosisResult="모든 검사된 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다."
+    echo "OK: $diagnosisResult" >> $TMP1
+    echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+fi
 
-    if overall_vulnerable:
-        results["진단 결과"] = "취약"
-    else:
-        results["진단 결과"] = "양호"
-        results["현황"].append("모든 검사된 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다.")
+cat $TMP1
 
-    print(json.dumps(results, ensure_ascii=False, indent=4))
+echo ; echo
 
-if __name__ == "__main__":
-    main()
+cat $OUTPUT_CSV
