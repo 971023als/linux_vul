@@ -1,19 +1,35 @@
 #!/bin/bash
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-21"
-위험도="상"
-진단_항목="r 계열 서비스 비활성화"
-대응방안="불필요한 r 계열 서비스 비활성화"
-현황=()
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="서비스 관리"
+code="U-21"
+riskLevel="상"
+diagnosisItem="r 계열 서비스 비활성화"
+solution="불필요한 r 계열 서비스 비활성화"
+diagnosisResult=""
+status=""
+
+TMP1=$(basename "$0").log
+> $TMP1
+
+cat << EOF >> $TMP1
+[양호]: 모든 r 계열 서비스가 비활성화되어 있습니다.
+[취약]: 불필요한 r 계열 서비스가 실행 중입니다.
+EOF
 
 r_commands=("rsh" "rlogin" "rexec" "shell" "login" "exec")
 xinetd_dir="/etc/xinetd.d"
 inetd_conf="/etc/inetd.conf"
 vulnerable_services=()
 
-# xinetd.d 아래 서비스 검사
+# Check services under xinetd.d
 if [ -d "$xinetd_dir" ]; then
     for r_command in "${r_commands[@]}"; do
         service_path="$xinetd_dir/$r_command"
@@ -23,7 +39,7 @@ if [ -d "$xinetd_dir" ]; then
     done
 fi
 
-# inetd.conf 아래 서비스 검사
+# Check services in inetd.conf
 if [ -f "$inetd_conf" ]; then
     for r_command in "${r_commands[@]}"; do
         if grep -q "^$r_command" "$inetd_conf"; then
@@ -32,22 +48,22 @@ if [ -f "$inetd_conf" ]; then
     done
 fi
 
-# 진단 결과 업데이트
+# Update diagnosis result
 if [ ${#vulnerable_services[@]} -gt 0 ]; then
-    진단_결과="취약"
-    현황+=("불필요한 r 계열 서비스가 실행 중입니다: ${vulnerable_services[*]}")
+    diagnosisResult="불필요한 r 계열 서비스가 실행 중입니다: ${vulnerable_services[*]}"
+    status="취약"
+    echo "WARN: $diagnosisResult" >> $TMP1
 else
-    진단_결과="양호"
-    현황+=("모든 r 계열 서비스가 비활성화되어 있습니다.")
+    diagnosisResult="모든 r 계열 서비스가 비활성화되어 있습니다."
+    status="양호"
+    echo "OK: $diagnosisResult" >> $TMP1
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "$item"
-done
+# Write results to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+cat $TMP1
+
+echo ; echo
+
+cat $OUTPUT_CSV

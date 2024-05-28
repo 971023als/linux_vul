@@ -1,13 +1,23 @@
 #!/bin/bash
 
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+fi
+
 # 변수 설정
 분류="파일 및 디렉터리 관리"
 코드="U-17"
 위험도="상"
-진단_항목="\$HOME/.rhosts, hosts.equiv 사용 금지"
+진단항목="\$HOME/.rhosts, hosts.equiv 사용 금지"
 대응방안="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 소유자, 권한, 설정 검증"
-현황=()
-진단_결과="양호"
+현황=""
+진단결과="양호"
+
+TMP1=$(basename "$0").log
+> $TMP1
 
 # /etc/hosts.equiv 파일 검증
 check_file_security() {
@@ -23,19 +33,19 @@ check_file_security() {
 
     # 소유자 검사
     if [ "$owner" != "$owner_expected" ]; then
-        현황+=("$file: 소유자가 $owner_expected가 아님")
+        현황+="$file: 소유자가 $owner_expected가 아님, "
         return 1
     fi
 
     # 권한 검사 (600 이하인지)
     if [ "$permissions" -gt 600 ]; then
-        현황+=("$file: 권한이 600보다 큼")
+        현황+="$file: 권한이 600보다 큼, "
         return 1
     fi
 
     # '+' 문자 검사
     if grep -q '+' "$file"; then
-        현황+=("$file: 파일 내에 '+' 문자가 있음")
+        현황+="$file: 파일 내에 '+' 문자가 있음, "
         return 1
     fi
 
@@ -52,23 +62,25 @@ while IFS=: read -r username _ _ _ _ homedir _; do
         check_file_security "$rhosts_path" "$username"
         rhosts_result=$?
         if [ $rhosts_result -ne 0 ]; then
-            진단_결과="취약"
+            진단결과="취약"
         fi
     fi
 done < /etc/passwd
 
 # 결과 업데이트
-if [ ${#현황[@]} -eq 0 ]; then
-    현황+=("login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 문제 없음")
+if [ -z "$현황" ]; then
+    현황="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 문제 없음"
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "$item"
-done
+# 결과를 로그 파일에 기록
+echo "현황: $현황" >> $TMP1
+
+# CSV 파일에 결과 추가
+echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
+
+# 로그 파일 출력
+cat $TMP1
+
+# CSV 파일 출력
+echo ; echo
+cat $OUTPUT_CSV

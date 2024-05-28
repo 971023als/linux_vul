@@ -1,15 +1,20 @@
 #!/bin/bash
 
-# 변수 초기화
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
 category="서비스 관리"
 code="U-60"
-severity="중"
-check_item="ssh 원격접속 허용"
-ssh_status=""
-telnet_status=""
-ftp_status=""
-result=""
-recommendation="SSH 사용 권장, Telnet 및 FTP 사용하지 않도록 설정"
+riskLevel="중"
+diagnosisItem="ssh 원격접속 허용"
+service="Remote Access Management"
+diagnosisResult=""
+status=""
 
 # SSH 서비스 상태 확인
 if systemctl is-active --quiet ssh; then
@@ -34,19 +39,15 @@ fi
 
 # 전체 보안 상태 결정
 if [ "$ssh_status" == "활성화" ] && [ "$telnet_status" == "비활성화" ] && [ "$ftp_status" == "비활성화" ]; then
-    result="양호"
+    diagnosisResult="양호"
+    status="양호"
 else
-    result="취약"
+    diagnosisResult="취약"
+    status="취약"
 fi
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황:"
-echo "SSH 서비스 상태: $ssh_status"
-echo "Telnet 서비스 상태: $telnet_status"
-echo "FTP 서비스 상태: $ftp_status"
-echo "대응방안: $recommendation"
+# Write the results to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Output the results
+cat $OUTPUT_CSV

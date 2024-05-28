@@ -1,23 +1,37 @@
 #!/bin/bash
 
-# 결과를 저장할 JSON 형태의 문자열 초기화
-read -r -d '' results <<'EOF'
-{
-    "분류": "계정관리",
-    "코드": "U-01",
-    "위험도": "상",
-    "진단 항목": "root 계정 원격접속 제한",
-    "진단 결과": "양호",
-    "현황": [],
-    "대응방안": "원격 터미널 서비스 사용 시 root 직접 접속을 차단"
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status,details" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정관리"
+code="U-01"
+riskLevel="상"
+diagnosisItem="root 계정 원격접속 제한"
+diagnosisResult="양호"
+status=""
+details=""
+
+# Function to write results to CSV
+write_to_csv() {
+    echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status,$details" >> $OUTPUT_CSV
 }
-EOF
 
 # Telnet 서비스 검사
 telnet_status=$(grep -E "telnet\s+\d+/tcp" /etc/services)
 if [[ $telnet_status ]]; then
-    # JSON 형태의 문자열 업데이트
-    results=$(jq '.현황 += ["Telnet 서비스 포트가 활성화되어 있습니다."] | .진단 결과 = "취약"' <<< "$results")
+    diagnosisResult="취약"
+    status="Telnet 서비스 포트가 활성화되어 있습니다."
+    details="Telnet 서비스 포트가 활성화되어 있습니다."
+    write_to_csv
+else
+    status="Telnet 서비스 포트가 비활성화되어 있습니다."
+    details="Telnet 서비스 포트가 비활성화되어 있습니다."
+    write_to_csv
 fi
 
 # SSH 서비스 검사
@@ -32,10 +46,15 @@ for sshd_config in $sshd_configs; do
 done
 
 if [[ $root_login_restricted == false ]]; then
-    results=$(jq '.현황 += ["SSH 서비스에서 root 계정의 원격 접속이 허용되고 있습니다."] | .진단 결과 = "취약"' <<< "$results")
+    diagnosisResult="취약"
+    status="SSH 서비스에서 root 계정의 원격 접속이 허용되고 있습니다."
+    details="SSH 서비스에서 root 계정의 원격 접속이 허용되고 있습니다."
 else
-    results=$(jq '.현황 += ["SSH 서비스에서 root 계정의 원격 접속이 제한되어 있습니다."]' <<< "$results")
+    status="SSH 서비스에서 root 계정의 원격 접속이 제한되어 있습니다."
+    details="SSH 서비스에서 root 계정의 원격 접속이 제한되어 있습니다."
 fi
 
-# 결과 출력
-echo "$results" | jq .
+write_to_csv
+
+# Print the final CSV output
+cat $OUTPUT_CSV

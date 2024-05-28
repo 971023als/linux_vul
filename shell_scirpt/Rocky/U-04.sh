@@ -1,19 +1,30 @@
 #!/bin/bash
 
-# 변수 초기화
-분류="계정 관리"
-코드="U-04"
-위험도="상"
-진단_항목="패스워드 파일 보호"
-대응방안="쉐도우 패스워드 사용 또는 패스워드 암호화 저장"
-현황=()
-진단_결과=""
+OUTPUT_CSV="output.csv"
 
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정 관리"
+code="U-04"
+riskLevel="상"
+diagnosisItem="패스워드 파일 보호"
+diagnosisResult=""
+status=""
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Variables
 passwd_file="/etc/passwd"
 shadow_file="/etc/shadow"
-shadow_used=true  # 가정: 쉐도우 패스워드 사용
+shadow_used=true  # Assume shadow passwords are used
+현황=()
 
-# /etc/passwd 파일에서 쉐도우 패스워드 사용 여부 확인
+# Check for shadow password usage in /etc/passwd
 if [ -f "$passwd_file" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
         IFS=':' read -r -a parts <<< "$line"
@@ -24,9 +35,9 @@ if [ -f "$passwd_file" ]; then
     done < "$passwd_file"
 fi
 
-# /etc/shadow 파일 존재 및 권한 검사
+# Check /etc/shadow file existence and permissions
 if $shadow_used && [ -f "$shadow_file" ]; then
-    if [ ! -r "$shadow_file" ]; then  # /etc/shadow가 읽기 전용으로 설정되어 있는지 확인
+    if [ ! -r "$shadow_file" ]; then  # Ensure /etc/shadow is read-only
         현황+=("/etc/shadow 파일이 안전한 권한 설정을 갖고 있지 않습니다.")
         shadow_used=false
     fi
@@ -34,20 +45,16 @@ fi
 
 if ! $shadow_used; then
     현황+=("쉐도우 패스워드를 사용하고 있지 않거나 /etc/shadow 파일의 권한 설정이 적절하지 않습니다.")
-    진단_결과="취약"
+    diagnosisResult="취약"
 else
     현황+=("쉐도우 패스워드를 사용하고 있으며 /etc/shadow 파일의 권한 설정이 적절합니다.")
-    진단_결과="양호"
+    diagnosisResult="양호"
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-echo "현황:"
-for 사항 in "${현황[@]}"; do
-    echo "- $사항"
-done
+status=$(IFS=$'\n'; echo "${현황[*]}")
+
+# Write diagnosis result to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Print the final CSV output
+cat $OUTPUT_CSV

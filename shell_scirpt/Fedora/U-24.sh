@@ -1,29 +1,45 @@
 #!/bin/bash
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-24"
-위험도="상"
-진단_항목="NFS 서비스 비활성화"
-대응방안="불필요한 NFS 서비스 관련 데몬 비활성화"
-현황=()
+OUTPUT_CSV="output.csv"
 
-# NFS 관련 프로세스 확인
-if ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd|'; then
-    진단_결과="취약"
-    현황+=("불필요한 NFS 서비스 관련 데몬이 실행 중입니다.")
-else
-    진단_결과="양호"
-    현황+=("NFS 서비스 관련 데몬이 비활성화되어 있습니다.")
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "$item"
-done
+# Initial Values
+category="서비스 관리"
+code="U-24"
+riskLevel="상"
+diagnosisItem="NFS 서비스 비활성화"
+solution="불필요한 NFS 서비스 관련 데몬 비활성화"
+diagnosisResult=""
+status=""
+
+TMP1=$(basename "$0").log
+> $TMP1
+
+cat << EOF >> $TMP1
+[양호]: NFS 서비스 관련 데몬이 비활성화되어 있습니다.
+[취약]: 불필요한 NFS 서비스 관련 데몬이 실행 중입니다.
+EOF
+
+# Check for NFS related processes
+if ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd'; then
+    diagnosisResult="불필요한 NFS 서비스 관련 데몬이 실행 중입니다."
+    status="취약"
+    echo "WARN: $diagnosisResult" >> $TMP1
+else
+    diagnosisResult="NFS 서비스 관련 데몬이 비활성화되어 있습니다."
+    status="양호"
+    echo "OK: $diagnosisResult" >> $TMP1
+fi
+
+# Write results to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+cat $TMP1
+
+echo ; echo
+
+cat $OUTPUT_CSV

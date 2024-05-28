@@ -1,15 +1,24 @@
 #!/bin/bash
 
-# 결과를 저장할 변수 초기화
-declare -A results
-results[분류]="계정 관리"
-results[코드]="U-02"
-results[위험도]="상"
-results[진단 항목]="패스워드 복잡성 설정"
-results[대응방안]="패스워드 최소길이 8자리 이상, 영문·숫자·특수문자 최소 입력 기능 설정"
-results[진단 결과]=""
-현황=()
+OUTPUT_CSV="output.csv"
 
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정 관리"
+code="U-02"
+riskLevel="상"
+diagnosisItem="패스워드 복잡성 설정"
+diagnosisResult=""
+status=""
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Initial values for diagnosis
 min_length=8
 declare -A min_input_requirements=( [lcredit]=-1 [ucredit]=-1 [dcredit]=-1 [ocredit]=-1 )
 files_to_check=(
@@ -19,6 +28,7 @@ files_to_check=(
     "/etc/security/pwquality.conf"
 )
 password_settings_found=false
+현황=()
 
 for file_path in "${files_to_check[@]}"; do
     if [[ -f "$file_path" ]]; then
@@ -48,23 +58,19 @@ done
 
 if $password_settings_found; then
     if [ ${#현황[@]} -eq 0 ]; then
-        results[진단 결과]="양호"
+        diagnosisResult="양호"
+        status="패스워드 복잡성 설정이 적절하게 구성되어 있습니다."
     else
-        results[진단 결과]="취약"
+        diagnosisResult="취약"
+        status=$(IFS=$'\n'; echo "${현황[*]}")
     fi
 else
-    results[진단 결과]="취약"
-    현황+=("패스워드 복잡성 설정이 없습니다.")
+    diagnosisResult="취약"
+    status="패스워드 복잡성 설정이 없습니다."
 fi
 
-# 결과 출력
-echo "분류: ${results[분류]}"
-echo "코드: ${results[코드]}"
-echo "위험도: ${results[위험도]}"
-echo "진단 항목: ${results[진단 항목]}"
-echo "진단 결과: ${results[진단 결과]}"
-echo "대응방안: ${results[대응방안]}"
-echo "현황:"
-for 사항 in "${현황[@]}"; do
-    echo "- $사항"
-done
+# Write diagnosis result to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Print the final CSV output
+cat $OUTPUT_CSV

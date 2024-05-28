@@ -1,14 +1,24 @@
 #!/bin/bash
 
-# 변수 초기화
-분류="계정 관리"
-코드="U-03"
-위험도="상"
-진단_항목="계정 잠금 임계값 설정"
-대응방안="계정 잠금 임계값을 10회 이하로 설정"
-진단_결과=""
-현황=()
+OUTPUT_CSV="output.csv"
 
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정 관리"
+code="U-03"
+riskLevel="상"
+diagnosisItem="계정 잠금 임계값 설정"
+diagnosisResult=""
+status=""
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Variables
 deny_files_checked=false
 account_lockout_threshold_set=false
 files_to_check=(
@@ -16,6 +26,7 @@ files_to_check=(
     "/etc/pam.d/password-auth"
 )
 deny_modules=("pam_tally2.so" "pam_faillock.so")
+현황=()
 
 for file_path in "${files_to_check[@]}"; do
     if [ -f "$file_path" ]; then
@@ -40,23 +51,19 @@ done
 
 if ! $deny_files_checked; then
     현황+=("계정 잠금 임계값을 설정하는 파일을 찾을 수 없습니다.")
-    진단_결과="취약"
+    diagnosisResult="취약"
 elif ! $account_lockout_threshold_set; then
     현황+=("적절한 계정 잠금 임계값 설정이 없습니다.")
-    진단_결과="취약"
+    diagnosisResult="취약"
 else
     현황+=("계정 잠금 임계값이 적절히 설정되었습니다.")
-    진단_결과="양호"
+    diagnosisResult="양호"
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-echo "현황:"
-for 사항 in "${현황[@]}"; do
-    echo "- $사항"
-done
+status=$(IFS=$'\n'; echo "${현황[*]}")
+
+# Write diagnosis result to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Print the final CSV output
+cat $OUTPUT_CSV

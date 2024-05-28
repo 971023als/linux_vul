@@ -1,49 +1,96 @@
-#!/bin/bash
+#!/usr/bin/python3
+import subprocess
+import json
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-37"
-위험도="상"
-진단항목="웹서비스 상위 디렉토리 접근 금지"
-진단결과=""
-현황=()
-대응방안="상위 디렉터리에 이동제한 설정"
-found_vulnerability=0
+web_servers = {
+    'Apache': {
+        'config_files': ['httpd.conf', 'apache2.conf', '.htaccess'],
+        'restriction_setting': 'AllowOverride None'
+    },
+    'Nginx': {
+        'config_files': ['nginx.conf'],
+        'restriction_setting': 'deny all;'
+    },
+    'LiteSpeed': {
+        'config_files': ['httpd_config.conf', '.htaccess'],
+        'restriction_setting': 'AllowOverride None'
+    },
+    'Microsoft-IIS': {
+        'config_files': ['web.config'],
+        'restriction_setting': '<authorization><deny users="?" /></authorization>'
+    },
+    'Node.js': {
+        'config_files': [],
+        'restriction_setting': 'Use middleware for access control (e.g., helmet, express-jwt)'
+    },
+    'Envoy': {
+        'config_files': ['envoy.yaml'],
+        'restriction_setting': 'Apply RBAC policies in configuration to restrict access'
+    },
+    'Caddy': {
+        'config_files': ['Caddyfile'],
+        'restriction_setting': 'respond /forbidden/* 403'
+    },
+    'Tomcat': {
+        'config_files': ['web.xml'],
+        'restriction_setting': '<security-constraint><web-resource-collection><url-pattern>/restricted/*</url-pattern></web-resource-collection><auth-constraint /></security-constraint>'
+    }
+}
 
-# 웹 구성 파일 목록
-webconf_files=(".htaccess" "httpd.conf" "apache2.conf" "userdir.conf")
+def find_config_files(config_files):
+    found_files = []
+    for conf_file in config_files:
+        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
+        try:
+            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
+            found_files.extend(find_output)
+        except subprocess.CalledProcessError:
+            continue
+    return found_files
 
-# 웹 구성 파일 검사
-for conf_file in "${webconf_files[@]}"; do
-    while IFS= read -r file_path; do
-        if [ -f "$file_path" ]; then
-            if ! grep -q "AllowOverride None" "$file_path"; then
-                found_vulnerability=1
-                진단결과="취약"
-                현황+=("$file_path 파일에 상위 디렉터리 접근 제한 설정이 없습니다.")
-                break
-            fi
-        fi
-    done < <(find / -name $conf_file -type f 2>/dev/null)
-    if [ $found_vulnerability -eq 1 ]; then
-        break
-    fi
-done
+def check_access_restrictions(server_info, found_files):
+    vulnerable = False
+    vulnerabilities = []
 
-# 진단 결과 설정
-if [ $found_vulnerability -eq 0 ]; then
-    진단결과="양호"
-    현황+=("웹서비스 상위 디렉터리 접근에 대한 제한이 적절히 설정되어 있습니다.")
-fi
+    for file_path in found_files:
+        if file_path:
+            with open(file_path, 'r') as file:
+                content = file.read()
+                if server_info['restriction_setting'] not in content:
+                    vulnerable = True
+                    vulnerabilities.append(file_path)
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단항목"
-echo "진단 결과: $진단결과"
-echo "현황:"
-for 상태 in "${현황[@]}"; do
-    echo "- $상태"
-done
-echo "대응방안: $대응방안"
+    return vulnerable, vulnerabilities
+
+def main():
+    results = {
+        "분류": "서비스 관리",
+        "코드": "U-37",
+        "위험도": "상",
+        "진단 항목": "웹서비스 상위 디렉토리 접근 금지",
+        "진단 결과": None,
+        "현황": [],
+        "대응방안": "상위 디렉터리에 이동 제한 설정"
+    }
+
+    overall_vulnerable = False
+
+    for server_name, server_info in web_servers.items():
+        found_files = find_config_files(server_info['config_files'])
+        vulnerable, vulnerabilities = check_access_restrictions(server_info, found_files)
+        if vulnerable:
+            overall_vulnerable = True
+            for vulnerability in vulnerabilities:
+                results["현황"].append(f"{vulnerability} 파일에서 {server_name} 상위 디렉터리 접근 제한 설정이 부적절합니다.")
+
+    if overall_vulnerable:
+        results["진단 결과"] = "취약"
+    else:
+        results["진단 결과"] = "양호"
+        # Corrected to remove the incorrect variable reference and fixed the syntax issue
+        results["현황"].append("모든 검사된 파일에서 상위 디렉터리 접근 제한 설정이 적절히 설정되어 있습니다.")
+
+    print(json.dumps(results, ensure_ascii=False, indent=4))
+
+if __name__ == "__main__":
+    main()

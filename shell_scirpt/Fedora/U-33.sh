@@ -1,13 +1,25 @@
 #!/bin/bash
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-33"
-위험도="상"
-진단_항목="DNS 보안 버전 패치"
-대응방안="DNS 서비스 주기적 패치 관리"
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="서비스 관리"
+code="U-33"
+riskLevel="상"
+diagnosisItem="DNS 보안 버전 패치"
+solution="DNS 서비스 주기적 패치 관리"
+diagnosisResult=""
+status=""
 minimum_version="9.18.7"
 현황=()
+
+TMP1=$(basename "$0").log
+> $TMP1
 
 # 버전 비교 함수
 compare_versions() {
@@ -46,26 +58,27 @@ if [[ $bind_version_output ]]; then
     compare_versions $bind_version_output $minimum_version
     case $? in
         1) # less than
-            진단_결과="취약"
-            현황+=("BIND 버전이 최신 버전(${minimum_version}) 이상이 아닙니다: ${bind_version_output}")
+            diagnosisResult="BIND 버전이 최신 버전(${minimum_version}) 이상이 아닙니다: ${bind_version_output}"
+            status="취약"
             ;;
         *) # equal or greater than
-            진단_결과="양호"
-            현황+=("BIND 버전이 최신 버전(${minimum_version}) 이상입니다: ${bind_version_output}")
+            diagnosisResult="BIND 버전이 최신 버전(${minimum_version}) 이상입니다: ${bind_version_output}"
+            status="양호"
             ;;
     esac
 else
-    진단_결과="오류"
-    현황+=("BIND가 설치되어 있지 않거나 버전을 확인할 수 없습니다.")
+    diagnosisResult="BIND가 설치되어 있지 않거나 버전을 확인할 수 없습니다."
+    status="오류"
 fi
 
-# 결과 출력
-echo "분류: $분류"
-echo "코드: $코드"
-echo "위험도: $위험도"
-echo "진단 항목: $진단_항목"
-echo "대응방안: $대응방안"
-echo "진단 결과: $진단_결과"
-for item in "${현황[@]}"; do
-    echo "$item"
-done
+현황+=("$diagnosisResult")
+
+# Write results to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+# Output log and CSV file contents
+cat $TMP1
+
+echo ; echo
+
+cat $OUTPUT_CSV

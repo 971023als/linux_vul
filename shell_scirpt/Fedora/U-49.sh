@@ -1,16 +1,23 @@
 #!/bin/bash
 
-# 결과를 저장할 JSON 파일 초기화
-results_file="results.json"
-echo '{
-    "분류": "계정관리",
-    "코드": "U-49",
-    "위험도": "하",
-    "진단 항목": "불필요한 계정 제거",
-    "진단 결과": "양호",
-    "현황": [],
-    "대응방안": "불필요한 계정이 존재하지 않도록 관리"
-}' > $results_file
+OUTPUT_CSV="output.csv"
+
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+fi
+
+# Initial Values
+category="계정관리"
+code="U-49"
+riskLevel="하"
+diagnosisItem="불필요한 계정 제거"
+service="Account Management"
+diagnosisResult="양호"
+status=""
+
+# Write initial values to CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 
 # 로그인이 가능한 쉘 목록
 login_shells=("/bin/bash" "/bin/sh")
@@ -32,10 +39,16 @@ for account in "${unnecessary_accounts[@]}"; do
 done
 
 if [ ${#found_accounts[@]} -gt 0 ]; then
-    jq --arg accounts "$(IFS=, ; echo "${found_accounts[*]}")" '.진단 결과 = "취약" | .현황 += ["불필요한 계정이 존재합니다: " + $accounts]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+    diagnosisResult="불필요한 계정이 존재합니다: ${found_accounts[*]}"
+    status="취약"
+    echo "WARN: $diagnosisResult"
+    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 else
-    jq '.현황 += ["불필요한 계정이 존재하지 않습니다."]' $results_file > tmp.$$.json && mv tmp.$$.json $results_file
+    diagnosisResult="불필요한 계정이 존재하지 않습니다."
+    status="양호"
+    echo "OK: $diagnosisResult"
+    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-# 결과 출력
-cat $results_file
+# Output CSV
+cat $OUTPUT_CSV
