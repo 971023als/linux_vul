@@ -1,47 +1,63 @@
 #!/bin/bash
 
-OUTPUT_JSON="output.json"
+OUTPUT_CSV="output.csv"
 
-# 변수 설정
-분류="서비스 관리"
-코드="U-19"
-위험도="상"
-진단항목="Finger 서비스 비활성화"
-대응방안="Finger 서비스가 비활성화 되어 있는 경우"
-현황=()
-진단결과=""
+# Set CSV Headers if the file does not exist
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+fi
 
-# /etc/services에서 Finger 서비스 정의 확인
+# Initial Values
+category="서비스 관리"
+code="U-19"
+riskLevel="상"
+diagnosisItem="Finger 서비스 비활성화"
+solution="Finger 서비스가 비활성화 되어 있는 경우"
+diagnosisResult=""
+status=""
+
+# Initial log file
+TMP1=$(basename "$0").log
+> $TMP1
+
+cat << EOF >> $TMP1
+[양호]: Finger 서비스가 비활성화되어 있거나 실행 중이지 않은 경우
+[취약]: Finger 서비스가 활성화되어 있거나 실행 중인 경우
+EOF
+
+# Check if /etc/services contains Finger service definition
 if grep -iq "^finger.*tcp" /etc/services; then
-    현황+=("Finger 서비스 포트가 /etc/services에 정의되어 있습니다.")
-    진단결과="취약"
+    diagnosisResult="/etc/services에 Finger 서비스 포트가 정의되어 있습니다."
+    status="취약"
+    echo "WARN: $diagnosisResult" >> $TMP1
+    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
 else
     if [ ! -f "/etc/services" ]; then
-        현황+=("/etc/services 파일을 찾을 수 없습니다.")
+        diagnosisResult="/etc/services 파일을 찾을 수 없습니다."
+        status="정보 없음"
+        echo "INFO: $diagnosisResult" >> $TMP1
+        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
     fi
 fi
 
-# Finger 프로세스 실행 중인지 확인
+# Check if Finger process is running
 if ps -ef | grep -iq "finger"; then
-    현황+=("Finger 서비스 프로세스가 실행 중입니다.")
-    진단결과="취약"
+    diagnosisResult="Finger 서비스 프로세스가 실행 중입니다."
+    status="취약"
+    echo "WARN: $diagnosisResult" >> $TMP1
+    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-if [ -z "$진단결과" ]; then
-    진단결과="양호"
-    현황+=("Finger 서비스가 비활성화되어 있거나 실행 중이지 않습니다.")
+# Final check if diagnosisResult is empty, meaning everything is fine
+if [ -z "$diagnosisResult" ]; then
+    diagnosisResult="Finger 서비스가 비활성화되어 있거나 실행 중이지 않습니다."
+    status="양호"
+    echo "OK: $diagnosisResult" >> $TMP1
+    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-# 결과를 JSON 파일에 기록
-echo "{
-    \"분류\": \"$분류\",
-    \"코드\": \"$코드\",
-    \"위험도\": \"$위험도\",
-    \"진단항목\": \"$진단항목\",
-    \"대응방안\": \"$대응방안\",
-    \"진단결과\": \"$진단결과\",
-    \"현황\": [$(printf '%s\n' "${현황[@]}" | jq -R . | jq -s .)]
-}" > $OUTPUT_JSON
+cat $TMP1
 
-# JSON 파일 출력
-cat $OUTPUT_JSON
+echo ; echo
+
+cat $OUTPUT_CSV
