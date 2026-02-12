@@ -2,44 +2,100 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-24"
 riskLevel="상"
-diagnosisItem="NFS 서비스 비활성화"
-solution="불필요한 NFS 서비스 관련 데몬 비활성화"
+diagnosisItem="사용자 환경변수 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: NFS 서비스 관련 데몬이 비활성화되어 있습니다.
-[취약]: 불필요한 NFS 서비스 관련 데몬이 실행 중입니다.
-EOF
+#########################################
+# 환경파일 목록
+#########################################
+env_files=(
+".profile"
+".kshrc"
+".cshrc"
+".bashrc"
+".bash_profile"
+".bash_login"
+".login"
+".exrc"
+".netrc"
+)
 
-# Check for NFS related processes
-if ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd'; then
-    diagnosisResult="불필요한 NFS 서비스 관련 데몬이 실행 중입니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+취약내용=()
+vuln=false
+
+#########################################
+# passwd 기반 사용자 홈 조회
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    # 로그인 불가 계정 skip
+    if [[ "$shell" == *nologin || "$shell" == *false ]]; then
+        continue
+    fi
+
+    # 홈 없으면 skip
+    [ ! -d "$home" ] && continue
+
+    for f in "${env_files[@]}"; do
+        file="$home/$f"
+        [ ! -f "$file" ] && continue
+
+        owner=$(stat -c "%U" "$file" 2>/dev/null)
+        perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+        # 소유자 체크
+        if [[ "$owner" != "$user" && "$owner" != "root" ]]; then
+            취약내용+=("$file 소유자 비정상:$owner")
+            vuln=true
+        fi
+
+        # other write 체크
+        if [[ $((perm % 10)) -ge 2 ]]; then
+            취약내용+=("$file other write:$perm")
+            vuln=true
+        fi
+
+        # group write 체크
+        if [[ $(((perm / 10) % 10)) -ge 2 ]]; then
+            취약내용+=("$file group write:$perm")
+            vuln=true
+        fi
+
+    done
+
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${취약내용[@]}" | head -20)
+    status=$(echo $sample | tr '\n' ' ')
 else
-    diagnosisResult="NFS 서비스 관련 데몬이 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    diagnosisResult="양호"
+    status="환경변수 파일 소유자 및 권한 양호"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV

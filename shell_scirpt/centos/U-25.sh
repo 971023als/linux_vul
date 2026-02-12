@@ -2,73 +2,73 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-25"
 riskLevel="상"
-diagnosisItem="NFS 접근 통제"
-solution="불필요한 NFS 서비스를 사용하지 않거나, 사용 시 everyone 공유 제한"
+diagnosisItem="world writable 파일 점검"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: NFS 접근 통제 설정에 문제가 없습니다.
-[취약]: NFS 접근 통제 설정에 문제가 있습니다.
-EOF
+#########################################
+# 제외 경로 (오탐/성능 보호)
+#########################################
+exclude_paths=(
+"/proc"
+"/sys"
+"/dev"
+"/run"
+"/tmp"
+"/var/tmp"
+"/var/log"
+"/snap"
+"/var/lib/docker"
+)
 
-# Check for NFS service running
-if ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd'; then
-    if [ -f "/etc/exports" ]; then
-        # Analyze /etc/exports file
-        if grep -qE '\*' "/etc/exports"; then
-            diagnosisResult="/etc/exports 파일에 '*' 설정이 있습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-        if grep -qE 'insecure' "/etc/exports"; then
-            diagnosisResult="/etc/exports 파일에 'insecure' 옵션이 설정되어 있습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-        if ! grep -qE 'root_squash|all_squash' "/etc/exports"; then
-            diagnosisResult="/etc/exports 파일에 'root_squash' 또는 'all_squash' 옵션이 설정되어 있지 않습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    else
-        diagnosisResult="NFS 서비스가 실행 중이지만, /etc/exports 파일이 존재하지 않습니다."
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
+#########################################
+# prune 생성
+#########################################
+prune_expr=""
+for p in "${exclude_paths[@]}"; do
+    prune_expr+=" -path $p -prune -o"
+done
+
+#########################################
+# 점검 수행
+#########################################
+취약파일=()
+
+while IFS= read -r file; do
+    취약파일+=("$file")
+done < <(eval find / $prune_expr -type f -perm -0002 -print 2>/dev/null)
+
+#########################################
+# 결과 판정
+#########################################
+if [ ${#취약파일[@]} -gt 0 ]; then
+    diagnosisResult="취약"
+
+    sample=$(printf '%s\n' "${취약파일[@]}" | head -20)
+    status="world writable 파일 존재: $(echo $sample | tr '\n' ' ')"
 else
-    diagnosisResult="NFS 서비스가 실행 중이지 않습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+    diagnosisResult="양호"
+    status="world writable 파일 없음"
 fi
 
-# Default diagnosis result if no issues found
-if [ -z "$diagnosisResult" ]; then
-    diagnosisResult="NFS 접근 통제 설정에 문제가 없습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
