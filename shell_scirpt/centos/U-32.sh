@@ -2,56 +2,70 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-32"
-riskLevel="상"
-diagnosisItem="일반사용자의 Sendmail 실행 방지"
-solution="SMTP 서비스 미사용 또는 일반 사용자의 Sendmail 실행 방지 설정"
+riskLevel="중"
+diagnosisItem="홈 디렉토리 존재 여부 점검"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-restriction_set=false
-현황=()
+#########################################
+# 변수
+#########################################
+취약계정=()
+vuln=false
 
-# Find sendmail.cf files and check for restrictqrun option
-find / -name 'sendmail.cf' -type f 2>/dev/null | while read -r file_path; do
-    if grep -q 'restrictqrun' "$file_path" && ! grep -q '^#' "$file_path"; then
-        현황+=("$file_path 파일에 restrictqrun 옵션이 설정되어 있습니다.")
-        restriction_set=true
-        break # Stop checking further if one valid file is found
+#########################################
+# passwd 기준 점검
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    # 로그인 불가 계정 제외
+    if [[ "$shell" == *nologin || "$shell" == *false ]]; then
+        continue
     fi
-done
 
-# Determine the diagnosis result
-if $restriction_set; then
-    diagnosisResult="모든 sendmail.cf 파일에 restrictqrun 옵션이 적절히 설정되어 있습니다."
-    status="양호"
-    if [ ${#현황[@]} -eq 0 ]; then
-        현황+=("모든 sendmail.cf 파일에 restrictqrun 옵션이 적절히 설정되어 있습니다.")
+    # 홈이 "/" 이거나 없을 경우
+    if [[ "$home" == "/" ]]; then
+        취약계정+=("$user(홈디렉토리=/)")
+        vuln=true
+        continue
     fi
+
+    if [ ! -d "$home" ]; then
+        취약계정+=("$user(홈디렉토리 없음:$home)")
+        vuln=true
+    fi
+
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${취약계정[@]}" | head -20)
+    status="홈디렉토리 미존재 계정: $(echo $sample | tr '\n' ' ')"
 else
-    diagnosisResult="sendmail.cf 파일 중 restrictqrun 옵션이 설정되어 있지 않은 파일이 있습니다."
-    status="취약"
-    if [ ${#현황[@]} -eq 0 ]; then
-        현황+=("sendmail.cf 파일 중 restrictqrun 옵션이 설정되어 있지 않은 파일이 있습니다.")
-    fi
+    diagnosisResult="양호"
+    status="모든 계정 홈디렉토리 정상"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Output log and CSV file contents
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
