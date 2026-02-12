@@ -1,58 +1,77 @@
-#!/usr/bin/python3
-import subprocess
-import re
+#!/usr/bin/env python3
+import os
 import json
+import stat
 
-def check_snmp_community_string_complexity():
-    results = {
-        "분류": "서비스 관리",
+def check_log_directory_permission():
+
+    result = {
+        "분류": "로그 관리",
         "코드": "U-67",
         "위험도": "중",
-        "진단 항목": "SNMP 서비스 Community String의 복잡성 설정",
+        "진단 항목": "로그 디렉터리 소유자 및 권한 설정",
         "진단 결과": "",
         "현황": "",
-        "대응방안": "SNMP Community 이름이 public, private이 아닌 경우"
+        "대응방안": "/var/log 하위 로그파일 소유자 root 및 권한 644 이하 설정"
     }
 
-    # Check if SNMP service is running, using universal_newlines for compatibility
-    ps_output = subprocess.run(['ps', '-ef'], stdout=subprocess.PIPE, universal_newlines=True).stdout
-    if 'snmp' not in ps_output.lower():
-        results["진단 결과"] = "양호"
-        results["현황"] = "SNMP 서비스를 사용하지 않고 있습니다."
-        return results
+    log_dirs = [
+        "/var/log",
+        "/var/adm",
+        "/var/adm/syslog"
+    ]
 
-    # Search for snmpd.conf files
-    find_command = ['find', '/', '-name', 'snmpd.conf', '-type', 'f']
-    find_result = subprocess.run(find_command, stdout=subprocess.PIPE, universal_newlines=True, stderr=subprocess.DEVNULL)
-    snmpdconf_files = find_result.stdout.strip().split('\n')
+    issues = []
+    checked = False
 
-    weak_string_found = False
+    for log_dir in log_dirs:
+        if not os.path.exists(log_dir):
+            continue
 
-    if not snmpdconf_files or snmpdconf_files == ['']:
-        results["진단 결과"] = "취약"
-        results["현황"] = "SNMP 서비스를 사용하고 있으나, Community String을 설정하는 파일이 없습니다."
+        for root, dirs, files in os.walk(log_dir):
+            for name in files:
+                file_path = os.path.join(root, name)
+
+                try:
+                    st = os.stat(file_path)
+                    checked = True
+
+                    owner_uid = st.st_uid
+                    perm = oct(st.st_mode & 0o777)
+
+                    # owner check
+                    if owner_uid != 0:
+                        issues.append(f"{file_path} → 소유자 root 아님")
+
+                    # permission check (644 초과)
+                    if (st.st_mode & stat.S_IWOTH):
+                        issues.append(f"{file_path} → 기타 사용자 쓰기권한 존재")
+
+                    if int(perm, 8) > 0o644:
+                        issues.append(f"{file_path} → 권한 과다({perm})")
+
+                except:
+                    continue
+
+    if not checked:
+        result["진단 결과"] = "N/A"
+        result["현황"] = "로그 파일 점검 대상 없음"
+        return result
+
+    if issues:
+        result["진단 결과"] = "취약"
+        result["현황"] = "\n".join(issues[:20])  # 너무 많으면 20개만
     else:
-        for file_path in snmpdconf_files:
-            try:
-                with open(file_path, 'r') as file:
-                    file_content = file.read()
-                    if re.search(r'\b(public|private)\b', file_content, re.IGNORECASE):
-                        weak_string_found = True
-                        results["진단 결과"] = "취약"
-                        results["현황"] = f"SNMP Community String이 취약(public 또는 private)으로 설정되어 있습니다. 파일: {file_path}"
-                        break
-            except Exception as e:
-                continue
+        result["진단 결과"] = "양호"
+        result["현황"] = "로그 파일 권한 및 소유자 설정 양호"
 
-    if not weak_string_found and snmpdconf_files != ['']:
-        results["진단 결과"] = "양호"
-        results["현황"] = "SNMP Community String이 적절히 설정되어 있습니다."
+    return result
 
-    return results
 
 def main():
-    snmp_community_string_complexity_check_results = check_snmp_community_string_complexity()
-    print(json.dumps(snmp_community_string_complexity_check_results, ensure_ascii=False, indent=4))
+    res = check_log_directory_permission()
+    print(json.dumps(res, ensure_ascii=False, indent=4))
+
 
 if __name__ == "__main__":
     main()
