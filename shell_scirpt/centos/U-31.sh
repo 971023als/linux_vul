@@ -2,59 +2,81 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-31"
-riskLevel="상"
-diagnosisItem="스팸 메일 릴레이 제한"
-solution="SMTP 서비스 릴레이 제한 설정"
+riskLevel="중"
+diagnosisItem="홈디렉토리 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-search_directory='/etc/mail/'
-vulnerable_found=false
-현황=()
+#########################################
+# 변수
+#########################################
+취약내용=()
+vuln=false
 
-# Search for sendmail.cf files and analyze their contents
-find "$search_directory" -name 'sendmail.cf' -type f | while read -r file_path; do
-    if [ -f "$file_path" ]; then
-        if grep -qE 'R\$\*' "$file_path" || grep -qEi 'Relaying denied' "$file_path"; then
-            현황+=("$file_path 파일에 릴레이 제한이 적절히 설정되어 있습니다.")
-        else
-            vulnerable_found=true
-            현황+=("$file_path 파일에 릴레이 제한 설정이 없습니다.")
-        fi
+#########################################
+# 홈디렉토리 점검
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    # 로그인 불가 계정 제외
+    if [[ "$shell" == *nologin || "$shell" == *false ]]; then
+        continue
     fi
-done
 
-# Determine the diagnosis result
-if $vulnerable_found; then
-    diagnosisResult="릴레이 제한 설정이 없습니다."
-    status="취약"
+    [ ! -d "$home" ] && continue
+
+    owner=$(stat -c "%U" "$home" 2>/dev/null)
+    perm=$(stat -c "%a" "$home" 2>/dev/null)
+
+    # 소유자 확인
+    if [[ "$owner" != "$user" ]]; then
+        취약내용+=("$home 소유자 불일치:$owner")
+        vuln=true
+    fi
+
+    # other write 확인
+    if [[ $((perm % 10)) -ge 2 ]]; then
+        취약내용+=("$home other write:$perm")
+        vuln=true
+    fi
+
+    # group write 확인
+    if [[ $(((perm / 10) % 10)) -ge 2 ]]; then
+        취약내용+=("$home group write:$perm")
+        vuln=true
+    fi
+
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${취약내용[@]}" | head -20)
+    status=$(echo $sample | tr '\n' ' ')
 else
-    if [ ${#현황[@]} -eq 0 ]; then
-        diagnosisResult="sendmail.cf 파일을 찾을 수 없거나 접근할 수 없습니다."
-        status="양호"
-    else
-        diagnosisResult="릴레이 제한이 적절히 설정되어 있습니다."
-        status="양호"
-    fi
+    diagnosisResult="양호"
+    status="홈디렉토리 소유자 및 권한 양호"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Output log and CSV file contents
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
