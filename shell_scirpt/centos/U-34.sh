@@ -2,58 +2,83 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
+# 초기값
 category="서비스 관리"
 code="U-34"
 riskLevel="상"
-diagnosisItem="DNS Zone Transfer 설정"
-solution="Zone Transfer를 허가된 사용자에게만 허용"
+diagnosisItem="Finger 서비스 비활성화"
 diagnosisResult=""
 status=""
-named_conf_path="/etc/named.conf"
+
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+#########################################
+# 변수
+#########################################
+vuln=false
 현황=()
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-# Check if DNS service is running
-if ps -ef | grep -i 'named' | grep -v 'grep' &> /dev/null; then
-    dns_service_running=true
-else
-    dns_service_running=false
-fi
-
-if $dns_service_running; then
-    if [ -f "$named_conf_path" ]; then
-        if grep -q "allow-transfer { any; }" "$named_conf_path"; then
-            diagnosisResult="/etc/named.conf 파일에 allow-transfer { any; } 설정이 있습니다."
-            status="취약"
-        else
-            diagnosisResult="DNS Zone Transfer가 허가된 사용자에게만 허용되어 있습니다."
-            status="양호"
-        fi
-    else
-        diagnosisResult="/etc/named.conf 파일이 존재하지 않습니다. DNS 서비스 미사용 가능성."
-        status="양호"
+#########################################
+# 1. inetd.conf 확인
+#########################################
+if [ -f /etc/inetd.conf ]; then
+    if grep -Ei "finger" /etc/inetd.conf | grep -v '^#' >/dev/null; then
+        vuln=true
+        현황+=("inetd finger 활성")
     fi
-else
-    diagnosisResult="DNS 서비스가 실행 중이지 않습니다."
-    status="양호"
 fi
 
-현황+=("$diagnosisResult")
+#########################################
+# 2. xinetd 확인
+#########################################
+if [ -f /etc/xinetd.d/finger ]; then
+    if grep -Ei "disable\s*=\s*no" /etc/xinetd.d/finger >/dev/null; then
+        vuln=true
+        현황+=("xinetd finger 활성")
+    fi
+fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# 3. systemd 서비스 확인
+#########################################
+if systemctl list-unit-files 2>/dev/null | grep -i finger >/dev/null; then
+    if systemctl is-active finger.socket 2>/dev/null | grep -q active; then
+        vuln=true
+        현황+=("systemd finger 활성")
+    fi
+fi
 
-# Output log and CSV file contents
-cat $TMP1
+#########################################
+# 4. 포트 79 리스닝 확인
+#########################################
+if ss -lntup 2>/dev/null | grep ":79 " >/dev/null; then
+    vuln=true
+    현황+=("finger 포트79 LISTEN")
+fi
 
-echo ; echo
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="Finger 서비스 비활성화"
+fi
 
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
