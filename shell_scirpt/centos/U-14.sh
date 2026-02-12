@@ -2,62 +2,105 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-14"
-위험도="상"
-진단항목="사용자, 시스템 시작파일 및 환경파일 소유자 및 권한 설정"
-대응방안="홈 디렉터리 환경변수 파일 소유자가 root 또는 해당 계정으로 지정되어 있고, 쓰기 권한이 부여된 경우"
-현황=""
-진단결과=""
+# 초기값
+category="파일 및 디렉토리 관리"
+code="U-14"
+riskLevel="상"
+diagnosisItem="root 홈 PATH '.' 설정 점검"
+diagnosisResult=""
+status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-start_files=(".profile" ".cshrc" ".login" ".kshrc" ".bash_profile" ".bashrc" ".bash_login")
-vulnerable_files=()
+#########################################
+# 점검 파일
+#########################################
+files=(
+"/etc/profile"
+"/etc/bashrc"
+"/etc/environment"
+"/root/.profile"
+"/root/.bash_profile"
+"/root/.bashrc"
+)
 
-# 모든 사용자 홈 디렉터리 순회
-while IFS=: read -r user _ uid _ _ home _; do
-    if [ -d "$home" ]; then
-        for start_file in "${start_files[@]}"; do
-            file_path="$home/$start_file"
-            if [ -f "$file_path" ]; then
-                file_uid=$(stat -c "%u" "$file_path")
-                permissions=$(stat -c "%A" "$file_path")
+취약내용=()
+vuln=false
 
-                # 파일 소유자가 root 또는 해당 사용자가 아니거나, 다른 사용자에게 쓰기 권한이 있을 경우
-                if [ "$file_uid" -ne 0 ] && [ "$file_uid" -ne "$uid" ] || [[ $permissions == *w*o ]]; then
-                    vulnerable_files+=("$file_path")
-                fi
+#########################################
+# PATH 점검 함수
+#########################################
+check_path() {
+    local file=$1
+
+    while IFS= read -r line || [ -n "$line" ]; do
+        line=$(echo "$line" | sed 's/#.*//g' | xargs)
+        [[ -z "$line" ]] && continue
+
+        if echo "$line" | grep -q "PATH="; then
+            path_val=$(echo "$line" | sed -n 's/.*PATH=\(.*\)/\1/p')
+
+            # 맨 앞 .
+            if echo "$path_val" | grep -Eq '^\.:'; then
+                취약내용+=("$file : PATH 맨앞 '.'")
+                vuln=true
             fi
-        done
-    fi
-done < /etc/passwd
 
-if [ ${#vulnerable_files[@]} -gt 0 ]; then
-    진단결과="취약"
-    현황=$(printf ", %s" "${vulnerable_files[@]}")
-    현황=${현황:2}
-else
-    진단결과="양호"
-    현황="모든 홈 디렉터리 내 시작파일 및 환경파일이 적절한 소유자와 권한 설정을 가지고 있습니다."
+            # 중간 .
+            if echo "$path_val" | grep -Eq ':\.:'; then
+                취약내용+=("$file : PATH 중간 '.'")
+                vuln=true
+            fi
+
+            # :: 포함
+            if echo "$path_val" | grep -Eq '::'; then
+                취약내용+=("$file : PATH '::' 포함")
+                vuln=true
+            fi
+        fi
+    done < "$file"
+}
+
+#########################################
+# 점검 수행
+#########################################
+for f in "${files[@]}"; do
+    [ -f "$f" ] && check_path "$f"
+done
+
+#########################################
+# 현재 root PATH도 점검
+#########################################
+current_path=$(echo "$PATH")
+
+if echo "$current_path" | grep -Eq '(^|:)\.(:|$)'; then
+    취약내용+=("현재 root PATH 환경변수 '.' 포함")
+    vuln=true
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${취약내용[*]}")
+else
+    diagnosisResult="양호"
+    status="root PATH '.' 미포함 또는 안전"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV

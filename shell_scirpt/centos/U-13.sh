@@ -2,61 +2,92 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-13"
-위험도="상"
-진단항목="SUID, SGID 설정 파일 점검"
-대응방안="주요 실행파일의 권한에 SUID와 SGID에 대한 설정이 부여되어 있지 않은 경우"
-현황=""
-진단결과=""
+# 초기값
+category="계정 관리"
+code="U-13"
+riskLevel="상"
+diagnosisItem="비밀번호 암호화 알고리즘 사용"
+diagnosisResult=""
+status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록 (형태 유지)
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# 검사할 실행 파일 목록
-executables=(
-    "/sbin/dump" "/sbin/restore" "/sbin/unix_chkpwd"
-    "/usr/bin/at" "/usr/bin/lpq" "/usr/bin/lpq-lpd"
-    "/usr/bin/lpr" "/usr/bin/lpr-lpd" "/usr/bin/lprm"
-    "/usr/bin/lprm-lpd" "/usr/bin/newgrp" "/usr/sbin/lpc"
-    "/usr/sbin/lpc-lpd" "/usr/sbin/traceroute"
-)
+#########################################
+# 변수
+#########################################
+shadow_file="/etc/shadow"
+login_defs="/etc/login.defs"
 
-vulnerable_files=()
+취약계정=()
+설정취약=false
+현황=()
 
-for executable in "${executables[@]}"; do
-    if [ -f "$executable" ]; then
-        mode=$(stat -c "%A" "$executable")
-        if [[ $mode == *s* ]]; then
-            vulnerable_files+=("$executable")
+#########################################
+# 1. shadow 암호화 방식 확인
+#########################################
+if [ -f "$shadow_file" ]; then
+    while IFS=: read -r user hash rest; do
+
+        [[ -z "$hash" ]] && continue
+        [[ "$hash" == "!"* ]] && continue
+        [[ "$hash" == "*"* ]] && continue
+
+        if echo "$hash" | grep -q '^\$1\$'; then
+            취약계정+=("$user(MD5)")
+        elif echo "$hash" | grep -q '^\$2'; then
+            취약계정+=("$user(Blowfish)")
         fi
-    fi
-done
 
-if [ ${#vulnerable_files[@]} -gt 0 ]; then
-    진단결과="취약"
-    현황=$(printf ", %s" "${vulnerable_files[@]}")
-    현황=${현황:2}
+    done < "$shadow_file"
 else
-    진단결과="양호"
-    현황="SUID나 SGID에 대한 설정이 부여된 주요 실행 파일이 없습니다."
+    설정취약=true
+    현황+=("/etc/shadow 파일 없음")
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+#########################################
+# 2. login.defs 설정 확인
+#########################################
+if [ -f "$login_defs" ]; then
+    enc=$(grep -i "^ENCRYPT_METHOD" "$login_defs" | awk '{print $2}')
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
+    if [[ "$enc" != "SHA512" && "$enc" != "SHA256" ]]; then
+        설정취약=true
+        현황+=("ENCRYPT_METHOD 설정 취약: $enc")
+    fi
+else
+    설정취약=true
+    현황+=("/etc/login.defs 없음")
+fi
 
-# 로그 파일 출력
-cat $TMP1
+#########################################
+# 결과 판정
+#########################################
+if [ ${#취약계정[@]} -gt 0 ]; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${취약계정[@]}" | head -10)
+    status="취약 알고리즘 계정: $(echo $sample | tr '\n' ' ')"
 
-# CSV 파일 출력
-echo ; echo
+elif $설정취약; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+
+else
+    diagnosisResult="양호"
+    status="SHA-2 이상 암호화 알고리즘 사용"
+fi
+
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
