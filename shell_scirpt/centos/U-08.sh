@@ -2,57 +2,76 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-08"
-위험도="상"
-진단항목="/etc/shadow 파일 소유자 및 권한 설정"
-대응방안="/etc/shadow 파일의 소유자가 root이고, 권한이 400 이하인 경우"
-shadow_file='/etc/shadow'
-현황=""
-진단결과=""
+# 초기값
+category="계정 관리"
+code="U-08"
+riskLevel="상"
+diagnosisItem="관리자 그룹 최소 계정"
+diagnosisResult=""
+status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록 (형태 유지)
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# /etc/shadow 파일 존재 여부 확인
-if [ -e "$shadow_file" ]; then
-    # 파일 권한 및 소유자 확인
-    mode=$(stat -c "%a" "$shadow_file")
-    owner_uid=$(stat -c "%u" "$shadow_file")
+#########################################
+# 관리자 그룹 정의
+#########################################
+admin_groups=("root" "wheel" "admin")
 
-    # 소유자가 root이고 권한이 400 이하인지 확인
-    if [ "$owner_uid" -eq 0 ]; then
-        if [ "$mode" -le 400 ]; then
-            진단결과="양호"
-            현황="/etc/shadow 파일의 소유자가 root이고, 권한이 $mode입니다."
-        else
-            진단결과="취약"
-            현황="/etc/shadow 파일의 권한이 $mode로 설정되어 있어 취약합니다."
+불필요계정=()
+현황=()
+
+#########################################
+# UID 0 계정 목록
+#########################################
+uid0_accounts=$(awk -F: '$3==0 {print $1}' /etc/passwd)
+
+#########################################
+# 그룹 점검
+#########################################
+for grp in "${admin_groups[@]}"; do
+    if grep -q "^$grp:" /etc/group; then
+        members=$(grep "^$grp:" /etc/group | awk -F: '{print $4}')
+
+        if [[ -n "$members" ]]; then
+            IFS=',' read -ra users <<< "$members"
+
+            for u in "${users[@]}"; do
+                [[ -z "$u" ]] && continue
+
+                # UID0 아닌 관리자계정
+                if ! echo "$uid0_accounts" | grep -qw "$u"; then
+                    불필요계정+=("$u($grp 그룹)")
+                fi
+            done
         fi
-    else
-        진단결과="취약"
-        현황="/etc/shadow 파일의 소유자가 root가 아닙니다."
     fi
+done
+
+#########################################
+# 결과 판정
+#########################################
+if [ ${#불필요계정[@]} -gt 0 ]; then
+    diagnosisResult="취약"
+
+    sample=$(printf '%s\n' "${불필요계정[@]}" | head -10)
+    status="관리자 그룹 불필요 계정: $(echo $sample | tr '\n' ' ')"
 else
-    진단결과="정보 없음"
-    현황="/etc/shadow 파일이 없습니다."
+    diagnosisResult="양호"
+    status="관리자 그룹 최소 계정 유지"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
