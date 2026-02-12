@@ -2,44 +2,75 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더 생성
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="파일 및 디렉토리 관리"
+# 초기값
+category="서비스 관리"
 code="U-58"
 riskLevel="중"
-diagnosisItem="홈디렉토리로 지정한 디렉토리의 존재 관리"
-service="File and Directory Management"
+diagnosisItem="불필요한 SNMP 서비스 구동 점검"
 diagnosisResult=""
 status=""
 
-# 모든 사용자 계정을 확인
-while IFS=: read -r username _ uid _ _ home_dir shell; do
-  # 시스템 계정 건너뛰기 및 로그인 쉘 없는 계정 건너뛰기
-  if [ "$uid" -ge 1000 ] && [[ "$shell" != *"nologin" ]] && [[ "$shell" != *"false" ]]; then
-    # 홈 디렉터리가 존재하지 않거나, 관리자가 아닌 계정의 홈 디렉터리가 '/' 인 경우
-    if [ ! -d "$home_dir" ] || { [ "$home_dir" == "/" ] && [ "$username" != "root" ]; }; then
-      if [ ! -d "$home_dir" ]; then
-        diagnosisResult="$username 계정의 홈 디렉터리 ($home_dir) 가 존재하지 않습니다."
-        status="취약"
-      elif [ "$home_dir" == "/" ]; then
-        diagnosisResult="관리자 계정(root)이 아닌데 $username 계정의 홈 디렉터리가 '/'로 설정되어 있습니다."
-        status="취약"
-      fi
-      echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-  fi
-done < /etc/passwd
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# 진단 결과 설정
-if ! grep -q "취약" $OUTPUT_CSV; then
-  diagnosisResult="모든 사용자 계정의 홈 디렉터리가 적절히 설정되어 있습니다."
-  status="양호"
-  echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#############################################
+# 변수
+#############################################
+snmp_running=false
+현황=()
+
+#############################################
+# 1. SNMP 프로세스 확인
+#############################################
+if ps -ef | grep snmpd | grep -v grep >/dev/null; then
+    snmp_running=true
+    현황+=("snmpd 프로세스 실행중")
 fi
 
-# Output CSV
+#############################################
+# 2. systemctl 서비스 확인
+#############################################
+if systemctl is-active snmpd 2>/dev/null | grep -q active; then
+    snmp_running=true
+    현황+=("snmpd 서비스 active 상태")
+fi
+
+#############################################
+# 3. UDP 161 포트 확인
+#############################################
+if ss -lunp 2>/dev/null | grep ":161" >/dev/null; then
+    snmp_running=true
+    현황+=("SNMP 161 UDP 포트 사용중")
+fi
+
+#############################################
+# 4. 패키지 설치 여부 (참고)
+#############################################
+if rpm -qa 2>/dev/null | grep -i net-snmp >/dev/null; then
+    현황+=("net-snmp 패키지 설치됨")
+fi
+
+#############################################
+# 결과 판단
+#############################################
+if $snmp_running; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="SNMP 서비스 미사용"
+fi
+
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#############################################
+# 출력
+#############################################
 cat $OUTPUT_CSV
