@@ -1,54 +1,91 @@
 #!/bin/bash
 
-. function.sh
-
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="패치 관리"
+# 초기값
+category="서비스 관리"
 code="U-42"
 riskLevel="상"
-diagnosisItem="최신 보안패치 및 벤더 권고사항 적용"
-service="Patch Management"
+diagnosisItem="불필요한 RPC 서비스 비활성화"
 diagnosisResult=""
 status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 초기 1줄
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-TMP1=$(basename "$0").log
-> $TMP1
+#########################################
+# 변수
+#########################################
+vuln=false
+현황=()
 
-cat << EOF >> $TMP1
-[양호]: 시스템은 최신 보안 패치를 보유하고 있습니다.
-[취약]: 시스템에 보안 패치가 필요합니다.
-EOF
+#########################################
+# 취약 RPC 목록
+#########################################
+rpc_list=(
+rpc.cmsd rpc.ttdbserverd sadmind rusersd walld sprayd rstatd
+rpc.nisd rexd rpc.pcnfsd rpc.statd rpc.ypupdated rpc.rquotad
+kcms_server cachefsd
+)
 
-# Ubuntu 시스템에서 보안 패치를 확인하는 명령어 실행
-output=$(sudo unattended-upgrades --dry-run --debug 2>&1)
+#########################################
+# 1. 프로세스 실행 확인
+#########################################
+for svc in "${rpc_list[@]}"; do
+    if ps -ef | grep "$svc" | grep -v grep >/dev/null; then
+        vuln=true
+        현황+=("$svc 실행중")
+    fi
+done
 
-# 출력 내용에서 보안 패치 여부를 확인
-if [[ $output == *"All upgrades installed"* ]]; then
-    diagnosisResult="시스템은 최신 보안 패치를 보유하고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-else
-    diagnosisResult="시스템에 보안 패치가 필요합니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+#########################################
+# 2. inetd.conf 확인
+#########################################
+if [ -f /etc/inetd.conf ]; then
+    for svc in "${rpc_list[@]}"; do
+        if grep -Ei "$svc" /etc/inetd.conf | grep -v '^#' >/dev/null; then
+            vuln=true
+            현황+=("inetd $svc 활성")
+        fi
+    done
 fi
 
-# Write result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# 3. rpcbind 실행 여부 (참고)
+#########################################
+if systemctl is-active rpcbind 2>/dev/null | grep -q active; then
+    현황+=("rpcbind 실행중")
+fi
 
-# Log and output CSV
-cat $TMP1
+#########################################
+# 4. RPC 포트 LISTEN 확인
+#########################################
+if ss -lntup 2>/dev/null | grep rpc >/dev/null; then
+    현황+=("RPC 포트 LISTEN")
+fi
 
-echo ; echo
+#########################################
+# 결과
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="불필요 RPC 서비스 비활성화"
+fi
 
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
