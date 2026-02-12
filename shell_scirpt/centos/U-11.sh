@@ -2,62 +2,69 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-11"
-위험도="상"
-진단항목="/etc/syslog.conf 파일 소유자 및 권한 설정"
-대응방안="/etc/syslog.conf 파일의 소유자가 root(또는 bin, sys)이고, 권한이 640 이하인 경우"
-현황=""
-진단결과="파일 없음"
+# 초기값
+category="계정 관리"
+code="U-11"
+riskLevel="중"
+diagnosisItem="사용자 shell 점검"
+diagnosisResult=""
+status=""
 
-syslog_conf_files=("/etc/rsyslog.conf" "/etc/syslog.conf" "/etc/syslog-ng.conf")
-file_exists_count=0
-compliant_files_count=0
+# 초기 1줄 기록 (형태 유지)
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-TMP1=$(basename "$0").log
-> $TMP1
+#########################################
+# 점검 대상 계정 목록
+#########################################
+system_accounts=(
+daemon bin sys adm listen nobody nobody4 noaccess
+diag operator games gopher lp mail news uucp ftp
+)
 
-for file_path in "${syslog_conf_files[@]}"; do
-    if [ -f "$file_path" ]; then
-        ((file_exists_count++))
-        mode=$(stat -c "%a" "$file_path")
-        owner_name=$(stat -c "%U" "$file_path")
+취약계정=()
+현황=()
 
-        if [[ "$owner_name" == "root" || "$owner_name" == "bin" || "$owner_name" == "sys" ]] && [ "$mode" -le 640 ]; then
-            ((compliant_files_count++))
-            현황+="$file_path 파일의 소유자가 $owner_name이고, 권한이 $mode입니다. "
-        else
-            현황+="$file_path 파일의 소유자나 권한이 기준에 부합하지 않습니다. "
+#########################################
+# passwd 점검
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    for sacc in "${system_accounts[@]}"; do
+        if [[ "$user" == "$sacc" ]]; then
+
+            if [[ "$shell" != "/sbin/nologin" && "$shell" != "/bin/false" ]]; then
+                취약계정+=("$user($shell)")
+            fi
+
         fi
-    fi
-done
+    done
 
-if [ "$file_exists_count" -gt 0 ]; then
-    if [ "$compliant_files_count" -eq "$file_exists_count" ]; then
-        진단결과="양호"
-    else
-        진단결과="취약"
-    fi
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if [ ${#취약계정[@]} -gt 0 ]; then
+    diagnosisResult="취약"
+
+    sample=$(printf '%s\n' "${취약계정[@]}" | head -10)
+    status="로그인 가능 shell 계정: $(echo $sample | tr '\n' ' ')"
 else
-    진단결과="파일 없음"
-    현황="설정 파일을 찾을 수 없습니다."
+    diagnosisResult="양호"
+    status="시스템 계정 shell 설정 양호"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
