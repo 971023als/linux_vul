@@ -2,101 +2,74 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-10"
-위험도="상"
-진단항목="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
-대응방안="/etc/(x)inetd.conf 파일과 /etc/xinetd.d 디렉터리 내 파일의 소유자가 root이고, 권한이 600 미만인 경우"
-현황=""
-진단결과=""
+# 초기값
+category="계정 관리"
+code="U-10"
+riskLevel="상"
+diagnosisItem="동일한 UID 금지"
+diagnosisResult=""
+status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록 (형태 유지)
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# 파일 소유자 및 권한 검사 함수
-check_file_ownership_and_permissions() {
-    file_path=$1
-    if [ ! -e "$file_path" ]; then
-        return 1 # 파일이 존재하지 않음
-    fi
-    
-    mode=$(stat -c "%a" "$file_path")
-    owner_uid=$(stat -c "%u" "$file_path")
-    
-    if [ "$owner_uid" -eq 0 ] && [ "$mode" -lt 600 ]; then
-        return 0 # 조건 충족
+#########################################
+# 변수
+#########################################
+declare -A uid_map
+중복계정=()
+현황=()
+
+#########################################
+# passwd 점검
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    # uid_map에 사용자 누적
+    if [[ -n "${uid_map[$uid]}" ]]; then
+        uid_map[$uid]="${uid_map[$uid]},$user"
     else
-        return 2 # 조건 불충족
+        uid_map[$uid]="$user"
     fi
-}
 
-# 디렉터리 내 파일 소유자 및 권한 검사 함수
-check_directory_files_ownership_and_permissions() {
-    directory_path=$1
-    if [ ! -d "$directory_path" ]; then
-        return 1 # 디렉터리가 존재하지 않음
-    fi
-    
-    for file_path in "$directory_path"/*; do
-        if ! check_file_ownership_and_permissions "$file_path"; then
-            return 2 # 조건 불충족
-        fi
-    done
-    
-    return 0 # 모든 파일이 조건 충족
-}
+done < /etc/passwd
 
-# 파일 및 디렉터리 검사
-check_passed=true
-files_to_check=('/etc/inetd.conf' '/etc/xinetd.conf')
-directories_to_check=('/etc/xinetd.d')
+#########################################
+# 중복 UID 탐지
+#########################################
+for uid in "${!uid_map[@]}"; do
+    IFS=',' read -ra users <<< "${uid_map[$uid]}"
 
-for file_path in "${files_to_check[@]}"; do
-    check_file_ownership_and_permissions "$file_path"
-    result=$?
-    if [ $result -eq 1 ]; then
-        현황+="$file_path 파일이 없습니다. "
-        check_passed=false
-    elif [ $result -eq 2 ]; then
-        현황+="$file_path 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
-        check_passed=false
+    if [[ ${#users[@]} -gt 1 ]]; then
+        # root만 여러개면 정상 아님 → 취약
+        중복계정+=("UID $uid → ${uid_map[$uid]}")
     fi
 done
 
-for directory_path in "${directories_to_check[@]}"; do
-    check_directory_files_ownership_and_permissions "$directory_path"
-    result=$?
-    if [ $result -eq 1 ]; then
-        현황+="$directory_path 디렉터리가 없습니다. "
-        check_passed=false
-    elif [ $result -eq 2 ]; then
-        현황+="$directory_path 디렉터리 내 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
-        check_passed=false
-    fi
-done
+#########################################
+# 결과 판정
+#########################################
+if [ ${#중복계정[@]} -gt 0 ]; then
+    diagnosisResult="취약"
 
-# 검사 결과에 따라 진단 결과 업데이트
-if $check_passed; then
-    진단결과="양호"
+    sample=$(printf '%s\n' "${중복계정[@]}" | head -10)
+    status="중복 UID 존재: $(echo $sample | tr '\n' ' ')"
 else
-    진단결과="취약"
+    diagnosisResult="양호"
+    status="중복 UID 없음"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
