@@ -2,72 +2,102 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-27"
 riskLevel="상"
-diagnosisItem="RPC 서비스 확인"
-solution="불필요한 RPC 서비스 비활성화"
+diagnosisItem=".rhosts 및 hosts.equiv 사용 금지"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: 모든 불필요한 RPC 서비스가 비활성화되어 있습니다.
-[취약]: 불필요한 RPC 서비스가 실행 중입니다.
-EOF
+#########################################
+# 변수
+#########################################
+취약내용=()
+vuln=false
 
-rpc_services=("rpc.cmsd" "rpc.ttdbserverd" "sadmind" "rusersd" "walld" "sprayd" "rstatd" "rpc.nisd" "rexd" "rpc.pcnfsd" "rpc.statd" "rpc.ypupdated" "rpc.rquotad" "kcms_server" "cachefsd")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-service_found=false
+#########################################
+# 1. /etc/hosts.equiv 점검
+#########################################
+file="/etc/hosts.equiv"
 
-# Check services under /etc/xinetd.d
-if [ -d "$xinetd_dir" ]; then
-    for service in "${rpc_services[@]}"; do
-        service_path="$xinetd_dir/$service"
-        if [ -f "$service_path" ]; then
-            if ! grep -q 'disable\s*=\s*yes' "$service_path"; then
-                diagnosisResult="불필요한 RPC 서비스가 /etc/xinetd.d 디렉터리 내 서비스 파일에서 실행 중입니다: $service"
-                status="취약"
-                service_found=true
-                echo "WARN: $diagnosisResult" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-        fi
-    done
+if [ -f "$file" ]; then
+
+    owner=$(stat -c "%U" "$file" 2>/dev/null)
+    perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+    if [[ "$owner" != "root" ]]; then
+        취약내용+=("$file 소유자 비정상:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 600 ]]; then
+        취약내용+=("$file 권한 600 초과:$perm")
+        vuln=true
+    fi
+
+    if grep -Eq '^\+' "$file"; then
+        취약내용+=("$file '+' trust 설정 존재")
+        vuln=true
+    fi
 fi
 
-# Check services in /etc/inetd.conf
-if [ -f "$inetd_conf" ]; then
-    for service in "${rpc_services[@]}"; do
-        if grep -q "$service" "$inetd_conf"; then
-            diagnosisResult="불필요한 RPC 서비스가 /etc/inetd.conf 파일에서 실행 중입니다: $service"
-            status="취약"
-            service_found=true
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    done
+#########################################
+# 2. 사용자 .rhosts 점검
+#########################################
+while IFS=: read -r user pass uid gid desc home shell; do
+
+    [ ! -d "$home" ] && continue
+
+    rfile="$home/.rhosts"
+    [ ! -f "$rfile" ] && continue
+
+    owner=$(stat -c "%U" "$rfile" 2>/dev/null)
+    perm=$(stat -c "%a" "$rfile" 2>/dev/null)
+
+    if [[ "$owner" != "$user" && "$owner" != "root" ]]; then
+        취약내용+=("$rfile 소유자 비정상:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 600 ]]; then
+        취약내용+=("$rfile 권한 600 초과:$perm")
+        vuln=true
+    fi
+
+    if grep -Eq '^\+' "$rfile"; then
+        취약내용+=("$rfile '+' trust 설정 존재")
+        vuln=true
+    fi
+
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${취약내용[@]}" | head -20)
+    status=$(echo $sample | tr '\n' ' ')
+else
+    diagnosisResult="양호"
+    status="rhosts/hosts.equiv 설정 양호 또는 미사용"
 fi
 
-# Final check if no vulnerabilities found
-if ! $service_found; then
-    diagnosisResult="모든 불필요한 RPC 서비스가 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
