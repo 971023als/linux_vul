@@ -1,86 +1,66 @@
 #!/bin/bash
 
-. function.sh
-
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-29"
-riskLevel="상"
-diagnosisItem="tftp, talk 서비스 비활성화"
-service="Account Management"
+riskLevel="중"
+diagnosisItem="hosts.lpd 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-TMP1=$(basename "$0").log
-> $TMP1
+#########################################
+# 점검 파일
+#########################################
+file="/etc/hosts.lpd"
+취약내용=()
+vuln=false
 
-cat << EOF >> $TMP1
-[양호]: tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다.
-[취약]: tftp, talk, ntalk 서비스가 활성화되어 있습니다.
-EOF
+#########################################
+# 파일 존재 여부
+#########################################
+if [ ! -f "$file" ]; then
+    diagnosisResult="양호"
+    status="/etc/hosts.lpd 파일 미존재 (양호)"
 
-services=("tftp" "talk" "ntalk")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-service_found=false
-
-# Check for services in /etc/xinetd.d directory
-if [ -d "$xinetd_dir" ]; then
-    for service in "${services[@]}"; do
-        service_path="$xinetd_dir/$service"
-        if [ -f "$service_path" ]; then
-            if ! grep -q 'disable\s*=\s*yes' "$service_path"; then
-                diagnosisResult="$service 서비스가 /etc/xinetd.d 디렉터리 내 서비스 파일에서 실행 중입니다."
-                status="취약"
-                echo "WARN: $diagnosisResult" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                cat $TMP1
-                echo ; echo
-                exit 0
-            fi
-        fi
-    done
-fi
-
-# Check for services in /etc/inetd.conf file
-if [ -f "$inetd_conf" ]; then
-    for service in "${services[@]}"; do
-        if grep -E "^$service\s" "$inetd_conf" &> /dev/null; then
-            diagnosisResult="$service 서비스가 /etc/inetd.conf 파일에서 실행 중입니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            cat $TMP1
-            echo ; echo
-            exit 0
-        fi
-    done
-fi
-
-# Determine final diagnosis result
-if $service_found; then
-    diagnosisResult="tftp, talk, ntalk 서비스가 활성화되어 있습니다."
-    status="취약"
 else
-    diagnosisResult="tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다."
-    status="양호"
+    owner=$(stat -c "%U" "$file" 2>/dev/null)
+    perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+    if [[ "$owner" != "root" ]]; then
+        취약내용+=("소유자 root 아님:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 600 ]]; then
+        취약내용+=("권한 600 초과:$perm")
+        vuln=true
+    fi
+
+    if $vuln; then
+        diagnosisResult="취약"
+        status=$(IFS=' | '; echo "${취약내용[*]}")
+    else
+        diagnosisResult="양호"
+        status="hosts.lpd 권한 및 소유자 정상"
+    fi
 fi
 
-# Write final results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
