@@ -2,53 +2,91 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-45"
-riskLevel="하"
-diagnosisItem="root 계정 su 제한"
-service="Account Management"
-diagnosisResult="양호"
+riskLevel="상"
+diagnosisItem="메일 서비스 버전 점검"
+diagnosisResult=""
 status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 초기 1줄
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-pam_su_path="/etc/pam.d/su"
-result="양호"
+#########################################
+# 변수
+#########################################
+mail_used=false
+버전정보=()
 
-if [ -f "$pam_su_path" ]; then
-    pam_contents=$(cat "$pam_su_path")
-    if echo "$pam_contents" | grep -q "pam_rootok.so"; then
-        if ! echo "$pam_contents" | grep -q "pam_wheel.so" || ! echo "$pam_contents" | grep -q "auth required pam_wheel.so use_uid"; then
-            result="취약"
-            status="/etc/pam.d/su 파일에 pam_wheel.so 모듈 설정이 적절히 구성되지 않았습니다."
-            echo "WARN: $status"
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
-        fi
-    else
-        result="취약"
-        status="/etc/pam.d/su 파일에서 pam_rootok.so 모듈이 누락되었습니다."
-        echo "WARN: $status"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
+#########################################
+# sendmail 확인
+#########################################
+if command -v sendmail >/dev/null 2>&1; then
+    if ps -ef | grep sendmail | grep -v grep >/dev/null; then
+        mail_used=true
+        ver=$(sendmail -d0.1 -bv root 2>/dev/null | grep Version | head -1)
+        [ -z "$ver" ] && ver=$(sendmail -d0.1 2>/dev/null | grep Version | head -1)
+        버전정보+=("sendmail:$ver")
     fi
+fi
+
+#########################################
+# postfix 확인
+#########################################
+if command -v postconf >/dev/null 2>&1; then
+    if systemctl is-active postfix 2>/dev/null | grep -q active; then
+        mail_used=true
+        ver=$(postconf mail_version 2>/dev/null)
+        버전정보+=("postfix:$ver")
+    fi
+fi
+
+#########################################
+# exim 확인
+#########################################
+if command -v exim >/dev/null 2>&1; then
+    if ps -ef | grep exim | grep -v grep >/dev/null; then
+        mail_used=true
+        ver=$(exim -bV 2>/dev/null | head -1)
+        버전정보+=("exim:$ver")
+    fi
+fi
+
+#########################################
+# 포트 25 확인 (smtp)
+#########################################
+if ss -lntup 2>/dev/null | grep ":25 " >/dev/null; then
+    mail_used=true
+fi
+
+#########################################
+# 결과
+#########################################
+if ! $mail_used; then
+    diagnosisResult="양호"
+    status="메일 서비스 미사용"
 else
-    result="취약"
-    status="/etc/pam.d/su 파일이 존재하지 않습니다."
-    echo "WARN: $status"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
+    if [ ${#버전정보[@]} -eq 0 ]; then
+        diagnosisResult="취약"
+        status="메일서비스 실행중이나 버전확인 불가"
+    else
+        diagnosisResult="양호"
+        status=$(IFS=' | '; echo "${버전정보[*]}")
+    fi
 fi
 
-if [ "$result" = "양호" ]; then
-    status="/etc/pam.d/su 파일에 대한 설정이 적절하게 구성되어 있습니다."
-    echo "OK: $status"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
-fi
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Output CSV
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
