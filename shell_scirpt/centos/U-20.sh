@@ -2,43 +2,100 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="시스템 설정"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-20"
 riskLevel="상"
-diagnosisItem="Anonymous FTP 비활성화"
-solution="[양호]: Anonymous FTP (익명 ftp) 접속을 차단한 경우\n[취약]: Anonymous FTP (익명 ftp) 접속을 차단하지 않은 경우"
+diagnosisItem="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: Anonymous FTP (익명 ftp) 접속을 차단한 경우
-[취약]: Anonymous FTP (익명 ftp) 접속을 차단하지 않은 경우
-EOF
+#########################################
+# 점검 대상 파일
+#########################################
+files=(
+"/etc/inetd.conf"
+"/etc/xinetd.conf"
+"/etc/systemd/system.conf"
+)
 
-# Check if the ftp user exists in /etc/passwd
-if grep -q "^ftp:" /etc/passwd; then
-    diagnosisResult="FTP 계정이 /etc/passwd 파일에 있습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+dirs=(
+"/etc/xinetd.d"
+)
+
+취약내용=()
+vuln=false
+
+#########################################
+# 파일 점검
+#########################################
+check_file() {
+    local f="$1"
+
+    [ ! -f "$f" ] && return
+
+    owner=$(stat -c "%U" "$f" 2>/dev/null)
+    perm=$(stat -c "%a" "$f" 2>/dev/null)
+
+    if [[ "$owner" != "root" ]]; then
+        취약내용+=("$f 소유자 root 아님:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 600 ]]; then
+        취약내용+=("$f 권한 600 초과:$perm")
+        vuln=true
+    fi
+}
+
+#########################################
+# 디렉터리 내 파일 점검
+#########################################
+check_dir() {
+    local d="$1"
+    [ ! -d "$d" ] && return
+
+    while IFS= read -r file; do
+        check_file "$file"
+    done < <(find "$d" -type f 2>/dev/null)
+}
+
+#########################################
+# 점검 수행
+#########################################
+for f in "${files[@]}"; do
+    check_file "$f"
+done
+
+for d in "${dirs[@]}"; do
+    check_dir "$d"
+done
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${취약내용[*]}")
 else
-    diagnosisResult="FTP 계정이 /etc/passwd 파일에 없습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+    diagnosisResult="양호"
+    status="inetd/xinetd/systemd 설정 파일 권한 양호"
 fi
 
-cat $TMP1
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV

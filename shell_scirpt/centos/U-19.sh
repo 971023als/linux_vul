@@ -2,62 +2,71 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-19"
 riskLevel="상"
-diagnosisItem="Finger 서비스 비활성화"
-solution="Finger 서비스가 비활성화 되어 있는 경우"
+diagnosisItem="/etc/hosts 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-# Initial log file
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: Finger 서비스가 비활성화되어 있거나 실행 중이지 않은 경우
-[취약]: Finger 서비스가 활성화되어 있거나 실행 중인 경우
-EOF
+#########################################
+# 점검 파일
+#########################################
+file="/etc/hosts"
+취약내용=()
+vuln=false
 
-# Check if /etc/services contains Finger service definition
-if grep -iq "^finger.*tcp" /etc/services; then
-    diagnosisResult="/etc/services에 Finger 서비스 포트가 정의되어 있습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# 파일 존재 확인
+#########################################
+if [ ! -f "$file" ]; then
+    diagnosisResult="취약"
+    status="/etc/hosts 파일 없음"
+
 else
-    if [ ! -f "/etc/services" ]; then
-        diagnosisResult="/etc/services 파일을 찾을 수 없습니다."
-        status="정보 없음"
-        echo "INFO: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+    #####################################
+    # 소유자 및 권한 확인
+    #####################################
+    owner=$(stat -c "%U" "$file" 2>/dev/null)
+    perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+    if [[ "$owner" != "root" ]]; then
+        취약내용+=("소유자 root 아님:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 644 ]]; then
+        취약내용+=("권한 644 초과:$perm")
+        vuln=true
+    fi
+
+    #####################################
+    # 결과 판정
+    #####################################
+    if $vuln; then
+        diagnosisResult="취약"
+        status=$(IFS=' | '; echo "${취약내용[*]}")
+    else
+        diagnosisResult="양호"
+        status="소유자 root, 권한 644 이하 정상"
     fi
 fi
 
-# Check if Finger process is running
-if ps -ef | grep -iq "finger"; then
-    diagnosisResult="Finger 서비스 프로세스가 실행 중입니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Final check if diagnosisResult is empty, meaning everything is fine
-if [ -z "$diagnosisResult" ]; then
-    diagnosisResult="Finger 서비스가 비활성화되어 있거나 실행 중이지 않습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
-
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
