@@ -2,77 +2,127 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더 생성
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-50"
-riskLevel="하"
-diagnosisItem="관리자 그룹에 최소한의 계정 포함"
-service="Account Management"
-diagnosisResult="양호"
+riskLevel="상"
+diagnosisItem="DNS ZoneTransfer 설정"
+diagnosisResult=""
 status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# 불필요한 계정 목록
-unnecessary_accounts=(
-    "bin" "sys" "adm" "listen" "nobody4" "noaccess" "diag"
-    "operator" "gopher" "games" "ftp" "apache" "httpd" "www-data"
-    "mysql" "mariadb" "postgres" "mail" "postfix" "news" "lp"
-    "uucp" "nuucp" "sync" "shutdown" "halt" "mailnull" "smmsp"
-    "manager" "dumper" "abuse" "webmaster" "noc" "security"
-    "hostmaster" "info" "marketing" "sales" "support" "accounts"
-    "help" "admin" "guest" "user" "ubuntu"
-)
+############################################
+# 변수
+############################################
+dns_used=false
+vuln=false
+현황=()
 
-if [ -f "/etc/group" ]; then
-    root_group_found=false
-    while IFS=: read -r group_name _ _ members; do
-        if [ "$group_name" == "root" ]; then
-            root_group_found=true
-            IFS=',' read -ra members_array <<< "$members"
-            found_accounts=()
-            for account in "${members_array[@]}"; do
-                for unnecessary_account in "${unnecessary_accounts[@]}"; do
-                    if [ "$account" == "$unnecessary_account" ]; then
-                        found_accounts+=("$account")
-                        break
-                    fi
-                done
-            done
-
-            if [ ${#found_accounts[@]} -gt 0 ]; then
-                diagnosisResult="관리자 그룹(root)에 불필요한 계정이 등록되어 있습니다: ${found_accounts[*]}"
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            else
-                diagnosisResult="관리자 그룹(root)에 불필요한 계정이 없습니다."
-                status="양호"
-                echo "OK: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            break
-        fi
-    done < "/etc/group"
-
-    if [ "$root_group_found" = false ]; then
-        diagnosisResult="관리자 그룹(root)을 /etc/group 파일에서 찾을 수 없습니다."
-        status="오류"
-        echo "ERROR: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-else
-    diagnosisResult="/etc/group 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+############################################
+# DNS 사용 여부 확인
+############################################
+if ps -ef | grep named | grep -v grep >/dev/null; then
+    dns_used=true
 fi
 
-# Output CSV
+if ss -lntup 2>/dev/null | grep ":53 " >/dev/null; then
+    dns_used=true
+fi
+
+############################################
+# DNS 미사용 → 양호
+############################################
+if ! $dns_used; then
+    diagnosisResult="양호"
+    status="DNS 서비스 미사용"
+
+else
+
+############################################
+# named 설정파일 위치 후보
+############################################
+conf_files=(
+    "/etc/named.conf"
+    "/etc/bind/named.conf"
+    "/etc/bind/named.conf.options"
+    "/etc/named.boot"
+)
+
+found_conf=false
+allow_setting=""
+
+for conf in "${conf_files[@]}"; do
+    if [ -f "$conf" ]; then
+        found_conf=true
+
+        result=$(grep -i "allow-transfer" "$conf" 2>/dev/null)
+        xfr=$(grep -i "xfrnets" "$conf" 2>/dev/null)
+
+        if [ -n "$result" ]; then
+            allow_setting="$result"
+            현황+=("$conf allow-transfer 설정 발견")
+        fi
+
+        if [ -n "$xfr" ]; then
+            allow_setting="$xfr"
+            현황+=("$conf xfrnets 설정 발견")
+        fi
+    fi
+done
+
+############################################
+# 설정 파일 없음
+############################################
+if ! $found_conf; then
+    vuln=true
+    현황+=("DNS 설정파일(named.conf 등) 미발견")
+
+else
+
+############################################
+# allow-transfer 설정 점검
+############################################
+if [ -z "$allow_setting" ]; then
+    vuln=true
+    현황+=("Zone Transfer 제한 설정 없음")
+
+else
+    echo "$allow_setting" | grep -Ei "any|0.0.0.0|;" >/dev/null
+    if [ $? -eq 0 ]; then
+        vuln=true
+        현황+=("Zone Transfer 전체 허용 가능성")
+    else
+        현황+=("허용된 IP로 Zone Transfer 제한 설정됨")
+    fi
+fi
+
+fi
+
+############################################
+# 결과
+############################################
+if $vuln; then
+    diagnosisResult="취약"
+else
+    diagnosisResult="양호"
+fi
+
+status=$(IFS=' | '; echo "${현황[*]}")
+
+fi
+
+############################################
+# CSV 기록
+############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+############################################
+# 출력
+############################################
 cat $OUTPUT_CSV
