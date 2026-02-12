@@ -2,68 +2,74 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-21"
 riskLevel="상"
-diagnosisItem="r 계열 서비스 비활성화"
-solution="불필요한 r 계열 서비스 비활성화"
+diagnosisItem="/etc/(r)syslog.conf 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: 모든 r 계열 서비스가 비활성화되어 있습니다.
-[취약]: 불필요한 r 계열 서비스가 실행 중입니다.
-EOF
+#########################################
+# 점검 대상
+#########################################
+files=(
+"/etc/syslog.conf"
+"/etc/rsyslog.conf"
+)
 
-r_commands=("rsh" "rlogin" "rexec" "shell" "login" "exec")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-vulnerable_services=()
+취약내용=()
+vuln=false
 
-# Check services under xinetd.d
-if [ -d "$xinetd_dir" ]; then
-    for r_command in "${r_commands[@]}"; do
-        service_path="$xinetd_dir/$r_command"
-        if [ -f "$service_path" ] && grep -q 'disable\s*=\s*no' "$service_path"; then
-            vulnerable_services+=("$r_command")
-        fi
-    done
-fi
+#########################################
+# 점검 수행
+#########################################
+for file in "${files[@]}"; do
 
-# Check services in inetd.conf
-if [ -f "$inetd_conf" ]; then
-    for r_command in "${r_commands[@]}"; do
-        if grep -q "^$r_command" "$inetd_conf"; then
-            vulnerable_services+=("$r_command")
-        fi
-    done
-fi
+    [ ! -f "$file" ] && continue
 
-# Update diagnosis result
-if [ ${#vulnerable_services[@]} -gt 0 ]; then
-    diagnosisResult="불필요한 r 계열 서비스가 실행 중입니다: ${vulnerable_services[*]}"
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+    owner=$(stat -c "%U" "$file" 2>/dev/null)
+    perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+    # 소유자 확인
+    if [[ "$owner" != "root" && "$owner" != "bin" && "$owner" != "sys" ]]; then
+        취약내용+=("$file 소유자 비정상:$owner")
+        vuln=true
+    fi
+
+    # 권한 확인
+    if [[ "$perm" -gt 640 ]]; then
+        취약내용+=("$file 권한 640 초과:$perm")
+        vuln=true
+    fi
+
+done
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${취약내용[*]}")
 else
-    diagnosisResult="모든 r 계열 서비스가 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    diagnosisResult="양호"
+    status="syslog 설정 파일 권한 양호"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
