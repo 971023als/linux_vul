@@ -2,54 +2,114 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-48"
 riskLevel="중"
-diagnosisItem="패스워드 최소 사용기간 설정"
-service="Account Management"
+diagnosisItem="SMTP expn/vrfy 제한"
 diagnosisResult=""
-status="양호"
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 초기 1줄
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-login_defs_path="/etc/login.defs"
-result="양호"
+#########################################
+# 변수
+#########################################
+mail_used=false
+vuln=false
+현황=()
 
-if [ -f "$login_defs_path" ]; then
-    while IFS= read -r line; do
-        if echo "$line" | grep -q "PASS_MIN_DAYS" && ! echo "$line" | grep -q "^#"; then
-            min_days=$(echo "$line" | awk '{print $2}')
-            if [ "$min_days" -lt 1 ]; then
-                result="취약"
-                diagnosisResult="/etc/login.defs 파일에 패스워드 최소 사용 기간이 1일 미만으로 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            break
-        fi
-    done < "$login_defs_path"
+#########################################
+# 메일 서비스 사용 여부
+#########################################
+if ss -lntup 2>/dev/null | grep ":25 " >/dev/null; then
+    mail_used=true
+fi
+
+if ps -ef | grep -E "sendmail|postfix|exim" | grep -v grep >/dev/null; then
+    mail_used=true
+fi
+
+#########################################
+# 메일 미사용
+#########################################
+if ! $mail_used; then
+    diagnosisResult="양호"
+    status="메일 서비스 미사용"
+
 else
-    result="취약"
-    diagnosisResult="/etc/login.defs 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+#########################################
+# sendmail 점검
+#########################################
+if [ -f /etc/mail/sendmail.cf ]; then
+
+    if grep -i "goaway" /etc/mail/sendmail.cf >/dev/null; then
+        현황+=("sendmail goaway 설정")
+    else
+        if ! grep -i "noexpn" /etc/mail/sendmail.cf >/dev/null; then
+            vuln=true
+            현황+=("sendmail noexpn 미설정")
+        fi
+
+        if ! grep -i "novrfy" /etc/mail/sendmail.cf >/dev/null; then
+            vuln=true
+            현황+=("sendmail novrfy 미설정")
+        fi
+    fi
 fi
 
-if [ "$result" = "양호" ]; then
-    diagnosisResult="패스워드 최소 사용 기간이 적절하게 설정되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# postfix 점검
+#########################################
+if command -v postconf >/dev/null 2>&1; then
+    vrfy=$(postconf -n 2>/dev/null | grep disable_vrfy_command)
+
+    if echo "$vrfy" | grep -i "yes" >/dev/null; then
+        현황+=("postfix vrfy 제한")
+    else
+        vuln=true
+        현황+=("postfix disable_vrfy_command 미설정")
+    fi
 fi
 
-# Output CSV
+#########################################
+# exim 점검
+#########################################
+if [ -f /etc/exim.conf ]; then
+    if grep -i "vrfy" /etc/exim.conf | grep -i deny >/dev/null; then
+        현황+=("exim vrfy 제한")
+    else
+        vuln=true
+        현황+=("exim vrfy 제한 설정 없음")
+    fi
+fi
+
+#########################################
+# 결과
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="expn/vrfy 명령 제한 양호"
+fi
+
+fi
+
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
