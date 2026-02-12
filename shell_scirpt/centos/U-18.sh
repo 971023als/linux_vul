@@ -2,67 +2,71 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="파일 및 디렉터리 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-18"
 riskLevel="상"
-diagnosisItem="접속 IP 및 포트 제한"
-solution="특정 호스트에 대한 IP 주소 및 포트 제한 설정"
+diagnosisItem="/etc/shadow 파일 소유자 및 권한 설정"
 diagnosisResult=""
 status=""
 
-# Initial log file
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: 적절한 IP 및 포트 제한 설정이 확인된 경우
-[취약]: 'ALL: ALL' 설정이 없거나 부적절하게 설정된 경우
-EOF
+#########################################
+# 점검 파일
+#########################################
+file="/etc/shadow"
+취약내용=()
+vuln=false
 
-hosts_deny_path='/etc/hosts.deny'
-hosts_allow_path='/etc/hosts.allow'
+#########################################
+# 파일 존재 확인
+#########################################
+if [ ! -f "$file" ]; then
+    diagnosisResult="취약"
+    status="/etc/shadow 파일 없음"
 
-# Check if file exists and contains specific string
-check_file_exists_and_content() {
-    local file_path=$1
-    local search_string=$2
-    if [ -f "$file_path" ]; then
-        if grep -q -i "^$search_string" "$file_path"; then
-            return 0 # Search string is present in the file
-        fi
-    fi
-    return 1 # File does not exist or search string is not present in the file
-}
-
-# Check /etc/hosts.deny
-if ! check_file_exists_and_content "$hosts_deny_path" "ALL: ALL"; then
-    diagnosisResult="$hosts_deny_path 파일에 'ALL: ALL' 설정이 없거나 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
 else
-    # Check /etc/hosts.allow
-    if check_file_exists_and_content "$hosts_allow_path" "ALL: ALL"; then
-        diagnosisResult="$hosts_allow_path 파일에 'ALL: ALL' 설정이 있습니다."
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+    #####################################
+    # 소유자 및 권한 확인
+    #####################################
+    owner=$(stat -c "%U" "$file" 2>/dev/null)
+    perm=$(stat -c "%a" "$file" 2>/dev/null)
+
+    if [[ "$owner" != "root" ]]; then
+        취약내용+=("소유자 root 아님:$owner")
+        vuln=true
+    fi
+
+    if [[ "$perm" -gt 400 ]]; then
+        취약내용+=("권한 400 초과:$perm")
+        vuln=true
+    fi
+
+    #####################################
+    # 결과
+    #####################################
+    if $vuln; then
+        diagnosisResult="취약"
+        status=$(IFS=' | '; echo "${취약내용[*]}")
     else
-        diagnosisResult="적절한 IP 및 포트 제한 설정이 확인되었습니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+        diagnosisResult="양호"
+        status="소유자 root, 권한 400 이하 정상"
     fi
 fi
 
-cat $TMP1
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
