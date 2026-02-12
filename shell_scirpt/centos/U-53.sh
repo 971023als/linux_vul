@@ -2,58 +2,122 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-53"
 riskLevel="하"
-diagnosisItem="사용자 shell 점검"
-service="Account Management"
+diagnosisItem="FTP 서비스 정보 노출 제한"
 diagnosisResult=""
-status="양호"
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# 불필요한 계정 목록
-unnecessary_accounts=(
-    "daemon" "bin" "sys" "adm" "listen" "nobody" "nobody4"
-    "noaccess" "diag" "operator" "gopher" "games" "ftp" "apache"
-    "httpd" "www-data" "mysql" "mariadb" "postgres" "mail" "postfix"
-    "news" "lp" "uucp" "nuucp"
-)
+########################################
+# 변수
+########################################
+ftp_used=false
+banner_exposed=false
+현황=()
 
-if [ -f "/etc/passwd" ]; then
-    found_issues=false
-    while IFS=: read -r username _ _ _ _ _ shell; do
-        for account in "${unnecessary_accounts[@]}"; do
-            if [ "$username" == "$account" ] && [ "$shell" != "/bin/false" ] && [ "$shell" != "/sbin/nologin" ]; then
-                diagnosisResult="계정 $username에 /bin/false 또는 /sbin/nologin 쉘이 부여되지 않았습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                found_issues=true
-                break 2
-            fi
-        done
-    done < /etc/passwd
-
-    if [ "$found_issues" = false ]; then
-        diagnosisResult="모든 불필요한 계정에 대해 적절한 쉘이 설정되어 있습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-else
-    diagnosisResult="/etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+########################################
+# 1. FTP 프로세스 확인
+########################################
+if ps -ef | egrep "vsftpd|proftpd|pure-ftpd" | grep -v grep >/dev/null; then
+    ftp_used=true
+    현황+=("FTP 서비스 실행 중")
 fi
 
-# Output CSV
+########################################
+# 2. 21번 포트 LISTEN 확인
+########################################
+if ss -lntup 2>/dev/null | grep ":21 " >/dev/null; then
+    ftp_used=true
+fi
+
+########################################
+# FTP 미사용 → 양호
+########################################
+if ! $ftp_used; then
+    diagnosisResult="양호"
+    status="FTP 서비스 미사용"
+    echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+    cat $OUTPUT_CSV
+    exit 0
+fi
+
+########################################
+# 3. vsftpd 설정 점검
+########################################
+vsftp_files=(
+"/etc/vsftpd.conf"
+"/etc/vsftpd/vsftpd.conf"
+)
+
+for file in "${vsftp_files[@]}"; do
+    if [ -f "$file" ]; then
+        ftp_used=true
+
+        banner=$(grep -v '^#' "$file" | grep -i ftpd_banner)
+        if [ -n "$banner" ]; then
+            if echo "$banner" | grep -Ei "vsftpd|ftp|version|linux" >/dev/null; then
+                banner_exposed=true
+                현황+=("$file 배너에 서비스 정보 노출 가능")
+            fi
+        else
+            banner_exposed=true
+            현황+=("$file 배너 설정 없음 (기본 배너 노출 가능)")
+        fi
+    fi
+done
+
+########################################
+# 4. ProFTP 점검
+########################################
+proftpd_conf="/etc/proftpd.conf"
+if [ -f "$proftpd_conf" ]; then
+    ftp_used=true
+
+    grep -i "ServerIdent" "$proftpd_conf" | grep -i "off" >/dev/null
+    if [ $? -ne 0 ]; then
+        banner_exposed=true
+        현황+=("ProFTP ServerIdent 정보 노출 가능")
+    fi
+fi
+
+########################################
+# 5. pure-ftpd 점검
+########################################
+if [ -f "/etc/pure-ftpd/pure-ftpd.conf" ]; then
+    ftp_used=true
+
+    grep -i "FortunesFile" /etc/pure-ftpd/pure-ftpd.conf >/dev/null
+    if [ $? -eq 0 ]; then
+        현황+=("pure-ftpd 배너 설정 존재 (확인 필요)")
+    fi
+fi
+
+########################################
+# 결과 판단
+########################################
+if $banner_exposed; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="FTP 배너 정보 노출 없음"
+fi
+
+########################################
+# CSV 기록
+########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+########################################
+# 출력
+########################################
 cat $OUTPUT_CSV
