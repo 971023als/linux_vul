@@ -1,59 +1,92 @@
 #!/bin/bash
 
-# 초기 진단 결과 및 현황 설정
-category="서비스 관리"
-code="U-64"
-severity="중"
-check_item="ftpusers 파일 설정(FTP 서비스 root 계정 접근제한)"
-result=""
-declare -a status
-recommendation="FTP 서비스가 활성화된 경우 root 계정 접속을 차단"
+OUTPUT_CSV="output.csv"
 
-# 검사할 ftpusers 파일 및 설정 파일 목록
-ftpusers_files=(
-    "/etc/ftpusers" "/etc/ftpd/ftpusers" "/etc/proftpd.conf"
-    "/etc/vsftp/ftpusers" "/etc/vsftp/user_list" "/etc/vsftpd.ftpusers"
-    "/etc/vsftpd.user_list"
-)
-
-# 실행 중인 FTP 서비스 확인
-if ! pgrep -f -e ftpd && ! pgrep -f -e vsftpd && ! pgrep -f -e proftpd; then
-    status+=("FTP 서비스가 비활성화 되어 있습니다.")
-    result="양호"
-else
-    root_access_restricted=false
-
-    for ftpusers_file in "${ftpusers_files[@]}"; do
-        if [ -f "$ftpusers_file" ]; then
-            # proftpd.conf의 경우 'RootLogin on' 설정 확인
-            if [[ "$ftpusers_file" == *proftpd.conf* ]] && grep -q "RootLogin on" "$ftpusers_file"; then
-                result="취약"
-                status+=("$ftpusers_file 파일에 'RootLogin on' 설정이 있습니다.")
-                break
-            # 다른 ftpusers 파일의 경우 'root' 존재 확인
-            elif grep -q "^root$" "$ftpusers_file"; then
-                root_access_restricted=true
-            fi
-        fi
-    done
-
-    if $root_access_restricted; then
-        result="양호"
-        status+=("FTP 서비스 root 계정 접근이 제한되어 있습니다.")
-    else
-        result="취약"
-        status+=("FTP 서비스 root 계정 접근 제한 설정이 충분하지 않습니다.")
-    fi
+# CSV 헤더
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황:"
-for i in "${status[@]}"; do
-    echo "- $i"
-done
-echo "대응방안: $recommendation"
+category="패치 관리"
+code="U-64"
+riskLevel="상"
+diagnosisItem="주기적 보안 패치 적용"
+
+diagnosisResult="양호"
+status=""
+
+#############################################
+# 1. 커널 버전 확인
+#############################################
+kernel_ver=$(uname -r)
+status="kernel:$kernel_ver"
+
+#############################################
+# 2. 패치 관리 도구 확인
+#############################################
+if command -v yum >/dev/null 2>&1; then
+    pkg_tool="yum"
+elif command -v dnf >/dev/null 2>&1; then
+    pkg_tool="dnf"
+elif command -v apt >/dev/null 2>&1; then
+    pkg_tool="apt"
+else
+    pkg_tool="unknown"
+fi
+
+status="$status | pkg_tool:$pkg_tool"
+
+#############################################
+# 3. 업데이트 가능 패키지 점검
+#############################################
+update_count=0
+
+if [ "$pkg_tool" == "yum" ] || [ "$pkg_tool" == "dnf" ]; then
+    update_count=$(yum check-update 2>/dev/null | grep -v "^$" | wc -l)
+elif [ "$pkg_tool" == "apt" ]; then
+    update_count=$(apt list --upgradable 2>/dev/null | grep -v Listing | wc -l)
+fi
+
+status="$status | update_pkg:$update_count"
+
+#############################################
+# 4. 자동 패치 정책 확인
+#############################################
+auto_patch="없음"
+
+if systemctl is-enabled yum-cron >/dev/null 2>&1; then
+    auto_patch="yum-cron"
+elif systemctl is-enabled dnf-automatic.timer >/dev/null 2>&1; then
+    auto_patch="dnf-auto"
+elif systemctl is-enabled unattended-upgrades >/dev/null 2>&1; then
+    auto_patch="unattended"
+fi
+
+status="$status | auto_patch:$auto_patch"
+
+#############################################
+# 5. 판단 기준
+#############################################
+if [ "$pkg_tool" == "unknown" ]; then
+    diagnosisResult="취약"
+    status="$status | 패치관리도구 미확인"
+elif [ "$update_count" -gt 50 ]; then
+    diagnosisResult="취약"
+    status="$status | 미적용패치 다수"
+elif [ "$auto_patch" == "없음" ]; then
+    diagnosisResult="취약"
+    status="$status | 자동패치정책 없음"
+else
+    diagnosisResult="양호"
+    status="$status | 패치관리 정상"
+fi
+
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#############################################
+# 출력
+#############################################
+cat $OUTPUT_CSV
