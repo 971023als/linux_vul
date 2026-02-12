@@ -2,44 +2,72 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="서비스 관리"
+# 초기값
+category="파일 및 디렉토리 관리"
 code="U-26"
 riskLevel="상"
-diagnosisItem="automountd 제거"
-solution="automountd 서비스 비활성화"
+diagnosisItem="/dev 존재하지 않는 device 파일 점검"
 diagnosisResult=""
 status=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 초기 1줄 기록
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-cat << EOF >> $TMP1
-[양호]: automountd 서비스가 비활성화되어 있습니다.
-[취약]: automountd 서비스가 실행 중입니다.
-EOF
+#########################################
+# 예외 디렉터리
+#########################################
+exclude_dirs=(
+"/dev/pts"
+"/dev/shm"
+"/dev/mqueue"
+)
 
-# Check if automountd or autofs services are running
-if ps -ef | grep -iE '[a]utomount|[a]utofs' &> /dev/null; then
-    diagnosisResult="automountd 서비스가 실행 중입니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+의심파일=()
+vuln=false
+
+#########################################
+# 점검 수행
+#########################################
+while IFS= read -r file; do
+
+    skip=false
+    for ex in "${exclude_dirs[@]}"; do
+        if [[ "$file" == "$ex"* ]]; then
+            skip=true
+            break
+        fi
+    done
+
+    $skip && continue
+
+    의심파일+=("$file")
+    vuln=true
+
+done < <(find /dev -type f 2>/dev/null)
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    sample=$(printf '%s\n' "${의심파일[@]}" | head -20)
+    status="비정상 device 파일 의심: $(echo $sample | tr '\n' ' ')"
 else
-    diagnosisResult="automountd 서비스가 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    diagnosisResult="양호"
+    status="/dev 내 비정상 파일 없음"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-cat $TMP1
-
-echo ; echo
-
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
