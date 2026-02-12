@@ -2,56 +2,108 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="파일 및 디렉토리 관리"
+# 초기값
+category="서비스 관리"
 code="U-57"
 riskLevel="중"
-diagnosisItem="홈디렉토리 소유자 및 권한 설정"
-service="File and Directory Management"
+diagnosisItem="ftpusers 파일 설정 (root FTP 접속 제한)"
 diagnosisResult=""
-status="양호"
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Get all user entries and iterate
-getent passwd | while IFS=: read -r username _ uid _ _ homedir _; do
-    # Skip system users by UID
-    if [ "$uid" -ge 1000 ]; then
-        if [ -d "$homedir" ]; then
-            dir_owner_uid=$(stat -c "%u" "$homedir")
-            if [ "$dir_owner_uid" != "$uid" ]; then
-                diagnosisResult="${homedir} 홈 디렉터리의 소유자가 ${username}이(가) 아닙니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            if [ "$(stat -c "%A" "$homedir" | cut -c8)" == "w" ]; then
-                diagnosisResult="${homedir} 홈 디렉터리에 타 사용자(other) 쓰기 권한이 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-        else
-            diagnosisResult="${homedir} 홈 디렉터리가 존재하지 않습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult"
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    fi
-done
+#############################################
+# 변수
+#############################################
+ftp_running=false
+root_blocked=false
+현황=()
 
-if [ "$status" = "양호" ]; then
-    diagnosisResult="모든 홈 디렉터리가 적절히 설정되었습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#############################################
+# 1. FTP 서비스 실행 여부
+#############################################
+if ps -ef | egrep "vsftpd|proftpd|pure-ftpd" | grep -v grep >/dev/null; then
+    ftp_running=true
 fi
 
-# Output CSV
+if ss -lntup 2>/dev/null | grep ":21 " >/dev/null; then
+    ftp_running=true
+fi
+
+#############################################
+# 2. FTP 미사용 → 양호
+#############################################
+if ! $ftp_running; then
+    diagnosisResult="양호"
+    status="FTP 서비스 미사용"
+
+else
+
+    #############################################
+    # 3. ftpusers 파일 검사
+    #############################################
+    ftpusers_files=(
+        "/etc/ftpusers"
+        "/etc/vsftpd/ftpusers"
+        "/etc/vsftpd/user_list"
+    )
+
+    for file in "${ftpusers_files[@]}"; do
+        if [ -f "$file" ]; then
+            if grep -E '^root' "$file" | grep -v '^#' >/dev/null; then
+                root_blocked=true
+                현황+=("$file root 접속 차단 설정")
+            else
+                현황+=("$file root 차단 설정 없음")
+            fi
+        fi
+    done
+
+    #############################################
+    # 4. vsftpd 설정 확인
+    #############################################
+    vsftp_conf=(
+        "/etc/vsftpd.conf"
+        "/etc/vsftpd/vsftpd.conf"
+    )
+
+    for conf in "${vsftp_conf[@]}"; do
+        if [ -f "$conf" ]; then
+            grep -Ei "^userlist_enable=YES" "$conf" | grep -v '^#' >/dev/null
+            if [ $? -eq 0 ]; then
+                root_blocked=true
+                현황+=("vsftpd userlist_enable 활성")
+            fi
+        fi
+    done
+
+    #############################################
+    # 결과
+    #############################################
+    if $root_blocked; then
+        diagnosisResult="양호"
+        status=$(IFS=' | '; echo "${현황[*]}")
+    else
+        diagnosisResult="취약"
+        if [ ${#현황[@]} -eq 0 ]; then
+            status="root FTP 접속 제한 설정 없음"
+        else
+            status=$(IFS=' | '; echo "${현황[*]}")
+        fi
+    fi
+fi
+
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#############################################
+# 출력
+#############################################
 cat $OUTPUT_CSV
