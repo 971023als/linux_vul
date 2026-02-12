@@ -2,58 +2,99 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더 생성
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-52"
 riskLevel="중"
-diagnosisItem="동일한 UID 금지"
-service="Account Management"
+diagnosisItem="Telnet 서비스 비활성화"
 diagnosisResult=""
-status="양호"
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-min_regular_user_uid=1000
-declare -A uid_counts
-duplicate_uids=()
+############################################
+# 변수
+############################################
+telnet_active=false
+현황=()
 
-if [ -f "/etc/passwd" ]; then
-    # Extract UIDs and check for duplicates for regular user UIDs (>=1000)
-    while IFS=: read -r _ _ uid _; do
-        if [ "$uid" -ge "$min_regular_user_uid" ]; then
-            uid_counts["$uid"]=$((uid_counts["$uid"]+1))
-        fi
-    done < <(grep -v '^#' /etc/passwd)
-
-    for uid in "${!uid_counts[@]}"; do
-        if [ "${uid_counts[$uid]}" -gt 1 ]; then
-            duplicate_uids+=("UID $uid (${uid_counts[$uid]}x)")
-        fi
-    done
-
-    if [ ${#duplicate_uids[@]} -gt 0 ]; then
-        diagnosisResult="동일한 UID로 설정된 사용자 계정이 존재합니다: ${duplicate_uids[*]}"
-        status="취약"
-        echo "WARN: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    else
-        diagnosisResult="동일한 UID를 공유하는 사용자 계정이 없습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-else
-    diagnosisResult="/etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+############################################
+# 1. telnet 프로세스 확인
+############################################
+if ps -ef | grep telnetd | grep -v grep >/dev/null; then
+    telnet_active=true
+    현황+=("telnetd 프로세스 실행 중")
 fi
 
-# Output CSV
+############################################
+# 2. 23번 포트 LISTEN 확인
+############################################
+if ss -lntup 2>/dev/null | grep ":23 " >/dev/null; then
+    telnet_active=true
+    현황+=("23번 포트 LISTEN 상태 (telnet 서비스 활성)")
+fi
+
+############################################
+# 3. systemctl 확인 (Linux)
+############################################
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl is-active telnet.socket >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        telnet_active=true
+        현황+=("systemctl telnet.socket 활성화")
+    fi
+
+    systemctl is-active telnet >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        telnet_active=true
+        현황+=("systemctl telnet 서비스 활성화")
+    fi
+fi
+
+############################################
+# 4. inetd.conf 확인
+############################################
+if [ -f "/etc/inetd.conf" ]; then
+    grep -v "^#" /etc/inetd.conf | grep -i telnet >/dev/null
+    if [ $? -eq 0 ]; then
+        telnet_active=true
+        현황+=("/etc/inetd.conf telnet 활성 설정 존재")
+    fi
+fi
+
+############################################
+# 5. xinetd 확인
+############################################
+if [ -f "/etc/xinetd.d/telnet" ]; then
+    grep -i "disable" /etc/xinetd.d/telnet | grep -i "no" >/dev/null
+    if [ $? -eq 0 ]; then
+        telnet_active=true
+        현황+=("xinetd telnet 활성화 상태")
+    fi
+fi
+
+############################################
+# 결과 판단
+############################################
+if $telnet_active; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="Telnet 서비스 비활성화 상태"
+fi
+
+############################################
+# CSV 기록
+############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+############################################
+# 출력
+############################################
 cat $OUTPUT_CSV
