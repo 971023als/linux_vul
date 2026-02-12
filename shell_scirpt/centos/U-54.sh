@@ -2,78 +2,95 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-54"
-riskLevel="하"
-diagnosisItem="Session Timeout 설정"
-service="Account Management"
+riskLevel="중"
+diagnosisItem="암호화되지 않은 FTP 서비스 비활성화"
 diagnosisResult=""
-status="양호"
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Files to check for session timeout settings
-check_files=("/etc/profile" "/etc/csh.login" "/etc/csh.cshrc" "/home/*/.profile")
+#############################################
+# 변수
+#############################################
+plain_ftp_running=false
+sftp_running=false
+ftps_enabled=false
+현황=()
 
-file_exists_count=0
-no_tmout_setting_file=0
+#############################################
+# 1. FTP 프로세스 확인
+#############################################
+if ps -ef | egrep "vsftpd|proftpd|pure-ftpd" | grep -v grep >/dev/null; then
+    plain_ftp_running=true
+    현황+=("FTP 데몬 실행 중")
+fi
 
-for file_path in ${check_files[@]}; do
-    if [ -f "$file_path" ]; then
-        file_exists_count=$((file_exists_count+1))
-        if grep -q "TMOUT" "$file_path" || grep -q "autologout" "$file_path"; then
-            while IFS= read -r line; do
-                if echo "$line" | grep -q "TMOUT"; then
-                    setting_value=$(echo "$line" | cut -d'=' -f2)
-                    if [ "$setting_value" -gt 600 ]; then
-                        diagnosisResult="$file_path 파일에 세션 타임아웃이 600초 이하로 설정되지 않았습니다."
-                        status="취약"
-                        echo "WARN: $diagnosisResult"
-                        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                        break
-                    fi
-                elif echo "$line" | grep -q "autologout"; then
-                    setting_value=$(echo "$line" | cut -d'=' -f2)
-                    if [ "$setting_value" -gt 10 ]; then
-                        diagnosisResult="$file_path 파일에 세션 타임아웃이 10분 이하로 설정되지 않았습니다."
-                        status="취약"
-                        echo "WARN: $diagnosisResult"
-                        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                        break
-                    fi
-                fi
-            done < "$file_path"
-        else
-            no_tmout_setting_file=$((no_tmout_setting_file+1))
+#############################################
+# 2. 21번 포트 LISTEN 확인 (평문 FTP)
+#############################################
+if ss -lntup 2>/dev/null | grep ":21 " >/dev/null; then
+    plain_ftp_running=true
+    현황+=("21번 FTP 포트 활성화")
+fi
+
+#############################################
+# 3. SFTP 사용 여부 (SSH 기반)
+#############################################
+if ps -ef | grep sshd | grep -v grep >/dev/null; then
+    grep -Ei "^Subsystem.*sftp" /etc/ssh/sshd_config >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        sftp_running=true
+        현황+=("SFTP 사용 중")
+    fi
+fi
+
+#############################################
+# 4. FTPS 사용 여부 (vsftpd TLS)
+#############################################
+vsftp_conf=(
+"/etc/vsftpd.conf"
+"/etc/vsftpd/vsftpd.conf"
+)
+
+for file in "${vsftp_conf[@]}"; do
+    if [ -f "$file" ]; then
+        grep -i "ssl_enable=YES" "$file" | grep -v '^#' >/dev/null
+        if [ $? -eq 0 ]; then
+            ftps_enabled=true
+            현황+=("FTPS(SSL/TLS) 설정 확인")
         fi
     fi
 done
 
-if [ $file_exists_count -eq 0 ]; then
-    diagnosisResult="세션 타임아웃을 설정하는 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-elif [ $file_exists_count -eq $no_tmout_setting_file ]; then
-    diagnosisResult="세션 타임아웃을 설정한 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#############################################
+# 결과 판단
+#############################################
+if $plain_ftp_running && ! $ftps_enabled; then
+    diagnosisResult="취약"
+    status="평문 FTP 서비스 사용 중 (비암호화 전송)"
+else
+    diagnosisResult="양호"
+    if $sftp_running || $ftps_enabled; then
+        status="암호화 FTP(SFTP/FTPS) 사용"
+    else
+        status="FTP 서비스 미사용"
+    fi
 fi
 
-if [ "$status" = "양호" ]; then
-    diagnosisResult="모든 파일에 세션 타임아웃이 적절히 설정되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Output CSV
+#############################################
+# 출력
+#############################################
 cat $OUTPUT_CSV
