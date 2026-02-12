@@ -2,56 +2,89 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더 생성
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="파일 및 디렉토리 관리"
+# 초기값
+category="서비스 관리"
 code="U-55"
-riskLevel="하"
-diagnosisItem="hosts.lpd 파일 소유자 및 권한 설정"
-service="File and Directory Management"
-diagnosisResult="양호"
-status="양호"
+riskLevel="중"
+diagnosisItem="FTP 계정 shell 제한"
+diagnosisResult=""
+status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-hosts_lpd_path="/etc/hosts.lpd"
+#############################################
+# 변수
+#############################################
+ftp_accounts=("ftp" "anonymous")
+safe_shells=("/sbin/nologin" "/bin/false" "/usr/sbin/nologin")
+ftp_service_running=false
+vuln=false
+현황=()
 
-if [ -e "$hosts_lpd_path" ]; then
-    file_owner=$(stat -c "%u" "$hosts_lpd_path")
-    file_mode=$(stat -c "%a" "$hosts_lpd_path")
-
-    if [ "$file_owner" != "0" ] || [ "$file_mode" != "600" ]; then
-        diagnosisResult="/etc/hosts.lpd 파일 상태: "
-        status="취약"
-        if [ "$file_owner" != "0" ]; then
-            diagnosisResult+="root 소유가 아님, "
-        else
-            diagnosisResult+="소유자 상태는 양호함, "
-        fi
-        if [ "$file_mode" != "600" ]; then
-            diagnosisResult+="권한이 600이 아님"
-        else
-            diagnosisResult+="권한 상태는 양호함"
-        fi
-        echo "WARN: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    else
-        diagnosisResult="hosts.lpd 파일 소유자 및 권한이 적절하게 설정되어 있습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-else
-    diagnosisResult="/etc/hosts.lpd 파일이 존재하지 않으므로 검사 대상이 아닙니다."
-    status="정보 없음"
-    echo "INFO: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+#############################################
+# 1. FTP 서비스 사용 여부
+#############################################
+if ps -ef | egrep "vsftpd|proftpd|pure-ftpd" | grep -v grep >/dev/null; then
+    ftp_service_running=true
 fi
 
-# Output CSV
+#############################################
+# 2. FTP 서비스 미사용 → 양호
+#############################################
+if ! $ftp_service_running; then
+    diagnosisResult="양호"
+    status="FTP 서비스 미사용"
+else
+
+    #############################################
+    # 3. FTP 계정 shell 점검
+    #############################################
+    for acct in "${ftp_accounts[@]}"; do
+        user_info=$(grep "^$acct:" /etc/passwd)
+
+        if [ -n "$user_info" ]; then
+            shell=$(echo "$user_info" | awk -F: '{print $7}')
+            safe=false
+
+            for s in "${safe_shells[@]}"; do
+                if [[ "$shell" == "$s" ]]; then
+                    safe=true
+                    break
+                fi
+            done
+
+            if ! $safe; then
+                vuln=true
+                현황+=("$acct 계정 shell 취약: $shell")
+            else
+                현황+=("$acct 계정 shell 안전: $shell")
+            fi
+        fi
+    done
+
+    #############################################
+    # 결과
+    #############################################
+    if $vuln; then
+        diagnosisResult="취약"
+        status=$(IFS=' | '; echo "${현황[*]}")
+    else
+        diagnosisResult="양호"
+        status=$(IFS=' | '; echo "${현황[*]}")
+    fi
+fi
+
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#############################################
+# 출력
+#############################################
 cat $OUTPUT_CSV
