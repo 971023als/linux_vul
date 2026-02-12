@@ -1,126 +1,102 @@
-#!/usr/bin/python3
-import os
-import subprocess
-import re
-import json
+#!/bin/bash
 
-web_servers = {
-    'Apache': {
-        'process_name': 'httpd',
-        'config_files': ['httpd.conf', 'apache2.conf'],
-        'user_directive': 'User',
-        'group_directive': 'Group'
-    },
-    'Nginx': {
-        'process_name': 'nginx',
-        'config_files': ['nginx.conf'],
-        'user_directive': 'user',
-    },
-    'LiteSpeed': {
-        'process_name': 'lshttpd',
-        'config_files': ['httpd_config.conf'],
-        'user_directive': 'User',
-        'group_directive': 'Group'
-    },
-    'Microsoft-IIS': {
-        # IIS uses Windows services and management consoles rather than process names and config files in the traditional sense
-        'service_name': 'W3SVC',
-        'management_console': 'inetmgr',
-        # Permissions are typically handled through Windows user accounts and ACLs
-    },
-    'Node.js': {
-        'process_name': 'node',
-        # Configuration is often project-specific and not standardized
-    },
-    'Envoy': {
-        'process_name': 'envoy',
-        'config_files': ['envoy.yaml'],
-        # User/group directives are not typically used; runtime permissions are determined by the process executor
-    },
-    'Caddy': {
-        'process_name': 'caddy',
-        'config_files': ['Caddyfile'],
-        # User/group directives are not typically used; runtime permissions are determined by the process executor
-    },
-    'Tomcat': {
-        'process_name': 'java',  # Since Tomcat runs on the JVM, the process name is usually 'java'
-        'config_files': ['server.xml', 'web.xml'],
-        'user_directive': 'tomcat',  # Not a directive, but Tomcat often runs under a 'tomcat' user for security
-    }
-    # Additional web servers could be added here.
-}
+OUTPUT_CSV="output.csv"
 
+# CSV 헤더
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
+fi
 
-def find_config_files(config_files):
-    found_files = []
-    for conf_file in config_files:
-        find_command = f"find / -name {conf_file} -type f 2>/dev/null"
-        try:
-            find_output = subprocess.check_output(find_command, shell=True, universal_newlines=True).strip().split('\n')
-            found_files.extend(find_output)
-        except subprocess.CalledProcessError:
-            continue
-    return found_files
+# 초기값
+category="서비스 관리"
+code="U-36"
+riskLevel="상"
+diagnosisItem="r 계열 서비스 비활성화"
+diagnosisResult=""
+status=""
 
-def check_permissions(server_info, found_files):
-    vulnerable = False
-    vulnerabilities = []
+# 초기 1줄
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-    user_regex = re.compile(r'^\s*' + re.escape(server_info.get('user_directive', '')) + r'\s+([\w-]+)', re.IGNORECASE)
-    group_regex = re.compile(r'^\s*' + re.escape(server_info.get('group_directive', '')) + r'\s+([\w-]+)', re.IGNORECASE)
+#########################################
+# 변수
+#########################################
+vuln=false
+현황=()
 
-    for file_path in found_files:
-        if file_path:
-            try:
-                with open(file_path, 'r') as file:
-                    for line in file:
-                        user_match = user_regex.match(line)
-                        if user_match and user_match.group(1).lower() == 'root':
-                            vulnerable = True
-                            vulnerabilities.append((file_path, 'user', user_match.group(1)))
+#########################################
+# 1. inetd.conf r 서비스 확인
+#########################################
+if [ -f /etc/inetd.conf ]; then
+    if grep -Ei "rsh|rlogin|rexec|shell|login|exec" /etc/inetd.conf | grep -v '^#' >/dev/null; then
+        vuln=true
+        현황+=("inetd r-service 활성")
+    fi
+fi
 
-                        group_match = group_regex.match(line)
-                        if group_match and group_match.group(1).lower() == 'root':
-                            vulnerable = True
-                            vulnerabilities.append((file_path, 'group', group_match.group(1)))
-            except FileNotFoundError:
-                continue
+#########################################
+# 2. xinetd 확인
+#########################################
+for svc in rsh rlogin rexec; do
+    if [ -f /etc/xinetd.d/$svc ]; then
+        if grep -Ei "disable\s*=\s*no" /etc/xinetd.d/$svc >/dev/null; then
+            vuln=true
+            현황+=("xinetd $svc 활성")
+        fi
+    fi
+done
 
-    return vulnerable, vulnerabilities
+#########################################
+# 3. systemd 확인
+#########################################
+if systemctl list-unit-files 2>/dev/null | grep -Ei "rlogin|rexec|rsh" >/dev/null; then
+    if systemctl list-units --type=service --state=running 2>/dev/null | grep -Ei "rlogin|rexec|rsh" >/dev/null; then
+        vuln=true
+        현황+=("systemd r-service 실행중")
+    fi
+fi
 
-def main():
-    results = {
-        "분류": "서비스 관리",
-        "코드": "U-36",
-        "위험도": "상",
-        "진단 항목": "웹서비스 웹 프로세스 권한 제한",
-        "진단 결과": None,
-        "현황": [],
-        "대응방안": "웹서버 프로세스의 권한을 적절히 제한하기"
-    }
+#########################################
+# 4. 포트 확인 (512 513 514)
+#########################################
+if ss -lntup 2>/dev/null | grep -E ":512 |:513 |:514 " >/dev/null; then
+    vuln=true
+    현황+=("r계열 포트 LISTEN(512/513/514)")
+fi
 
-    overall_vulnerable = False
+#########################################
+# 5. hosts.equiv 존재
+#########################################
+if [ -f /etc/hosts.equiv ]; then
+    vuln=true
+    현황+=("/etc/hosts.equiv 존재")
+fi
 
-    for server_name, server_info in web_servers.items():
-        if 'config_files' in server_info:
-            found_files = find_config_files(server_info['config_files'])
-            vulnerable, vulnerabilities = check_permissions(server_info, found_files)
-            if vulnerable:
-                overall_vulnerable = True
-                for vulnerability in vulnerabilities:
-                    results["현황"].append(f"{vulnerability[0]} 파일에서 {server_name} 데몬이 {vulnerability[1]} '{vulnerability[2]}'으로 설정되어 있습니다.")
-        else:
-            # Perhaps handle servers without config_files differently or log a message
-            pass
+#########################################
+# 6. 사용자 .rhosts 존재
+#########################################
+if find /home -name ".rhosts" 2>/dev/null | grep . >/dev/null; then
+    vuln=true
+    현황+=("사용자 .rhosts 존재")
+fi
 
-    if overall_vulnerable:
-        results["진단 결과"] = "취약"
-    else:
-        results["진단 결과"] = "양호"
-        # Update this line to provide a general message without referencing 'vulnerability'
-        results["현황"].append("모든 검사된 서버 데몬들이 적절히 권한 제한이 되어 있습니다.")
+#########################################
+# 결과
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="양호"
+    status="r 계열 서비스 비활성화"
+fi
 
-    print(json.dumps(results, ensure_ascii=False, indent=4))
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-if __name__ == "__main__":
-    main()
+#########################################
+# 출력
+#########################################
+cat $OUTPUT_CSV
