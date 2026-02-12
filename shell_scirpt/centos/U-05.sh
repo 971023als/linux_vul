@@ -2,7 +2,7 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
     echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
@@ -15,10 +15,12 @@ diagnosisItem="root홈, 패스 디렉터리 권한 및 패스 설정"
 diagnosisResult=""
 status=""
 
-# Write initial values to CSV
+# 초기 1줄 기록 (형태 유지)
 echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Variables
+#########################################
+# 변수
+#########################################
 global_files=(
     "/etc/profile"
     "/etc/.login"
@@ -38,39 +40,97 @@ user_files=(
 )
 
 현황=()
+vuln=false
 
-# Check global configuration files
-for file in "${global_files[@]}"; do
-    if [ -f "$file" ]; then
-        if grep -Eq '\b\.\b|(^|:)\.(:|$)' "$file"; then
-            현황+=("$file 파일 내에 PATH 환경 변수에 '.' 또는 중간에 '::' 이 포함되어 있습니다.")
-        fi
+#########################################
+# 1. root 홈 디렉터리 권한 점검
+#########################################
+root_home=$(awk -F: '$1=="root"{print $6}' /etc/passwd)
+
+if [ -d "$root_home" ]; then
+    perm=$(stat -c "%a" "$root_home" 2>/dev/null)
+
+    if [[ "$perm" -gt 750 ]]; then
+        현황+=("root 홈 디렉터리 권한 취약 ($root_home : $perm)")
+        vuln=true
     fi
-done
-
-# Check user home directory configuration files
-while IFS=: read -r username _ _ _ _ homedir _; do
-    for user_file in "${user_files[@]}"; do
-        file_path="$homedir/$user_file"
-        if [ -f "$file_path" ]; then
-            if grep -Eq '\b\.\b|(^|:)\.(:|$)' "$file_path"; then
-                현황+=("$file_path 파일 내에 PATH 환경 변수에 '.' 또는 '::' 이 포함되어 있습니다.")
-            fi
-        fi
-    done
-done < /etc/passwd
-
-# Set diagnosis result
-if [ ${#현황[@]} -eq 0 ]; then
-    diagnosisResult="양호"
-    status="설정 파일에 문제가 없습니다."
 else
-    diagnosisResult="취약"
-    status=$(IFS=$'\n'; echo "${현황[*]}")
+    현황+=("root 홈 디렉터리 없음")
+    vuln=true
 fi
 
-# Write diagnosis result to CSV
+#########################################
+# PATH 점검 함수
+#########################################
+check_path_file() {
+    local file=$1
+    local label=$2
+
+    if [ -f "$file" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            line=$(echo "$line" | sed 's/#.*//g')
+
+            if echo "$line" | grep -Eq 'PATH='; then
+                path_val=$(echo "$line" | sed -n 's/.*PATH=\(.*\)/\1/p')
+
+                if echo "$path_val" | grep -Eq '(^|:)\.(:|$)'; then
+                    현황+=("$label $file : PATH에 '.' 포함")
+                    vuln=true
+                fi
+
+                if echo "$path_val" | grep -Eq '::'; then
+                    현황+=("$label $file : PATH에 '::' 포함")
+                    vuln=true
+                fi
+            fi
+        done < "$file"
+    fi
+}
+
+#########################################
+# 2. 글로벌 환경파일 점검
+#########################################
+for file in "${global_files[@]}"; do
+    check_path_file "$file" "[global]"
+done
+
+#########################################
+# 3. 사용자 환경파일 점검
+#########################################
+while IFS=: read -r username _ uid _ _ homedir shell; do
+
+    # 시스템계정/로그인불가 skip
+    if [[ "$shell" == *"nologin"* || "$shell" == *"false"* ]]; then
+        continue
+    fi
+
+    [ ! -d "$homedir" ] && continue
+
+    for uf in "${user_files[@]}"; do
+        file_path="$homedir/$uf"
+        check_path_file "$file_path" "[$username]"
+    done
+
+done < /etc/passwd
+
+#########################################
+# 결과 판정
+#########################################
+if $vuln; then
+    diagnosisResult="취약"
+else
+    diagnosisResult="양호"
+    현황+=("root홈 및 PATH 설정 양호")
+fi
+
+status=$(IFS=' | '; echo "${현황[*]}")
+
+#########################################
+# CSV 기록
+#########################################
 echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Print the final CSV output
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
