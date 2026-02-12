@@ -1,57 +1,81 @@
 #!/bin/bash
 
-# 초기 진단 결과 및 현황 설정
-category="서비스 관리"
-code="U-65"
-severity="중"
-check_item="at 서비스 권한 설정"
-result=""
-declare -a status
-recommendation="일반 사용자의 at 명령어 사용 금지 및 관련 파일 권한 640 이하 설정"
+OUTPUT_CSV="output.csv"
 
-# at 명령어 실행 파일 권한 확인
-permission_issues_found=false
-
-# PATH 내 at 명령어 경로 확인 및 권한 검사
-for path in ${PATH//:/ }; do
-    if [[ -x "$path/at" ]]; then
-        permissions=$(stat -c "%a" "$path/at")
-        if [[ "$permissions" =~ .*[2-7]. ]]; then
-            result="취약"
-            permission_issues_found=true
-            status+=("$path/at 실행 파일이 다른 사용자(other)에 의해 실행이 가능합니다.")
-        fi
-    fi
-done
-
-# /etc/at.allow 및 /etc/at.deny 파일 권한 확인
-at_access_control_files=("/etc/at.allow" "/etc/at.deny")
-for file in "${at_access_control_files[@]}"; do
-    if [[ -f "$file" ]]; then
-        permissions=$(stat -c "%a" "$file")
-        file_owner=$(stat -c "%U" "$file")
-        if [[ "$file_owner" != "root" ]] || [[ "$permissions" -gt 640 ]]; then
-            result="취약"
-            permission_issues_found=true
-            status+=("$file 파일의 소유자가 $file_owner이고, 권한이 ${permissions}입니다.")
-        fi
-    fi
-done
-
-# 진단 결과 결정
-if ! $permission_issues_found; then
-    result="양호"
-    status=("모든 at 관련 파일이 적절한 권한 설정을 가지고 있습니다.")
+if [ ! -f $OUTPUT_CSV ]; then
+echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황:"
-for i in "${status[@]}"; do
-    echo "- $i"
-done
-echo "대응방안: $recommendation"
+category="로그 관리"
+code="U-65"
+riskLevel="중"
+diagnosisItem="NTP 시각 동기화 설정"
+
+result="양호"
+status=""
+
+#########################################
+# 1. chrony / ntp 서비스 확인
+#########################################
+if systemctl is-active chronyd >/dev/null 2>&1; then
+    time_service="chrony"
+elif systemctl is-active ntpd >/dev/null 2>&1; then
+    time_service="ntp"
+elif systemctl is-active systemd-timesyncd >/dev/null 2>&1; then
+    time_service="timesyncd"
+else
+    time_service="none"
+    result="취약"
+    status="NTP 서비스 미동작"
+fi
+
+status="service:$time_service"
+
+#########################################
+# 2. 동기화 서버 확인
+#########################################
+if [ "$time_service" == "chrony" ]; then
+    servers=$(grep ^server /etc/chrony.conf 2>/dev/null | awk '{print $2}')
+elif [ "$time_service" == "ntp" ]; then
+    servers=$(grep ^server /etc/ntp.conf 2>/dev/null | awk '{print $2}')
+elif [ "$time_service" == "timesyncd" ]; then
+    servers=$(grep ^NTP /etc/systemd/timesyncd.conf 2>/dev/null | cut -d= -f2)
+else
+    servers="none"
+fi
+
+status="$status | ntp_servers:$servers"
+
+#########################################
+# 3. 동기화 상태 확인
+#########################################
+sync_status="unknown"
+
+if [ "$time_service" == "chrony" ]; then
+    sync_status=$(chronyc tracking 2>/dev/null | grep "Leap status" | awk -F: '{print $2}')
+elif [ "$time_service" == "ntp" ]; then
+    sync_status=$(ntpq -pn 2>/dev/null | grep ^* | wc -l)
+elif [ "$time_service" == "timesyncd" ]; then
+    sync_status=$(timedatectl | grep "System clock synchronized" | awk '{print $4}')
+fi
+
+status="$status | sync:$sync_status"
+
+#########################################
+# 4. 판단 기준
+#########################################
+if [ "$time_service" == "none" ]; then
+    result="취약"
+elif [ -z "$servers" ]; then
+    result="취약"
+    status="$status | NTP 서버 미설정"
+else
+    result="양호"
+fi
+
+#########################################
+# CSV 기록
+#########################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$result,\"$status\"" >> $OUTPUT_CSV
+
+cat $OUTPUT_CSV
