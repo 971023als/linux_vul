@@ -2,7 +2,7 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더
 if [ ! -f $OUTPUT_CSV ]; then
     echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
@@ -12,32 +12,64 @@ category="파일 및 디렉터리 관리"
 code="U-06"
 riskLevel="상"
 diagnosisItem="파일 및 디렉터리 소유자 설정"
-diagnosisResult= ""
+diagnosisResult=""
 status=""
 
+# 초기 1줄 (형태 유지)
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+#########################################
+# 변수
+#########################################
 no_owner_files=()
+scan_paths=("/" )
+exclude_paths=(
+"/proc/*"
+"/sys/*"
+"/dev/*"
+"/run/*"
+"/var/run/*"
+"/tmp/*"
+"/var/tmp/*"
+"/mnt/*"
+"/media/*"
+)
 
-# Function: Find files and directories without owners
-check_no_owner_files() {
-    while IFS= read -r -d '' file; do
-        # Check if the file owner and group exist, if not add to the array
-        if ! getent passwd "$(stat -c "%u" "$file")" > /dev/null || \
-           ! getent group "$(stat -c "%g" "$file")" > /dev/null; then
-            no_owner_files+=("$file")
-        fi
-    done < <(find / -nouser -nogroup -print0 2>/dev/null)
-}
+#########################################
+# find 제외옵션 생성
+#########################################
+prune_expr=""
+for p in "${exclude_paths[@]}"; do
+    prune_expr+=" -path $p -prune -o"
+done
 
-check_no_owner_files
+#########################################
+# 점검 시작
+#########################################
+while IFS= read -r -d '' file; do
+    no_owner_files+=("$file")
+done < <(eval find / $prune_expr -nouser -o -nogroup -print0 2>/dev/null)
 
-# Set diagnosis result and status
+#########################################
+# 결과 판정
+#########################################
 if [ ${#no_owner_files[@]} -gt 0 ]; then
     diagnosisResult="취약"
-    status="소유자가 존재하지 않는 파일 및 디렉터리:\n$(printf '%s\n' "${no_owner_files[@]}")"
+
+    # 최대 20개만 출력 (보고서용)
+    limited=$(printf '%s\n' "${no_owner_files[@]}" | head -20)
+    status="소유자 없는 파일 존재 (일부): $(echo $limited | tr '\n' ' ')"
+else
+    diagnosisResult="양호"
+    status="소유자 없는 파일 없음"
 fi
 
-# Write diagnosis result to CSV
+#########################################
+# CSV 기록
+#########################################
 echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
 
-# Print the final CSV output
+#########################################
+# 출력
+
 cat $OUTPUT_CSV
