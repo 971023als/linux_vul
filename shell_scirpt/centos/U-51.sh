@@ -2,52 +2,123 @@
 
 OUTPUT_CSV="output.csv"
 
-# Set CSV Headers if the file does not exist
+# CSV 헤더 생성
 if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# Initial Values
-category="계정관리"
+# 초기값
+category="서비스 관리"
 code="U-51"
-riskLevel="하"
-diagnosisItem="계정이 존재하지 않는 GID 금지"
-service="Account Management"
-diagnosisResult="양호"
+riskLevel="중"
+diagnosisItem="DNS 서비스 취약한 동적 업데이트 설정"
+diagnosisResult=""
 status=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-if [ -f "/etc/group" ] && [ -f "/etc/passwd" ]; then
-    # Extract GIDs in use from /etc/passwd
-    gids_in_use=$(cut -d: -f4 /etc/passwd | sort -u)
+############################################
+# 변수
+############################################
+dns_used=false
+vuln=false
+현황=()
 
-    unnecessary_groups=()
-    while IFS=: read -r group_name _ gid members; do
-        # Check if GID is >= 500 and not in use or group is empty
-        if [ "$gid" -ge 500 ] && [[ ! " $gids_in_use " =~ " $gid " ]] && [ -z "$members" ]; then
-            unnecessary_groups+=("$group_name")
-        fi
-    done < "/etc/group"
-
-    if [ ${#unnecessary_groups[@]} -gt 0 ]; then
-        diagnosisResult="계정이 없는 불필요한 그룹이 존재합니다: ${unnecessary_groups[*]}"
-        status="취약"
-        echo "WARN: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    else
-        diagnosisResult="계정이 없는 불필요한 그룹이 없습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
-else
-    diagnosisResult="/etc/group 또는 /etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+############################################
+# DNS 사용 여부 확인
+############################################
+if ps -ef | grep named | grep -v grep >/dev/null; then
+    dns_used=true
 fi
 
-# Output CSV
+if ss -lntup 2>/dev/null | grep ":53 " >/dev/null; then
+    dns_used=true
+fi
+
+############################################
+# DNS 미사용 → 양호
+############################################
+if ! $dns_used; then
+    diagnosisResult="양호"
+    status="DNS 서비스 미사용"
+
+else
+
+############################################
+# 설정 파일 후보
+############################################
+conf_files=(
+    "/etc/named.conf"
+    "/etc/bind/named.conf"
+    "/etc/bind/named.conf.options"
+)
+
+found_conf=false
+update_setting=""
+
+for conf in "${conf_files[@]}"; do
+    if [ -f "$conf" ]; then
+        found_conf=true
+
+        result=$(grep -i "allow-update" "$conf" 2>/dev/null)
+        if [ -n "$result" ]; then
+            update_setting="$result"
+            현황+=("$conf allow-update 설정 발견")
+        fi
+    fi
+done
+
+############################################
+# 설정 파일 없음
+############################################
+if ! $found_conf; then
+    vuln=true
+    현황+=("DNS 설정파일(named.conf 등) 미발견")
+
+else
+
+############################################
+# allow-update 설정 점검
+############################################
+if [ -z "$update_setting" ]; then
+    # 기본적으로 동적 업데이트 미사용 → 양호
+    현황+=("allow-update 설정 없음 (동적 업데이트 비활성)")
+else
+    echo "$update_setting" | grep -Ei "any" >/dev/null
+    if [ $? -eq 0 ]; then
+        vuln=true
+        현황+=("동적 업데이트 전체 허용(any) 설정됨")
+    else
+        echo "$update_setting" | grep -Ei "none" >/dev/null
+        if [ $? -eq 0 ]; then
+            현황+=("동적 업데이트 비활성화 설정(none)")
+        else
+            현황+=("특정 IP만 동적 업데이트 허용 (접근통제 적용)")
+        fi
+    fi
+fi
+
+fi
+
+############################################
+# 결과
+############################################
+if $vuln; then
+    diagnosisResult="취약"
+else
+    diagnosisResult="양호"
+fi
+
+status=$(IFS=' | '; echo "${현황[*]}")
+
+fi
+
+############################################
+# CSV 기록
+############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+############################################
+# 출력
+############################################
 cat $OUTPUT_CSV
