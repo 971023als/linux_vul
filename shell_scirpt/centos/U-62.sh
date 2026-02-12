@@ -1,34 +1,105 @@
 #!/bin/bash
 
-# 초기 진단 결과 및 현황 설정
-category="서비스 관리"
-code="U-62"
-severity="중"
-check_item="ftp 계정 shell 제한"
-result=""
-status=""
-recommendation="ftp 계정에 /bin/false 쉘 부여"
+OUTPUT_CSV="output.csv"
 
-# /etc/passwd에서 ftp 계정 확인
-if grep -q "^ftp:" /etc/passwd; then
-    ftp_shell=$(grep "^ftp:" /etc/passwd | cut -d':' -f7)
-    if [ "$ftp_shell" = "/bin/false" ]; then
-        result="양호"
-        status="ftp 계정에 /bin/false 쉘이 부여되어 있습니다."
-    else
-        result="취약"
-        status="ftp 계정에 /bin/false 쉘이 부여되어 있지 않습니다."
-    fi
-else
-    result="양호"
-    status="ftp 계정이 시스템에 존재하지 않습니다."
+# CSV 헤더
+if [ ! -f $OUTPUT_CSV ]; then
+    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
 fi
 
-# 결과 출력
-echo "분류: $category"
-echo "코드: $code"
-echo "위험도: $severity"
-echo "진단 항목: $check_item"
-echo "진단 결과: $result"
-echo "현황: $status"
-echo "대응방안: $recommendation"
+# 초기값
+category="서비스 관리"
+code="U-62"
+riskLevel="하"
+diagnosisItem="로그인 시 경고 메시지 설정"
+diagnosisResult=""
+status=""
+
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+
+#############################################
+# 변수
+#############################################
+warn_set=false
+현황=()
+
+#############################################
+# 1. 서버 콘솔 배너 (/etc/motd, /etc/issue)
+#############################################
+for file in /etc/motd /etc/issue; do
+    if [ -f "$file" ]; then
+        if grep -Ev '^\s*$' "$file" >/dev/null; then
+            warn_set=true
+            현황+=("$file 배너 설정")
+        fi
+    fi
+done
+
+#############################################
+# 2. SSH 배너
+#############################################
+sshd_config="/etc/ssh/sshd_config"
+
+if [ -f "$sshd_config" ]; then
+    banner_file=$(grep -Ei "^Banner" $sshd_config | grep -v '^#' | awk '{print $2}')
+
+    if [ -n "$banner_file" ] && [ -f "$banner_file" ]; then
+        if grep -Ev '^\s*$' "$banner_file" >/dev/null; then
+            warn_set=true
+            현황+=("SSH 배너 설정 ($banner_file)")
+        fi
+    fi
+fi
+
+#############################################
+# 3. Telnet 배너
+#############################################
+if ps -ef | grep telnetd | grep -v grep >/dev/null; then
+    if [ -f /etc/issue.net ]; then
+        if grep -Ev '^\s*$' /etc/issue.net >/dev/null; then
+            warn_set=true
+            현황+=("Telnet 배너 설정")
+        else
+            현황+=("Telnet 배너 미설정")
+        fi
+    fi
+fi
+
+#############################################
+# 4. FTP 배너 (vsftpd)
+#############################################
+vsftp_conf=(
+"/etc/vsftpd.conf"
+"/etc/vsftpd/vsftpd.conf"
+)
+
+for conf in "${vsftp_conf[@]}"; do
+    if [ -f "$conf" ]; then
+        banner=$(grep -Ei "^ftpd_banner" "$conf" | grep -v '^#')
+        if [ -n "$banner" ]; then
+            warn_set=true
+            현황+=("FTP 배너 설정")
+        fi
+    fi
+done
+
+#############################################
+# 결과 판단
+#############################################
+if $warn_set; then
+    diagnosisResult="양호"
+    status=$(IFS=' | '; echo "${현황[*]}")
+else
+    diagnosisResult="취약"
+    status="로그인 경고 배너 미설정"
+fi
+
+#############################################
+# CSV 기록
+#############################################
+echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+
+#############################################
+# 출력
+#############################################
+cat $OUTPUT_CSV
