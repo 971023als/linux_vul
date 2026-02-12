@@ -15,46 +15,73 @@ diagnosisItem="패스워드 파일 보호"
 diagnosisResult=""
 status=""
 
-# Write initial values to CSV
+# Write initial values to CSV (형태 유지)
 echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Variables
+#########################################
+# 변수
+#########################################
 passwd_file="/etc/passwd"
 shadow_file="/etc/shadow"
-shadow_used=true  # Assume shadow passwords are used
+shadow_used=true
 현황=()
 
-# Check for shadow password usage in /etc/passwd
+#########################################
+# 1. /etc/passwd shadow 사용 여부
+#########################################
 if [ -f "$passwd_file" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
-        IFS=':' read -r -a parts <<< "$line"
-        if [ "${#parts[@]}" -gt 1 ] && [ "${parts[1]}" != "x" ]; then
+        IFS=':' read -r user pass rest <<< "$line"
+
+        # x가 아니면 shadow 미사용 가능
+        if [[ "$pass" != "x" ]]; then
             shadow_used=false
+            현황+=("shadow 미사용 계정 발견: $user")
             break
         fi
     done < "$passwd_file"
+else
+    shadow_used=false
+    현황+=("/etc/passwd 파일 없음")
 fi
 
-# Check /etc/shadow file existence and permissions
-if $shadow_used && [ -f "$shadow_file" ]; then
-    if [ ! -r "$shadow_file" ]; then  # Ensure /etc/shadow is read-only
-        현황+=("/etc/shadow 파일이 안전한 권한 설정을 갖고 있지 않습니다.")
+#########################################
+# 2. /etc/shadow 존재 및 권한
+#########################################
+if [ ! -f "$shadow_file" ]; then
+    shadow_used=false
+    현황+=("/etc/shadow 파일 없음")
+else
+    # 권한 확인
+    perm=$(stat -c "%a" "$shadow_file" 2>/dev/null)
+
+    if [[ "$perm" != "400" && "$perm" != "000" && "$perm" != "600" ]]; then
         shadow_used=false
+        현황+=("/etc/shadow 권한 취약: $perm")
+    else
+        현황+=("/etc/shadow 권한 정상: $perm")
     fi
 fi
 
-if ! $shadow_used; then
-    현황+=("쉐도우 패스워드를 사용하고 있지 않거나 /etc/shadow 파일의 권한 설정이 적절하지 않습니다.")
-    diagnosisResult="취약"
-else
-    현황+=("쉐도우 패스워드를 사용하고 있으며 /etc/shadow 파일의 권한 설정이 적절합니다.")
+#########################################
+# 결과 판정
+#########################################
+if $shadow_used; then
     diagnosisResult="양호"
+    현황+=("shadow 패스워드 사용 및 보호 설정 정상")
+else
+    diagnosisResult="취약"
+    현황+=("shadow 패스워드 보호 설정 미흡")
 fi
 
-status=$(IFS=$'\n'; echo "${현황[*]}")
+status=$(IFS=' | '; echo "${현황[*]}")
 
-# Write diagnosis result to CSV
+#########################################
+# CSV 기록
+#########################################
 echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
 
-# Print the final CSV output
+#########################################
+# 출력
+#########################################
 cat $OUTPUT_CSV
