@@ -1,0 +1,8 @@
+# .dockerignore
+.git
+.gitignore
+output/
+node_modules/
+__pycache__/
+*.bak
+*.log

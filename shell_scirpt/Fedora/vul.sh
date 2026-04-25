@@ -130,7 +130,7 @@ execute_security_checks() {
     for i in $(seq -f "%02g" 1 72); do
         SCRIPT_PATH="U-$i.sh"
         if [ -f "$SCRIPT_PATH" ]; then
-            RESULT=$(python3 "$SCRIPT_PATH" 2>>"$ERRORS_PATH")
+            RESULT=$(bash ../../runners/shell_runner.sh --check "U-$i" --script "$SCRIPT_PATH")
             if [ $? -eq 0 ]; then
                 [ "$first_entry" = false ] && echo "," >> "$RESULTS_PATH"
                 first_entry=false
