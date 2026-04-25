@@ -25,3 +25,17 @@ if [ ! -z "$sendmail_cf_file" ]; then
 else
     echo "U-31 sendmail.cf 파일을 찾을 수 없습니다. SMTP 서비스가 설치되어 있지 않거나 다른 위치에 있을 수 있습니다."
 fi
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-31"
+_change_item="sendmail.cf 파일을 찾았습니다: $sendma"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

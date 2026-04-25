@@ -1,0 +1,179 @@
+---
+# =============================================================================
+# AWS SSM Automation Document — linux-vul-full-audit
+# Purpose : Run all U-01~U-72 checks on a target EC2 instance,
+#           upload each MD result to S3, then run normalize→csv→report pipeline
+#
+# Usage (CLI):
+#   aws ssm start-automation-execution \
+#     --document-name linux-vul-full-audit \
+#     --parameters \
+#       "InstanceId=i-0123456789abcdef0,\
+#        OsProfile=ubuntu,\
+#        S3Bucket=my-audit-bucket,\
+#        S3Prefix=linux-vul/results,\
+#        RepoPath=/opt/linux_vul,\
+#        RunPipeline=true"
+# =============================================================================
+schemaVersion: "0.3"
+description: >
+  Run a full linux-vul assessment (U-01 through U-72) on one EC2 instance.
+  Each check result is uploaded to S3 as {check_id}_{instance_id}_{timestamp}.md.
+  Optionally runs the normalize → csv → report pipeline and uploads the HTML report.
+
+parameters:
+  InstanceId:
+    type: String
+    description: "(Required) Target EC2 instance ID"
+  OsProfile:
+    type: String
+    description: "(Required) Target OS profile"
+    allowedValues:
+      - ubuntu
+      - centos
+      - rocky
+      - fedora
+      - oracle
+    default: ubuntu
+  S3Bucket:
+    type: String
+    description: "(Required) S3 bucket name for result upload"
+  S3Prefix:
+    type: String
+    description: "(Optional) S3 key prefix for per-check MD files"
+    default: "linux-vul/results"
+  AwsRegion:
+    type: String
+    description: "(Optional) AWS region for S3 upload"
+    default: "ap-northeast-2"
+  RepoPath:
+    type: String
+    description: "(Optional) Absolute path to linux_vul repo on the instance"
+    default: "/opt/linux_vul"
+  AuditTimeout:
+    type: Integer
+    description: "(Optional) Per-check timeout in seconds"
+    default: 30
+  RunPipeline:
+    type: String
+    description: "(Optional) Run normalize→csv→report after audit (true/false)"
+    allowedValues:
+      - "true"
+      - "false"
+    default: "true"
+  Force:
+    type: String
+    description: "(Optional) Skip OS profile mismatch check"
+    allowedValues:
+      - "true"
+      - "false"
+    default: "false"
+
+mainSteps:
+
+  # ── Step 1: Verify instance reachability ─────────────────────────────────────
+  - name: VerifyInstance
+    action: aws:waitForAwsResourceProperty
+    maxAttempts: 3
+    timeoutSeconds: 60
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+      Filters:
+        - Key: InstanceIds
+          Values:
+            - "{{ InstanceId }}"
+      PropertySelector: "$.InstanceInformationList[0].PingStatus"
+      DesiredValues:
+        - Online
+
+  # ── Step 2: Full audit (U-01 ~ U-72) via main.sh ─────────────────────────────
+  - name: RunFullAudit
+    action: aws:runCommand
+    maxAttempts: 1
+    timeoutSeconds: 7200   # 2 h ceiling (72 checks × 30 s + overhead)
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      Parameters:
+        commands:
+          - |
+            set -uo pipefail
+
+            REPO="{{ RepoPath }}"
+            PROFILE="{{ OsProfile }}"
+            S3_BUCKET="{{ S3Bucket }}"
+            S3_PREFIX="{{ S3Prefix }}"
+            AWS_REGION="{{ AwsRegion }}"
+            AUDIT_TIMEOUT="{{ AuditTimeout }}"
+            RUN_PIPELINE="{{ RunPipeline }}"
+            FORCE="{{ Force }}"
+            MAIN="${REPO}/main.sh"
+
+            if [ ! -f "$MAIN" ]; then
+              echo "[SSM] ERROR: main.sh not found: $MAIN" >&2
+              exit 1
+            fi
+
+            # Export S3 env so shell_runner.sh inherits them
+            export S3_BUCKET S3_PREFIX AWS_REGION S3_UPLOAD_ENABLED=true AUDIT_TIMEOUT
+
+            FORCE_FLAG=""
+            if [ "$FORCE" = "true" ]; then FORCE_FLAG="--force"; fi
+
+            echo "=== [SSM] linux-vul-full-audit started: $(date) ==="
+            echo "    Instance : $(curl -sf --max-time 2 http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname -s)"
+            echo "    Profile  : ${PROFILE}"
+            echo "    S3 prefix: s3://${S3_BUCKET}/${S3_PREFIX}/${PROFILE}/"
+
+            # ── Phase 0: audit ────────────────────────────────────────────────
+            bash "$MAIN" audit --profile "$PROFILE" $FORCE_FLAG
+            AUDIT_RC=$?
+            echo "[SSM] audit exit=${AUDIT_RC}"
+
+            if [ $AUDIT_RC -ne 0 ]; then
+              echo "[SSM] Audit step failed — aborting pipeline." >&2
+              exit $AUDIT_RC
+            fi
+
+            # ── Phase 1+: normalize → csv → report ───────────────────────────
+            if [ "$RUN_PIPELINE" = "true" ]; then
+              echo "[SSM] Running normalize → csv → report pipeline..."
+              bash "$MAIN" normalize || { echo "[SSM] normalize failed" >&2; exit 2; }
+              bash "$MAIN" csv      || { echo "[SSM] csv failed" >&2; exit 3; }
+              bash "$MAIN" report   || { echo "[SSM] report failed" >&2; exit 4; }
+
+              # Upload HTML report to S3
+              HTML_FILE=$(ls -t "${REPO}/output/html"/report_*.html 2>/dev/null | head -1)
+              if [ -n "$HTML_FILE" ] && command -v aws &>/dev/null; then
+                TS=$(date +'%Y%m%d_%H%M%S')
+                INAME=$(curl -sf --max-time 2 http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null || hostname -s)
+                HTML_KEY="${S3_PREFIX}/${PROFILE}/reports/report_${INAME}_${TS}.html"
+                aws s3 cp "$HTML_FILE" "s3://${S3_BUCKET}/${HTML_KEY}" \
+                    --region "$AWS_REGION" \
+                    --content-type "text/html" \
+                    >/dev/null 2>&1 \
+                  && echo "[SSM] Report uploaded: s3://${S3_BUCKET}/${HTML_KEY}" \
+                  || echo "[SSM] Report upload failed" >&2
+              fi
+            fi
+
+            echo "=== [SSM] linux-vul-full-audit finished: $(date) ==="
+        executionTimeout: "7200"
+
+      CloudWatchOutputConfig:
+        CloudWatchOutputEnabled: true
+        CloudWatchLogGroupName: "/aws/ssm/linux-vul-full-audit"
+
+    outputs:
+      - Name: Output
+        Selector: "$.Output"
+        Type: String
+      - Name: ExitCode
+        Selector: "$.ResponseCode"
+        Type: Integer
+
+outputs:
+  - RunFullAudit.Output
+  - RunFullAudit.ExitCode

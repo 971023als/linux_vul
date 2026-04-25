@@ -1,0 +1,737 @@
+{
+  "meta": {
+    "generated_at": "2026-04-25T15:00:02.570751",
+    "total": 72,
+    "summary": {
+      "PASS": 1,
+      "FAIL": 1,
+      "NA": 1,
+      "MANUAL_REVIEW": 0,
+      "EVIDENCE_MISSING": 69,
+      "ERROR": 0,
+      "NOT_IMPLEMENTED": 0
+    }
+  },
+  "results": [
+    {
+      "id": "U-01",
+      "category": "계정 관리",
+      "status": "PASS",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": "양호: root 원격 접속 제한됨"
+    },
+    {
+      "id": "U-02",
+      "category": "계정 관리",
+      "status": "FAIL",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": "취약: 패스워드 복잡성 미설정"
+    },
+    {
+      "id": "U-03",
+      "category": "계정 관리",
+      "status": "NA",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": "해당없음: 서비스 미사용"
+    },
+    {
+      "id": "U-04",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-05",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-06",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-07",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-08",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-09",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-10",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-11",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-12",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-13",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-14",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-15",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-16",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-17",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-18",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-19",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-20",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-21",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-22",
+      "category": "계정 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
+      "financial_reg": "전자금융감독규정 제13조, 제15조",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-23",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-24",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-25",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-26",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-27",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-28",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-29",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-30",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-31",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-32",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-33",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-34",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-35",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-36",
+      "category": "파일 및 디렉터리 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제13조 (비밀보호)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-37",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-38",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-39",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-40",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-41",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-42",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-43",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-44",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-45",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-46",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-47",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-48",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-49",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-50",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-51",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-52",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-53",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-54",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-55",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-56",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-57",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-58",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-59",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-60",
+      "category": "서비스 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.6.1 (시스템 하드닝)",
+      "financial_reg": "전자금융감독규정 제15조 (서비스 제거)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-61",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-62",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-63",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-64",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-65",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-66",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-67",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-68",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-69",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-70",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-71",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    },
+    {
+      "id": "U-72",
+      "category": "로그 및 패치 관리",
+      "status": "EVIDENCE_MISSING",
+      "isms_p": "2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)",
+      "financial_reg": "전자금융감독규정 제13조 (접속기록)",
+      "exit_code": 0,
+      "detail": "",
+      "raw_output": ""
+    }
+  ]
+}

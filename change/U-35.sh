@@ -35,3 +35,17 @@ fi
 # 이 스크립트는 Apache와 Nginx 웹 서버에 대한 디렉터리 리스팅 방지 설정 예시를 제공합니다.
 # LiteSpeed, Microsoft-IIS, Node.js, Envoy, Caddy, Tomcat 등 다른 웹 서버의 경우에는
 # 해당 서버의 설정 파일 위치와 방지 방법을 확인한 후, 위의 예시를 참고하여 적절한 조치를 취해야 합니다.
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-35"
+_change_item="Apache에서 디렉터리 리스팅을 비활성화합니다."
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

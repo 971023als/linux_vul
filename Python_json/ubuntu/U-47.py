@@ -38,7 +38,7 @@ def check_password_max_usage_period():
 
 def main():
     password_max_usage_period_check_results = check_password_max_usage_period()
-    print(json.dumps(password_max_usage_period_check_results, ensure_ascii=False, indent=4))
+    print_as_md(password_max_usage_period_check_results)
 
 if __name__ == "__main__":
     main()

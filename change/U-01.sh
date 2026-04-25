@@ -25,8 +25,28 @@ if [ $FOUND -ne 1 ]; then
     echo "SSH 설정 파일에서 PermitRootLogin 설정을 찾을 수 없습니다. 설정 파일을 수동으로 확인하십시오."
 fi
 
-# SSH 서비스 재시작 (Ubuntu/Debian 기준, 다른 배포판은 서비스 명령어가 다를 수 있음)
+# SSH 서비스 재시작 (Ubuntu: ssh, CentOS/Rocky/Fedora/oracle: sshd)
 echo "SSH 서비스를 재시작합니다..."
-systemctl restart ssh
+if systemctl list-units --type=service 2>/dev/null | grep -q 'sshd\.service'; then
+    systemctl restart sshd
+elif systemctl list-units --type=service 2>/dev/null | grep -q 'ssh\.service'; then
+    systemctl restart ssh
+else
+    echo "[WARN] SSH 서비스를 찾을 수 없습니다. 수동으로 재시작하세요." >&2
+fi
 
 echo "U-01 보안 조치가 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-01"
+_change_item="Telnet 서비스 비활성화 확인 중..."
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

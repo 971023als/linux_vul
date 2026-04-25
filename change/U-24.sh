@@ -21,3 +21,17 @@ done
 # 예: service nfsd stop && chkconfig nfsd off
 
 echo "U-24 NFS 서비스 관련 데몬 비활성화 작업이 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-24"
+_change_item="NFS 서비스 관련 데몬을 확인하고 비활성화합니다..."
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

@@ -18,3 +18,17 @@ if pgrep named > /dev/null && [ -f "$named_conf_path" ]; then
 else
     echo "U-34 DNS 서비스가 실행 중이지 않거나 /etc/named.conf 파일이 존재하지 않습니다."
 fi
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-34"
+_change_item="DNS Zone Transfer가 모든 사용자에게 허용"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

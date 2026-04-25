@@ -1,0 +1,82 @@
+# =============================================================================
+# docker-compose.yml — linux-vul-assessor
+#
+# 사용 예시:
+#   # 전체 파이프라인 실행 (로컬 audit)
+#   docker-compose run --rm assessor all --profile ubuntu
+#
+#   # SSM으로 원격 인스턴스에 단일 체크 실행
+#   docker-compose run --rm ssm-runner run single \
+#     --instance i-0123456789abcdef0 --check U-01 --profile ubuntu
+#
+#   # SSM으로 원격 인스턴스 전체 감사
+#   docker-compose run --rm ssm-runner run full \
+#     --instance i-0123456789abcdef0 --profile ubuntu
+# =============================================================================
+
+version: "3.9"
+
+services:
+
+  # ── 진단 실행 (로컬 또는 마운트된 시스템 대상) ──────────────────────────────
+  assessor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # 내부망 미러 지정 (필요 시 주석 해제)
+        # APT_MIRROR: "http://apt.mirror.internal/ubuntu"
+        # PIP_INDEX: "https://pypi.mirror.internal/simple"
+        # AWSCLI_URL: "http://s3.mirror.internal/awscli-exe-linux-x86_64.zip"
+    image: linux-vul-assessor:latest
+    container_name: linux-vul-assessor
+    volumes:
+      - ./output:/opt/linux_vul/output         # 결과 파일 호스트 마운트
+      - ./config:/opt/linux_vul/config:ro       # 설정 파일 읽기 전용 마운트
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-northeast-2}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - S3_BUCKET=${S3_BUCKET:-}
+      - S3_PREFIX=${S3_PREFIX:-linux-vul/results}
+      - S3_UPLOAD_ENABLED=${S3_UPLOAD_ENABLED:-false}
+      - AUDIT_TIMEOUT=${AUDIT_TIMEOUT:-30}
+    # EC2 IAM Role 사용 시 (메타데이터 서비스 접근)
+    # network_mode: host
+    restart: "no"
+    profiles:
+      - audit
+
+  # ── SSM Runner (Go 바이너리 — 원격 인스턴스 제어) ──────────────────────────
+  ssm-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: linux-vul-assessor:latest
+    container_name: linux-vul-ssm-runner
+    entrypoint: ["/usr/local/bin/ssm-runner"]
+    volumes:
+      - ./output:/opt/linux_vul/output
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-ap-northeast-2}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - SSM_ENDPOINT_URL=${SSM_ENDPOINT_URL:-}    # VPC 엔드포인트: https://ssm.ap-northeast-2.amazonaws.com
+      - S3_ENDPOINT_URL=${S3_ENDPOINT_URL:-}      # VPC 엔드포인트: https://s3.ap-northeast-2.amazonaws.com
+    restart: "no"
+    profiles:
+      - ssm
+
+  # ── 결과 보기 (nginx로 HTML 보고서 서빙) ────────────────────────────────────
+  report-viewer:
+    image: nginx:alpine
+    container_name: linux-vul-report-viewer
+    ports:
+      - "8080:80"
+    volumes:
+      - ./output/html:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    profiles:
+      - viewer

@@ -27,3 +27,17 @@ main() {
 }
 
 main
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-58"
+_change_item="조치: $user 사용자의 홈 디렉터리($home_di"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

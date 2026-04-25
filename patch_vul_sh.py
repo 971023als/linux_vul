@@ -21,7 +21,7 @@ def patch_vul_sh(file_path):
         print(f"No match found in: {file_path}")
 
 def main():
-    base_dir = "shell_scirpt"
+    base_dir = "shell_script"
     for root, dirs, files in os.walk(base_dir):
         for file in files:
             if file == "vul.sh":

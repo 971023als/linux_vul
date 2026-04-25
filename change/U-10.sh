@@ -36,3 +36,17 @@ set_directory_files_ownership_and_permissions() {
 set_file_ownership_and_permissions "/etc/inetd.conf"
 set_file_ownership_and_permissions "/etc/xinetd.conf"
 set_directory_files_ownership_and_permissions "/etc/xinetd.d"
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-10"
+_change_item="U-10 $file_path 파일의 소유자와 권한이 조"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

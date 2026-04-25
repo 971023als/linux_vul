@@ -8,97 +8,82 @@
 |---|---|
 | 문서명 | 주요정보통신기반시설 Linux 취약점 진단 자동화 도구 상세 스펙문서 |
 | 버전 | v0.1 |
-| 기준 프로젝트 | linux_vul-main |
-| 기준 구현체 | 현행 쉘스크립트 기반 U-01 ~ U-72 진단 구조 |
-| 주요 디렉터리 | shell_scirpt/, change/, Python_json/, runners/, output/, tests/ |
-| 1차 목적 | 현재 쉘스크립트를 보존하면서 안전 실행, 결과 표준화, 증적화, 보고서화를 단계적으로 구현 |
-| 산출물 | Markdown, JSON, CSV, HTML, PDF |
-| 기본 정책 | audit-only, dry-run, evidence-first, tests-isolation |
+| 주요 준거성 | 전자금융감독규정, ISMS-P 인증 기준 |
+| 기본 정책 | audit-only, evidence-first, compliance-driven, data-masking |
 
 ---
 
-# 1. 프로젝트 개요
+# 1. 프로젝트 개요 및 보안 준거성
 
-본 프로젝트는 주요정보통신기반시설 Linux/Unix 서버 취약점 진단 항목인 `U-01 ~ U-72`를 자동 점검하고, 점검 결과를 표준화된 JSON/CSV/HTML/PDF 보고서로 생성하는 진단 자동화 도구이다.
+## 1.1 컴플라이언스 엔진 (Compliance-Driven Engine)
+본 도구는 대한민국 **전자금융감독규정** 및 **ISMS-P 인증 기준**을 자동으로 검증하고 보고하는 엔터프라이즈급 컴플라이언스 하네스이다.
 
-기존 `linux_vul-main`의 쉘스크립트 기반 진단 로직을 최대한 활용하되, 이를 안전하게 실행하고 관리할 수 있는 **Python Wrapper 및 Runner 아키텍처**를 도입한다.
+## 1.2 전자금융감독규정 연계
+*   **제11조 (취약점 분석·평가):** 주기적 기술적 점검 이행 증적.
+*   **제13조 (IT보안대책):** 접근통제, 접속기록 보존.
+*   **제15조 (시스템 보안):** 사용자 계정 관리 및 서비스 최적화.
+
+## 1.3 ISMS-P 인증 기준 연계 (ISMS-P Compliance)
+ISMS-P(정보보호 및 개인정보보호 관리체계) 인증 획득 및 유지를 위한 기술적 점검 증거로 활용된다.
+
+*   **2.4 접근통제 (Access Control):** 
+    *   **2.4.3 인증 및 권한 부여:** 관리자 계정 제한, 패스워드 복잡성 (U-01~U-22 매핑).
+    *   **2.4.7 원격접근 통제:** 외부 원격 접속 제한 및 보안 프로토콜 사용 (U-01, U-22 매핑).
+*   **2.6 시스템 및 서비스 보안 관리:** 
+    *   **2.6.1 시스템 하드닝:** 불필요한 서비스 및 계정 제거 (U-37~U-60 매핑).
+    *   **2.6.2 패치 관리:** 최신 보안 패치 적용 여부 (U-70~U-72 매핑).
+*   **2.10 로깅 및 모니터링:** 
+    *   **2.10.1 로깅 및 감시:** 시스템 접속 기록 및 보안 이벤트 로깅 (U-61~U-69 매핑).
+*   **3.2 개인정보 수집 및 이용:** 
+    *   **3.2.2 비식별화:** 증적 수집 시 개인정보 비식별 조치 (본 도구의 Data Masking 정책).
 
 ---
 
-# 2. 상세 디렉터리 구조 및 역할 (Visual Tree)
+# 2. 상세 디렉터리 구조 및 아키텍처 (Harness Strategy)
 
 ```text
 linux_vul/
-├── main.sh                 # 통합 실행 엔트리포인트 (audit, report, setup 등)
-├── setup.sh                # 초기 환경 구축 및 권한 설정 스크립트
-├── Dockerfile              # 보고서 생성 및 S3 전송 환경 컨테이너 설정
-├── SPEC.md                 # 상세 설계 및 기술 스펙 문서 (본 문서)
-├── README.md               # 사용자 가이드 및 프로젝트 개요
+├── main.sh                 # 통합 실행 엔트리포인트 (컴플라이언스 체크 로직 포함)
+├── SPEC.md                 # [Single Source of Truth] 법적/인증 기준 매핑 문서
+├── README.md               # 사용자 매뉴얼 및 원칙 고지
 │
-├── shell_scirpt/           # [Legacy] OS별 취약점 진단 쉘 스크립트 (U-01 ~ U-72)
-│   ├── ubuntu/             # Ubuntu/Debian 계열
-│   ├── centos/             # CentOS/RHEL 계열
-│   ├── Rocky/              # Rocky Linux 계열
-│   ├── Fedora/             # Fedora 계열
-│   └── oracle/             # Oracle Linux 계열
-├── change/                 # [Legacy] 취약점 조치(Remediation) 스크립트
-├── Python_json/            # [Legacy] Python 기반 결과 처리 로직
-│
-├── runners/                # [New] 안전한 실행을 위한 Wrapper/Harness 영역
-│   └── shell_runner.sh     # U-xx.sh 실행 및 stdout/stderr/exit_code 캡처
-├── tools/                  # [New] 자동화 도구 모음
-│   └── s3_uploader.py      # AWS S3 결과 자동 저장 스크립트
-├── output/                 # [New] 진단 결과물 및 증적 저장소 (git ignore 권장)
-│   ├── json/               # 정규화된 진단 결과 (JSON)
-│   ├── csv/                # Excel 검토용 결과 (CSV)
-│   ├── html/               # 시각화된 보고서 (HTML)
-│   ├── pdf/                # 최종 제출용 보고서 (PDF)
-│   ├── evidence/           # 항목별 판단 근거 및 로그 (stdout, stderr)
-│   └── logs/               # 실행 과정의 시스템 로그
-├── tests/                  # [New] 테스트 하네스 및 검증 코드 전용 디렉터리
-│   └── test_runner.sh      # Shell Runner 기능 검증 테스트
-├── config/                 # [New] 환경 설정 (S3, OS 프로필 등)
-└── templates/              # [New] 보고서 생성을 위한 HTML/CSS 템플릿
+├── shell_script/           # [Legacy] KISA 기술적 점검 가이드 기반 로직
+├── runners/                # [Harness] 무결성 검증 및 실행 격리
+├── tools/                  # [Automation] ISMS-P 대응 비식별화 및 S3 전송 도구
+├── output/                 # [Artifacts] 인증 심사용 증적 저장소
+│   ├── evidence/           # 마스킹 완료된 기술적 점검 증거 (Audit Evidence)
+│   ├── html/               # ISMS-P 항목별 매핑 정보가 포함된 보고서
+│   └── logs/               # 인증 심사 시 제출 가능한 Audit Trail
+└── tests/                  # [Harness Test] 진단 로직의 신뢰성 검증
 ```
 
 ---
 
-# 3. 상세 컴포넌트 설계 (Hardening)
+# 3. 하네스 엔지니어링 강제 규정 (Enforcement Rules)
 
-### 📂 `runners/` (Harness & Execution)
-*   **shell_runner.sh**: 진단 스크립트의 **샌드박스 실행**을 담당합니다.
-    *   모든 스크립트를 `bash`로 실행하여 인터프리터 오류 방지.
-    *   **증적 무결성 검증 (Integrity Check):** 실행 후 `stdout.txt`의 존재 여부 및 크기(>0 byte)를 검증하여 누락된 PASS 판정을 차단합니다.
-    *   실행 결과를 `output/evidence/{ID}/` 하위에 파일로 격리 저장.
+## 3.1 증적 비식별화 정책 (ISMS-P 3.2.2 대응)
+인증 심사 시 개인정보 노출을 방지하기 위해 다음 마스킹 규정을 강제한다.
+*   **IP/계정:** 내부 IP 및 사용자 계정 마스킹.
+*   **민감 파일:** `/etc/passwd`, `/etc/shadow` 내 해시 및 개인정보 마스킹.
 
-### 🛡️ 프로필 유효성 검증 (Profile Safeguard)
-*   `main.sh`는 실행 전 `/etc/os-release`를 분석하여 실제 시스템 환경을 자동 감지합니다.
-*   사용자가 지정한 `--profile`과 실제 시스템 환경이 다를 경우 **실행을 차단**하거나 경고를 출력하여 잘못된 진단 로직 적용을 원천 차단합니다.
-
-### 📂 `tests/` (Testing Policy)
-*   **원칙 1 (Isolation):** 모든 테스트 코드는 반드시 `tests/` 디렉터리에만 위치해야 합니다.
-*   **원칙 2 (Reproducibility):** 테스트는 독립적으로 실행 가능해야 하며, `main.sh`의 환경을 시뮬레이션할 수 있어야 합니다.
+## 3.2 증적 무결성 및 부인 방지 (ISMS-P 2.10.1 대응)
+*   **무결성:** 0 byte 결과물 차단을 통해 진단 결과의 신뢰성을 기술적으로 보장.
+*   **부인 방지:** `audit.log`를 통해 실행 주체와 시각을 명확히 기록.
 
 ---
 
-# 4. 단계별 구현 및 현황
+# 4. 통합 컴플라이언스 매핑 테이블
 
-### ✅ Phase 0: 안정화 (Completed)
-- `main.sh` 통합 진입점 구축 및 프로필 검증 로직 추가.
-- `runners/shell_runner.sh` 구현을 통한 실행 격리 및 증적 검증 완료.
-- `shell_scirpt/` 내의 `python3` 호출 오류를 `bash` 호출로 자동 패치 완료.
-- 하네스 테스트(`tests/test_runner.sh`)를 통한 안정성 검증.
-
-### 🔄 Phase 1: 표준화 (In-Progress)
-- `result_normalizer.sh` 구현: `양호/취약` 등 텍스트를 `PASS/FAIL`로 변환.
+| 진단 카테고리 | U-Code | 전자금융감독규정 | ISMS-P 인증기준 |
+|---|---|---|---|
+| **계정 관리** | U-01~22 | 제13조, 제15조 | 2.4.3(인증 및 권한), 2.4.7(원격접근) |
+| **파일/권한** | U-23~36 | 제13조(비밀보호) | 2.6.1(시스템 하드닝) |
+| **서비스 관리** | U-37~60 | 제15조(서비스 제거) | 2.6.1(시스템 하드닝) |
+| **로그/패치** | U-61~72 | 제13조(접속기록) | 2.10.1(로깅 및 감시), 2.6.2(패치관리) |
 
 ---
 
-# 5. 실행 모드 상세
+# 5. 실행 가이드 및 보고서 설계
 
-| 모드 | 필수 옵션 | 비고 |
-|---|---|---|
-| setup | - | 디렉터리 생성 및 기본 설정값 초기화 |
-| audit | --profile [os] | **OS 자동 감지 및 프로필 매칭 검사 수행** |
-| report | --upload (선택) | 수집된 JSON 데이터를 기반으로 리포팅 및 클라우드 전송 |
-| remediate | --check [ID] --apply | 명시적 승인 하에 시스템 설정 변경 |
+*   **보고서 매핑:** 보고서 상단에 해당 점검 항목이 **전자금융감독규정 몇 조** 및 **ISMS-P 몇 번 항목**에 해당하는지 명시하여 인증 심사 대응력을 극대화함.
+*   **안전성:** `audit-only` 모드를 통해 인증 대상 서비스의 가용성에 영향을 주지 않음.

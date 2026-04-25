@@ -24,3 +24,17 @@ find / -name snmpd.conf -type f 2>/dev/null | while read -r snmpd_conf_path; do
         echo "U-67 $snmpd_conf_path 파일의 SNMP 커뮤니티 문자열이 안전하게 설정되어 있습니다."
     fi
 done
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-67"
+_change_item="SNMP 서비스가 실행 중이지 않습니다."
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

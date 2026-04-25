@@ -30,3 +30,17 @@ if getent passwd ftp > /dev/null; then
 else
     echo "U-20 FTP 사용자 계정이 존재하지 않습니다. Anonymous FTP가 비활성화되어 있습니다."
 fi
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-20"
+_change_item="FTP 사용자 계정이 존재합니다. Anonymous F"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

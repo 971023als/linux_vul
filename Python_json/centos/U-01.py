@@ -1,5 +1,32 @@
 #!/usr/bin/python3
 import json
+
+
+def print_as_md(results: dict):
+    """진단 결과를 Markdown 테이블 형식으로 출력."""
+    code   = results.get("코드",     results.get("code", "U-??"))
+    item   = results.get("진단 항목", results.get("diagnosisItem", "진단항목"))
+    cat    = results.get("분류",     results.get("category", ""))
+    risk   = results.get("위험도",   results.get("riskLevel", ""))
+    result = results.get("진단 결과", results.get("diagnosisResult", ""))
+    status = results.get("현황",     results.get("status", []))
+    sol    = results.get("대응방안", results.get("solution", ""))
+
+    if isinstance(status, list):
+        status = " / ".join(status) if status else ""
+
+    print(f"# {code}: {item}")
+    print("")
+    print("| 항목 | 내용 |")
+    print("|------|------|")
+    print(f"| 분류 | {cat} |")
+    print(f"| 코드 | {code} |")
+    print(f"| 위험도 | {risk} |")
+    print(f"| 진단항목 | {item} |")
+    print(f"| 진단결과 | {result} |")
+    print(f"| 현황 | {status} |")
+    print(f"| 대응방안 | {sol} |")
+
 import subprocess
 import re
 
@@ -24,15 +51,21 @@ def check_remote_root_access_restriction():
         results["현황"].append(f"Telnet 서비스 검사 중 오류 발생: {e}")
 
     # SSH 서비스 검사
-    root_login_restricted = True  # root 로그인이 제한되었다고 가정
+    # 취약 판정 기준: PermitRootLogin yes 또는 without-password (비밀번호 없이 root 접속 허용)
+    # 안전 판정: no, prohibit-password, forced-commands-only
+    root_login_restricted = True
+    _PERMIT_ROOT_UNSAFE = re.compile(
+        r'^\s*PermitRootLogin\s+(yes|without-password)\s*$', re.IGNORECASE
+    )
     for sshd_config in subprocess.getoutput("find /etc/ssh -name 'sshd_config'").splitlines():
         try:
             with open(sshd_config, 'r') as file:
                 for line in file:
-                    if 'PermitRootLogin' in line and not line.strip().startswith('#'):
-                        if 'yes' in line or 'without-password' in line or 'prohibit-password' not in line or 'forced-commands-only' not in line:
-                            root_login_restricted = False  # root 로그인이 제한되지 않음
-                            break
+                    if line.strip().startswith('#'):
+                        continue
+                    if _PERMIT_ROOT_UNSAFE.match(line):
+                        root_login_restricted = False
+                        break
         except Exception as e:
             results["현황"].append(f"{sshd_config} 파일 읽기 중 오류 발생: {e}")
 
@@ -46,7 +79,7 @@ def check_remote_root_access_restriction():
 
 def main():
     results = check_remote_root_access_restriction()
-    print(json.dumps(results, ensure_ascii=False, indent=4))
+    print_as_md(results)
 
 if __name__ == "__main__":
     main()

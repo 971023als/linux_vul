@@ -38,3 +38,17 @@ for file_path in "${FILES_TO_CHECK[@]}"; do
 done
 
 echo "U-03 계정 잠금 임계값 설정 검사 및 조정이 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-03"
+_change_item="파일 검사 중: $file_path"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

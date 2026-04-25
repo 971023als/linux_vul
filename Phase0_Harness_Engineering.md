@@ -51,17 +51,20 @@
 
 ## 4. 검증 및 하네스 테스트 (Verification)
 
-작업 완료 후 다음 항목을 통해 하네스가 정상 작동하는지 확인합니다.
-
 | 테스트 항목 | 검증 방법 | 기대 결과 |
 |---|---|---|
 | 인터프리터 검증 | `vul.sh` 내 `python3` 문자열 검색 | `U-xx.sh` 호출부에서 제거됨 |
 | 실행 격리 테스트 | `output/evidence/U-01/` 디렉터리 확인 | `stdout.txt` 등이 생성됨 |
-| 오류 캡처 테스트 | 의도적 에러 유발 스크립트 실행 | `stderr.txt`에 에러 내용 기록됨 |
-| 문법 무결성 | `bash -n` 실행 | 아무런 문법 오류가 출력되지 않음 |
+| **Profile Safeguard** | 잘못된 프로필로 `main.sh` 실행 | **실행 차단 및 경고 발생** |
+| **Integrity Check** | 빈 결과 파일 생성 후 검증 | **`EVIDENCE_MISSING` 로그 확인** |
 
 ---
 
-## 5. 향후 확장성
+## 5. Phase 0 결과: 하네스 강제 규정 확립
 
-이 하네스 구조가 안착되면, 이후 Phase에서 **결과 정규화(Normalization)** 및 **JSON 통합 보고서 생성** 로직을 Runner 끝단에 간단히 추가할 수 있습니다.
+Phase 0를 통해 다음 **강제 규정(Enforcement Rules)**이 기술적으로 구현 및 확립되었습니다.
+
+1. **환경 보호 (Profile Safeguard):** OS 자동 감지 및 프로필 유효성 검사 로직 적용.
+2. **증적 무결성 (Integrity Check):** 0 byte 결과물 자동 감지 및 경고 로직 적용.
+3. **테스트 격리 (Tests Isolation):** `tests/` 디렉터리 기반 독립 테스트 체계 구축.
+4. **불가침성 (Audit-Only):** 실무 환경 가용성 보장을 위한 안전 진단 모드 확립.

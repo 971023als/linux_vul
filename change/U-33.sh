@@ -28,3 +28,17 @@ elif version_gt "$minimum_version" "$installed_version"; then
 else
     echo "U-33 현재 BIND 버전($installed_version)은 최신 보안 패치 버전($minimum_version) 이상입니다."
 fi
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-33"
+_change_item="지원되지 않는 패키지 관리자입니다. rpm 또는 dpk"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

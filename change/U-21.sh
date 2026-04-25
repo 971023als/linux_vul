@@ -32,3 +32,17 @@ if systemctl is-active inetd &> /dev/null; then
 fi
 
 echo "U-21 r 계열 서비스 비활성화 작업이 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-21"
+_change_item="$service 서비스가 xinetd를 통해 비활성화되"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

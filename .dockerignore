@@ -1,8 +1,22 @@
-# .dockerignore
-.git
-.gitignore
+# Build artifacts
 output/
-node_modules/
-__pycache__/
-*.bak
 *.log
+
+# Python cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Test files
+tests/
+patch_vul_sh.py
+ssm-runner/go.sum

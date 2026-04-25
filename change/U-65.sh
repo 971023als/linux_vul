@@ -29,3 +29,17 @@ for file in "${AT_ACCESS_CONTROL_FILES[@]}"; do
 done
 
 echo "U-65 at 서비스 관련 파일의 권한 설정이 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-65"
+_change_item="$at_path 실행 파일에 대한 'other' 사용자"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

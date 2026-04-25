@@ -26,3 +26,17 @@ fi
 # 각 서버의 설정 방식에 따라 적절한 명령어를 추가해야 합니다.
 
 echo "U-42 Web server file upload limits have been updated."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-42"
+_change_item="Setting upload limit in $confi"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

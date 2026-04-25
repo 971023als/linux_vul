@@ -21,3 +21,17 @@ fi
 echo "/etc/hosts.allow 파일을 초기화했습니다. 필요한 접속 허용 규칙을 추가해주세요."
 
 echo "U-18 접속 IP 및 포트 제한 설정 조치가 완료되었습니다."
+
+# ==== 조치 결과 MD 출력 ====
+_change_code="U-18"
+_change_item="ALL: ALL"
+cat << __CHANGE_MD__
+# ${_change_code}: ${_change_item} — 조치 완료
+
+| 항목 | 내용 |
+|------|------|
+| 코드 | ${_change_code} |
+| 진단항목 | ${_change_item} |
+| 조치결과 | 조치 스크립트 실행 완료 |
+| 실행일시 | $(date '+%Y-%m-%d %H:%M:%S') |
+__CHANGE_MD__

@@ -13,7 +13,7 @@ linux_vul/
 ├── SPEC.md                 # 상세 설계 및 기술 스펙 문서
 ├── README.md               # 사용자 가이드 및 프로젝트 개요
 │
-├── shell_scirpt/           # [Legacy] OS별 취약점 진단 쉘 스크립트 (U-01 ~ U-72)
+├── shell_script/           # [Legacy] OS별 취약점 진단 쉘 스크립트 (U-01 ~ U-72)
 │   ├── ubuntu/             # Ubuntu/Debian 계열
 │   ├── centos/             # CentOS/RHEL 계열
 │   └── ...
@@ -34,6 +34,18 @@ linux_vul/
 
 ---
 
+## 🛡️ 하네스 엔지니어링 강제 규정 (Enforcement Rules)
+
+본 프로젝트는 데이터의 신뢰성과 시스템의 안전을 위해 다음 규정을 엄격히 준수합니다.
+
+1. **Profile Safeguard (환경 보호):** 진단 실행 전 실제 OS와 프로필이 일치하지 않을 경우 실행을 자동 차단합니다.
+2. **Integrity Check (증적 무결성):** 증적 파일이 누락되거나 0 byte인 경우 해당 항목을 즉시 `EVIDENCE_MISSING`으로 분류합니다.
+3. **Tests Isolation (테스트 격리):** 모든 테스트 코드는 `tests/` 디렉터리에 위치하며 운영 로직과 물리적으로 격리됩니다.
+4. **Audit-Only (불가침성):** 진단 모드에서는 시스템 설정 변경(Write) 행위가 기술적으로 원천 차단됩니다.
+5. **Data Anonymization (비식별화):** 모든 증적 수집 시 IP, 계정, 패스워드 등 민감 정보는 마스킹 처리됩니다.
+
+---
+
 ## 🏗 아키텍처 및 하네스 엔지니어링 (Harness Engineering)
 
 본 도구는 **안정성(Safety)**과 **재현성(Reproducibility)**을 최우선으로 설계되었습니다.
@@ -44,7 +56,7 @@ linux_vul/
 - **Dry-run Support:** `remediate` 모드는 실제 시스템 변경 전 반드시 `--dry-run`을 통해 변경될 내용을 미리 확인할 수 있습니다.
 
 ### 2. 주요 디렉터리 역할
-- `shell_scirpt/`: 배포판별 진단 로직 (ReadOnly 권장)
+- `shell_script/`: 배포판별 진단 로직 (ReadOnly 권장)
 - `change/`: 조치 스크립트 (시스템 변경 유발)
 - `output/`: 모든 산출물 (JSON, CSV, HTML, PDF, Evidence)
 - `tools/`: S3 업로더, 보고서 생성 파이프라인 등 보조 도구
