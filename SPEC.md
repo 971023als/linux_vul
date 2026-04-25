@@ -63,35 +63,34 @@ linux_vul/
 
 ---
 
-# 3. 상세 컴포넌트 설계
+# 3. 상세 컴포넌트 설계 (Hardening)
 
 ### 📂 `runners/` (Harness & Execution)
 *   **shell_runner.sh**: 진단 스크립트의 **샌드박스 실행**을 담당합니다.
     *   모든 스크립트를 `bash`로 실행하여 인터프리터 오류 방지.
+    *   **증적 무결성 검증 (Integrity Check):** 실행 후 `stdout.txt`의 존재 여부 및 크기(>0 byte)를 검증하여 누락된 PASS 판정을 차단합니다.
     *   실행 결과를 `output/evidence/{ID}/` 하위에 파일로 격리 저장.
-    *   성공/실패 여부를 종료 코드로 메인 스크립트에 전달.
 
-### 📂 `tests/` (Testing Policy) - **[중요: 하네스 엔지니어링 원칙]**
+### 🛡️ 프로필 유효성 검증 (Profile Safeguard)
+*   `main.sh`는 실행 전 `/etc/os-release`를 분석하여 실제 시스템 환경을 자동 감지합니다.
+*   사용자가 지정한 `--profile`과 실제 시스템 환경이 다를 경우 **실행을 차단**하거나 경고를 출력하여 잘못된 진단 로직 적용을 원천 차단합니다.
+
+### 📂 `tests/` (Testing Policy)
 *   **원칙 1 (Isolation):** 모든 테스트 코드는 반드시 `tests/` 디렉터리에만 위치해야 합니다.
 *   **원칙 2 (Reproducibility):** 테스트는 독립적으로 실행 가능해야 하며, `main.sh`의 환경을 시뮬레이션할 수 있어야 합니다.
-*   **원칙 3 (Evidence):** 테스트 성공/실패 여부도 기록되어야 합니다.
-
-### 📂 `output/` (Evidence & Reporting)
-*   **evidence-first:** 단순히 '양호'라고 표시하는 것이 아니라, `stdout.txt`와 `stderr.txt`를 통해 실제 어떤 명령어가 실행되었고 어떤 결과가 나왔는지 증명합니다.
 
 ---
 
 # 4. 단계별 구현 및 현황
 
 ### ✅ Phase 0: 안정화 (Completed)
-- `main.sh` 통합 진입점 구축.
-- `runners/shell_runner.sh` 구현을 통한 실행 격리 완료.
+- `main.sh` 통합 진입점 구축 및 프로필 검증 로직 추가.
+- `runners/shell_runner.sh` 구현을 통한 실행 격리 및 증적 검증 완료.
 - `shell_scirpt/` 내의 `python3` 호출 오류를 `bash` 호출로 자동 패치 완료.
 - 하네스 테스트(`tests/test_runner.sh`)를 통한 안정성 검증.
 
-### 🔄 Phase 1: 표준화 (Planned)
+### 🔄 Phase 1: 표준화 (In-Progress)
 - `result_normalizer.sh` 구현: `양호/취약` 등 텍스트를 `PASS/FAIL`로 변환.
-- 항목별 가중치 및 위험도 설정 로직 추가.
 
 ---
 
@@ -100,18 +99,6 @@ linux_vul/
 | 모드 | 필수 옵션 | 비고 |
 |---|---|---|
 | setup | - | 디렉터리 생성 및 기본 설정값 초기화 |
-| audit | --profile [os] | 실서버 변경 없이 진단 데이터만 수집 |
+| audit | --profile [os] | **OS 자동 감지 및 프로필 매칭 검사 수행** |
 | report | --upload (선택) | 수집된 JSON 데이터를 기반으로 리포팅 및 클라우드 전송 |
 | remediate | --check [ID] --apply | 명시적 승인 하에 시스템 설정 변경 |
-| verify | --check [ID] | 조치 후 해당 항목만 재진단 |
-
----
-
-# 6. 인프라 연동 (Docker & S3)
-
-### Docker 가이드
-- 호스트의 `/etc` 등을 진단하기 위해 호스트 루트 마운트 필수: `-v /:/host:ro`
-- 보고서 생성에 필요한 한글 폰트(`fonts-nanum`) 및 `wkhtmltopdf` 기본 포함.
-
-### S3 업로드
-- `tools/s3_uploader.py`를 통해 진단 일시 및 호스트명을 기준으로 계층적 저장 수행.

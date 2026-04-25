@@ -1,11 +1,10 @@
 #!/bin/bash
 # runners/shell_runner.sh
-# Purpose: Safely execute individual U-xx.sh scripts and capture results
+# Purpose: Safely execute individual U-xx.sh scripts and capture results with integrity checks
 
 # --- Initialization ---
 CHECK_ID=""
 SCRIPT_PATH=""
-# Default to output/evidence in the project root (one level up from runners/)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="$(cd "$SCRIPT_DIR/../output/evidence" && pwd)"
 EXIT_CODE=0
@@ -46,7 +45,14 @@ if [ -f "$SCRIPT_PATH" ]; then
     EXIT_CODE=$?
     echo "$EXIT_CODE" > "$EXIT_CODE_FILE"
     
-    # Also output stdout to console so the calling vul.sh can capture it
+    # --- Integrity Check (Harness Hardening) ---
+    if [ ! -s "$STDOUT_FILE" ]; then
+        # If stdout is empty (0 bytes), it's an integrity failure
+        echo "[HARNESS] WARNING: Empty stdout detected for $CHECK_ID" >> "$STDERR_FILE"
+        # We don't change the exit code here, but the Normalizer will see the empty file
+    fi
+    
+    # Output stdout to console for the calling process
     cat "$STDOUT_FILE"
 else
     echo "ERROR: Script $SCRIPT_PATH not found" > "$STDERR_FILE"

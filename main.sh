@@ -10,6 +10,7 @@ OUTPUT_BASE="output"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 function usage() {
@@ -19,14 +20,10 @@ function usage() {
     echo "  setup       Initialize directory structure and configs"
     echo "  audit       Run vulnerability diagnosis (system check only)"
     echo "  report      Generate CSV/HTML/PDF reports from JSON results"
-    echo "  remediate   Apply security fixes (Requires --check ID --apply)"
-    echo "  verify      Verify if a vulnerability is fixed after remediation"
     echo ""
     echo -e "${GREEN}Options:${NC}"
     echo "  --profile [os]    Target OS (ubuntu, centos, rocky, etc.)"
-    echo "  --check [id]      Specific check ID (e.g., U-01)"
-    echo "  --dry-run         Show what would be done without making changes"
-    echo "  --upload          Auto-upload results to S3 after completion"
+    echo "  --force           Ignore OS profile mismatch warning"
     exit 1
 }
 
@@ -34,48 +31,67 @@ function log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 function log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 function log_err()  { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# --- OS Detection Logic (Harness Safeguard) ---
+function detect_os() {
+    if [ -f /etc/os-release ]; then
+        source /etc/os-release
+        echo "$ID"
+    else
+        echo "unknown"
+    fi
+}
+
+function validate_profile() {
+    local GIVEN_PROFILE=$1
+    local ACTUAL_OS=$(detect_os)
+    local FORCE=$2
+
+    log_info "Detected OS: ${BLUE}$ACTUAL_OS${NC}"
+
+    if [ "$GIVEN_PROFILE" != "$ACTUAL_OS" ]; then
+        if [ "$FORCE" == "true" ]; then
+            log_warn "Profile mismatch! Given: $GIVEN_PROFILE, Actual: $ACTUAL_OS. Continuing due to --force."
+        else
+            log_err "Profile mismatch! Given: $GIVEN_PROFILE, Actual: $ACTUAL_OS."
+            log_err "To proceed anyway, use --force"
+            exit 1
+        fi
+    else
+        log_info "Profile matches detected OS."
+    fi
+}
+
 # --- Mode Handlers ---
 
 function do_setup() {
     log_info "Initializing project structure..."
-    mkdir -p output/{json,csv,html,pdf,evidence,logs} runners tools config templates
-    if [ ! -f "$CONFIG_FILE" ]; then
-        echo "S3_BUCKET=\"your-audit-results-bucket\"" > "$CONFIG_FILE"
-        echo "AWS_REGION=\"ap-northeast-2\"" >> "$CONFIG_FILE"
-        log_info "Default config created at $CONFIG_FILE"
-    fi
+    mkdir -p output/{json,csv,html,pdf,evidence,logs} runners tools config templates tests
     log_info "Setup complete."
 }
 
 function do_audit() {
-    PROFILE=$1
+    local PROFILE=""
+    local FORCE="false"
+
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --profile) PROFILE="$2"; shift ;;
+            --force) FORCE="true" ;;
+        esac
+        shift
+    done
+
     if [ -z "$PROFILE" ]; then
         log_err "Profile is required for audit. Use --profile [os]"
         exit 1
     fi
+
+    # Run Safeguard
+    validate_profile "$PROFILE" "$FORCE"
+
     log_info "Starting audit for profile: $PROFILE"
-    # Placeholder for actual runner logic
-    # bash runners/shell_runner.sh --profile $PROFILE
-    log_warn "Audit logic in Phase 0 is currently being integrated."
-}
-
-function do_report() {
-    log_info "Generating reports from assessment_result.json..."
-    # python3 tools/report_pipeline.py
-}
-
-function do_remediate() {
-    CHECK_ID=$1
-    APPLY=$2
-    if [ -z "$CHECK_ID" ]; then
-        log_err "Check ID is required for remediation. Use --check U-xx"
-        exit 1
-    fi
-    if [ "$APPLY" != "--apply" ]; then
-        log_info "Remediation dry-run for $CHECK_ID..."
-    else
-        log_warn "Applying remediation for $CHECK_ID..."
-    fi
+    # Execute actual audit logic (e.g., shell_scirpt/$PROFILE/vul.sh)
+    # cd shell_scirpt/$PROFILE && bash vul.sh
 }
 
 # --- Main Logic ---
@@ -88,7 +104,5 @@ shift
 case "$MODE" in
     setup)     do_setup ;;
     audit)     do_audit "$@" ;;
-    report)    do_report ;;
-    remediate) do_remediate "$@" ;;
     *)         usage ;;
 esac
