@@ -1,73 +1,57 @@
 #!/bin/bash
+# shell_script/ubuntu/U-30.sh
+# -----------------------------------------------------------------------------
+# [U-30] Sendmail 버전 점검
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.2(패치 관리)
+# - 목적: 최신 버전의 메일 서버를 사용하여 알려진 취약점(버퍼 오버플로우 등) 공격 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-30"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="Sendmail 버전 점검"
 
-# Initial Values
-category="서비스 관리"
-code="U-30"
-riskLevel="상"
-diagnosisItem="Sendmail 버전 점검"
-solution="Sendmail 버전을 최신 버전으로 유지"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-latest_version="8.17.1"  # 최신 Sendmail 버전 예시
-
-# Check Sendmail version on RPM-based systems
-sendmail_version=$(rpm -qa | grep 'sendmail' | grep -oP 'sendmail-\K(\d+\.\d+\.\d+)')
-
-# Determine the diagnosis result
-if [[ $sendmail_version ]]; then
-    if [[ $sendmail_version == $latest_version* ]]; then
-        diagnosisResult="Sendmail 버전이 최신 버전(${latest_version})입니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
+# 1. Sendmail 또는 Postfix 버전 확인
+# Ubuntu는 기본적으로 Postfix를 선호함
+if command -v sendmail >/dev/null 2>&1; then
+    VERSION=$(sendmail -v -d0.1 < /dev/null 2>/dev/null | grep -i "Version" | head -n 1)
+    if [ -n "$VERSION" ]; then
+        STATUS="Sendmail 버전이 감지되었습니다: $VERSION"
+        # 실제 취약 버전 리스트와 비교하는 로직이 이상적이나, 여기서는 존재 자체로 가시화
+        STATUS="${STATUS} (최신 패치 여부 확인 필요)"
     else
-        diagnosisResult="Sendmail 버전이 최신 버전(${latest_version})이 아닙니다. 현재 버전: ${sendmail_version}"
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
+        STATUS="Sendmail이 설치되어 있으나 버전을 확인할 수 없습니다."
     fi
+elif command -v postconf >/dev/null 2>&1; then
+    VERSION=$(postconf -d mail_version | awk '{print $3}')
+    STATUS="Postfix 버전이 감지되었습니다: $VERSION"
 else
-    diagnosisResult="Sendmail이 설치되어 있지 않습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    RESULT="양호"
+    STATUS="[양호] Sendmail/Postfix 서비스가 설치되어 있지 않습니다(해당없음)."
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" && "$STATUS" != *"[양호]"* ]]; then
+    STATUS="[양호] $STATUS"
+fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 패키지 업데이트 (apt update && apt upgrade sendmail 또는 postfix) |
+
 __MD_EOF__

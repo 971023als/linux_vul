@@ -1,75 +1,52 @@
 #!/bin/bash
+# shell_script/oracle/U-60.sh
+# -----------------------------------------------------------------------------
+# [U-60] SNMP Community String 설정 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 기본 또는 단순한 Community String을 변경하여 비인가된 시스템 정보 유출 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-60"
+CATEGORY="서비스 관리"
+RISK="중"
+ITEM="SNMP Community String 설정"
 
-# Initial Values
-category="서비스 관리"
-code="U-60"
-riskLevel="중"
-diagnosisItem="ssh 원격접속 허용"
-service="Remote Access Management"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
+TARGET="/etc/snmp/snmpd.conf"
 
-# SSH 서비스 상태 확인
-if systemctl is-active --quiet ssh; then
-    ssh_status="활성화"
+if [ -f "$TARGET" ]; then
+    if grep -v "^#" "$TARGET" | grep -Ei "com2sec|rocommunity|rwcommunity" | grep -Ei "public|private" > /dev/null; then
+        RESULT="취약"
+        STATUS="SNMP 설정에 취약한 Community String(public 또는 private)이 사용 중입니다."
+    else
+        STATUS="SNMP Community String이 기본값이 아닌 값으로 설정되어 있습니다."
+    fi
 else
-    ssh_status="비활성화"
+    STATUS="SNMP 설정 파일($TARGET)이 존재하지 않습니다(해당없음)."
 fi
 
-# Telnet 서비스 상태 확인
-if pgrep -f telnetd > /dev/null; then
-    telnet_status="활성화"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
 else
-    telnet_status="비활성화"
+    STATUS="[취약] $STATUS"
 fi
 
-# FTP 서비스 상태 확인
-if pgrep -f ftpd > /dev/null; then
-    ftp_status="활성화"
-else
-    ftp_status="비활성화"
-fi
-
-# 전체 보안 상태 결정
-if [ "$ssh_status" == "활성화" ] && [ "$telnet_status" == "비활성화" ] && [ "$ftp_status" == "비활성화" ]; then
-    diagnosisResult="양호"
-    status="양호"
-else
-    diagnosisResult="취약"
-    status="취약"
-fi
-
-# Write the results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Output the results
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | snmpd.conf 에서 public/private 대신 복잡한 문자열로 변경 |
+
 __MD_EOF__

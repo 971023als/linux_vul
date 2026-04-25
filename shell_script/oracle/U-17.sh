@@ -1,109 +1,66 @@
 #!/bin/bash
+# shell_script/oracle/U-17.sh
+# -----------------------------------------------------------------------------
+# [U-17] $HOME/.rhosts, hosts.equiv 사용 금지 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 패스워드 없이 로그인 가능한 원격 접속 설정 파일을 제거하여 무단 접근 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-17"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="\$HOME/.rhosts, hosts.equiv 사용 금지"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-17"
-위험도="상"
-진단항목="\$HOME/.rhosts, hosts.equiv 사용 금지"
-대응방안="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 소유자, 권한, 설정 검증"
-현황=""
-진단결과="양호"
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-# /etc/hosts.equiv 파일 검증
-check_file_security() {
-    local file=$1
-    local owner_expected=$2
-
-    if [ ! -e "$file" ]; then
-        return 0 # 파일이 없으면 검사하지 않음
-    fi
-
-    local owner=$(stat -c '%U' "$file")
-    local permissions=$(stat -c '%a' "$file")
-
-    # 소유자 검사
-    if [ "$owner" != "$owner_expected" ]; then
-        _status_list+="$file: 소유자가 $owner_expected가 아님, "
-        return 1
-    fi
-
-    # 권한 검사 (600 이하인지)
-    if [ "$permissions" -gt 600 ]; then
-        _status_list+="$file: 권한이 600보다 큼, "
-        return 1
-    fi
-
-    # '+' 문자 검사
-    if grep -q '+' "$file"; then
-        _status_list+="$file: 파일 내에 '+' 문자가 있음, "
-        return 1
-    fi
-
-    return 0
-}
-
-check_file_security "/etc/hosts.equiv" "root"
-hosts_equiv_result=$?
-
-# 사용자별 .rhosts 파일 검증
-while IFS=: read -r username _ _ _ _ homedir _; do
-    if [ -d "$homedir" ] && [ "$homedir" != "/sbin/nologin" ] && [ "$homedir" != "/bin/false" ]; then
-        rhosts_path="$homedir/.rhosts"
-        check_file_security "$rhosts_path" "$username"
-        rhosts_result=$?
-        if [ $rhosts_result -ne 0 ]; then
-            진단결과="취약"
-        fi
+FILES_TO_CHECK=("/etc/hosts.equiv")
+while IFS=: read -r _ _ _ _ _ HOME_DIR _; do
+    if [ -f "$HOME_DIR/.rhosts" ]; then
+        FILES_TO_CHECK+=("$HOME_DIR/.rhosts")
     fi
 done < /etc/passwd
 
-# 결과 업데이트
-if [ -z "$현황" ]; then
-    현황="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 문제 없음"
+VULN_FILES=""
+for FILE in "${FILES_TO_CHECK[@]}"; do
+    if [ -f "$FILE" ]; then
+        if grep -q "+" "$FILE" 2>/dev/null; then
+            VULN_FILES="${VULN_FILES}${FILE}(+) "
+            RESULT="취약"
+        else
+            VULN_FILES="${VULN_FILES}${FILE} "
+            RESULT="취약"
+        fi
+    fi
+done
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="r-command 관련 설정 파일이 존재하지 않습니다."
+else
+    STATUS="취약한 원격 접속 설정 파일이 발견되었습니다: ${VULN_FILES}"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | .rhosts 및 hosts.equiv 파일 삭제 또는 내부 '+' 설정 제거 |
+
 __MD_EOF__

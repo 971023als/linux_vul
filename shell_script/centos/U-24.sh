@@ -1,67 +1,57 @@
 #!/bin/bash
+# shell_script/centos/U-24.sh
+# -----------------------------------------------------------------------------
+# [U-24] NFS 서비스 비활성화 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 불필요한 NFS 서비스를 중지하여 원격 파일 시스템 접근 위험 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-24"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="NFS 서비스 비활성화"
 
-# Initial Values
-category="서비스 관리"
-code="U-24"
-riskLevel="상"
-diagnosisItem="NFS 서비스 비활성화"
-solution="불필요한 NFS 서비스 관련 데몬 비활성화"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 1. RHEL 계열 NFS 관련 서비스 확인
+NFS_SERVICES=("nfs-server" "nfs" "rpcbind" "mountd")
+ACTIVE_SVC=""
 
-cat << EOF >> $TMP1
-[양호]: NFS 서비스 관련 데몬이 비활성화되어 있습니다.
-[취약]: 불필요한 NFS 서비스 관련 데몬이 실행 중입니다.
-EOF
+for SVC in "${NFS_SERVICES[@]}"; do
+    if systemctl is-active --quiet "$SVC" 2>/dev/null; then
+        ACTIVE_SVC="${ACTIVE_SVC}${SVC} "
+        RESULT="취약"
+    fi
+done
 
-# Check for NFS related processes
-if ps -ef | grep -iE 'nfs|rpc.statd|statd|rpc.lockd|lockd' | grep -ivE 'grep|kblockd|rstatd'; then
-    diagnosisResult="불필요한 NFS 서비스 관련 데몬이 실행 중입니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="NFS 관련 서비스가 모두 비활성화되어 있습니다."
 else
-    diagnosisResult="NFS 서비스 관련 데몬이 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    STATUS="NFS 관련 서비스가 활성화되어 있습니다: ${ACTIVE_SVC} (업무상 불필요 시 중지 권고)"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | NFS 서비스 중지 (systemctl stop nfs-server && systemctl disable nfs-server) |
+
 __MD_EOF__

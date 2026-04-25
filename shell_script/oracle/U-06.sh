@@ -1,65 +1,52 @@
 #!/bin/bash
+# shell_script/oracle/U-06.sh
+# -----------------------------------------------------------------------------
+# [U-06] 파일 및 디렉터리 소유자 설정 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 소유자가 존재하지 않는 파일을 찾아 무단 사용 또는 권한 오용 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
+CODE="U-06"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="파일 및 디렉터리 소유자 설정"
+
+RESULT="양호"
+STATUS=""
+
+NO_OWNER_FILES=$(find / \( -path /proc -o -path /sys -o -path /dev -o -path /run \) -prune -o \( -nouser -o -nogroup \) -print 2>/dev/null | head -n 20)
+
+if [ -z "$NO_OWNER_FILES" ]; then
+    STATUS="소유자나 그룹이 없는 파일이 존재하지 않습니다."
+else
+    RESULT="취약"
+    STATUS="소유자나 그룹이 없는 파일이 존재합니다:\n$NO_OWNER_FILES"
+    if [ "$(echo "$NO_OWNER_FILES" | wc -l)" -ge 20 ]; then
+        STATUS="${STATUS}\n(외 다수 존재...)"
+    fi
 fi
 
-# Initial Values
-category="파일 및 디렉터리 관리"
-code="U-06"
-riskLevel="상"
-diagnosisItem="파일 및 디렉터리 소유자 설정"
-diagnosisResult= ""
-status=""
-
-no_owner_files=()
-
-# Function: Find files and directories without owners
-check_no_owner_files() {
-    while IFS= read -r -d '' file; do
-        # Check if the file owner and group exist, if not add to the array
-        if ! getent passwd "$(stat -c "%u" "$file")" > /dev/null || \
-           ! getent group "$(stat -c "%g" "$file")" > /dev/null; then
-            no_owner_files+=("$file")
-        fi
-    done < <(find / -nouser -nogroup -print0 2>/dev/null)
-}
-
-check_no_owner_files
-
-# Set diagnosis result and status
-if [ ${#no_owner_files[@]} -gt 0 ]; then
-    diagnosisResult="취약"
-    status="소유자가 존재하지 않는 파일 및 디렉터리:\n$(printf '%s\n' "${no_owner_files[@]}")"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
 fi
 
-# Write diagnosis result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
-
-# Print the final CSV output
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 소유자가 없는 파일의 소유자를 적절한 계정(root 등)으로 변경하거나 삭제 |
+
 __MD_EOF__

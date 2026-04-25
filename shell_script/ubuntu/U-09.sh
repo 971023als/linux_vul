@@ -1,80 +1,59 @@
 #!/bin/bash
+# shell_script/ubuntu/U-09.sh
+# -----------------------------------------------------------------------------
+# [U-09] /etc/hosts 파일 소유자 및 권한 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 호스트 이름과 IP 매핑 정보의 무단 수정을 방지하여 피싱/파밍 공격 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-09"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="/etc/hosts 파일 소유자 및 권한 설정"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-09"
-위험도="상"
-진단항목="/etc/hosts 파일 소유자 및 권한 설정"
-대응방안="/etc/hosts 파일의 소유자가 root이고, 권한이 600 이하인 경우"
-hosts_file='/etc/hosts'
-현황=""
-진단결과=""
+RESULT="양호"
+STATUS=""
+TARGET="/etc/hosts"
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-# /etc/hosts 파일 존재 여부 확인
-if [ -e "$hosts_file" ]; then
-    # 파일 권한 및 소유자 확인
-    mode=$(stat -c "%a" "$hosts_file")
-    owner_uid=$(stat -c "%u" "$hosts_file")
-
-    # 소유자가 root이고 권한이 600 이하인지 확인
-    if [ "$owner_uid" -eq 0 ]; then
-        if [ "$mode" -le 600 ]; then
-            진단결과="양호"
-            현황="/etc/hosts 파일의 소유자가 root이고, 권한이 $mode입니다."
-        else
-            진단결과="취약"
-            현황="/etc/hosts 파일의 권한이 $mode로 설정되어 있어 취약합니다."
-        fi
-    else
-        진단결과="취약"
-        현황="/etc/hosts 파일의 소유자가 root가 아닙니다."
+if [ -f "$TARGET" ]; then
+    OWNER=$(stat -c "%U" "$TARGET")
+    PERMS=$(stat -c "%a" "$TARGET")
+    
+    if [ "$OWNER" != "root" ]; then
+        RESULT="취약"
+        STATUS="소유자가 root가 아닌 $OWNER 입니다."
+    fi
+    
+    if [ "$PERMS" -gt 644 ]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }권한이 644보다 큰 $PERMS 입니다."
     fi
 else
-    진단결과="정보 없음"
-    현황="/etc/hosts 파일이 없습니다."
+    STATUS="$TARGET 파일이 존재하지 않습니다(해당없음)."
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+    [ -z "$STATUS" ] && STATUS="[양호] $TARGET 파일의 소유자 및 권한 설정이 적절합니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root ${TARGET} && chmod 644 ${TARGET} |
+
 __MD_EOF__

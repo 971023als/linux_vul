@@ -1,81 +1,54 @@
 #!/bin/bash
+# shell_script/ubuntu/U-52.sh
+# -----------------------------------------------------------------------------
+# [U-52] 동일한 GID 금지
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.5.1(사용자 식별)
+# - 목적: 그룹 ID(GID)의 중복을 방지하여 그룹별 권한 할당의 명확성 및 책임 추적성 확보
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-52"
+CATEGORY="계정 관리"
+RISK="하"
+ITEM="동일한 GID 금지"
 
-# Initial Values
-category="계정관리"
-code="U-52"
-riskLevel="중"
-diagnosisItem="동일한 UID 금지"
-service="Account Management"
-diagnosisResult=""
-status="양호"
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. 중복된 GID 검색 (/etc/group)
+DUPLICATE_GIDS=$(awk -F: '{print $3}' /etc/group | sort | uniq -d)
 
-min_regular_user_uid=1000
-declare -A uid_counts
-duplicate_uids=()
-
-if [ -f "/etc/passwd" ]; then
-    # Extract UIDs and check for duplicates for regular user UIDs (>=1000)
-    while IFS=: read -r _ _ uid _; do
-        if [ "$uid" -ge "$min_regular_user_uid" ]; then
-            uid_counts["$uid"]=$((uid_counts["$uid"]+1))
-        fi
-    done < <(grep -v '^#' /etc/passwd)
-
-    for uid in "${!uid_counts[@]}"; do
-        if [ "${uid_counts[$uid]}" -gt 1 ]; then
-            duplicate_uids+=("UID $uid (${uid_counts[$uid]}x)")
-        fi
-    done
-
-    if [ ${#duplicate_uids[@]} -gt 0 ]; then
-        diagnosisResult="동일한 UID로 설정된 사용자 계정이 존재합니다: ${duplicate_uids[*]}"
-        status="취약"
-        echo "WARN: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    else
-        diagnosisResult="동일한 UID를 공유하는 사용자 계정이 없습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
+if [ -z "$DUPLICATE_GIDS" ]; then
+    STATUS="중복된 GID가 존재하지 않습니다."
 else
-    diagnosisResult="/etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    RESULT="취약"
+    STATUS="다음 GID들이 중복 사용되고 있습니다:\n"
+    for GID_VAL in $DUPLICATE_GIDS; do
+        GROUPS=$(awk -F: -v gid="$GID_VAL" '$3 == gid { print $1 }' /etc/group | xargs)
+        STATUS="${STATUS}GID ${GID_VAL}: ${GROUPS}\n"
+    done
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 중복된 GID를 가진 그룹의 GID를 고유한 값으로 변경 |
+
 __MD_EOF__

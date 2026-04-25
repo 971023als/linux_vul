@@ -1,108 +1,60 @@
 #!/bin/bash
+# shell_script/oracle/U-63.sh
+# -----------------------------------------------------------------------------
+# [U-63] ftpusers 파일 설정 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: FTP 서비스 이용 시 root 등 주요 계정의 접속을 제한하여 인증 정보 유출 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-63"
+CATEGORY="서비스 관리"
+RISK="하"
+ITEM="ftpusers 파일 설정"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-63"
-riskLevel="하"
-diagnosisItem="ftpusers 파일 소유자 및 권한 설정"
-service="Account Management"
-diagnosisResult=""
-status=""
+CHECK_FILES=("/etc/vsftpd/ftpusers" "/etc/vsftpd/user_list" "/etc/ftpusers")
+FOUND_FILE=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 모든 ftpusers 파일이 적절한 소유자 및 권한 설정을 가지고 있습니다.
-[취약]: ftpusers 파일의 소유자가 root가 아니거나 권한이 640보다 큰 경우
-EOF
-
-# 검사할 ftpusers 파일 목록
-ftpusers_files=(
-    "/etc/ftpusers" "/etc/pure-ftpd/ftpusers" "/etc/wu-ftpd/ftpusers"
-    "/etc/vsftpd/ftpusers" "/etc/proftpd/ftpusers" "/etc/ftpd/ftpusers"
-    "/etc/vsftpd.ftpusers" "/etc/vsftpd.user_list" "/etc/vsftpd/user_list"
-)
-
-file_checked_and_secure=false
-vulnerabilities=()
-
-for ftpusers_file in "${ftpusers_files[@]}"; do
-    if [ -f "$ftpusers_file" ]; then
-        file_checked_and_secure=true
-        owner=$(stat -c "%U" "$ftpusers_file")
-        permissions=$(stat -c "%a" "$ftpusers_file")
-
-        # 소유자가 root가 아니거나 권한이 640보다 큰 경우
-        if [ "$owner" != "root" ] || [ "$permissions" -gt 640 ]; then
-            diagnosisResult=""
-            status="취약"
-            [ "$owner" != "root" ] && vulnerabilities+=("$ftpusers_file 파일의 소유자(owner)가 root가 아닙니다.")
-            [ "$permissions" -gt 640 ] && vulnerabilities+=("$ftpusers_file 파일의 권한이 640보다 큽니다.")
+for FILE in "${CHECK_FILES[@]}"; do
+    if [ -f "$FILE" ]; then
+        FOUND_FILE=$FILE
+        if grep -qi "^root" "$FILE"; then
+            STATUS="FTP 제한 설정 파일($FILE)에 root 계정이 포함되어 있습니다."
+            break
+        else
+            RESULT="취약"
+            STATUS="FTP 제한 설정 파일($FILE)에 root 계정이 누락되었습니다."
         fi
     fi
 done
 
-# 파일 검사 후 취약하지 않은 경우 양호로 설정
-if [ ${#vulnerabilities[@]} -eq 0 ]; then
-    if $file_checked_and_secure; then
-        diagnosisResult="모든 ftpusers 파일이 적절한 소유자 및 권한 설정을 가지고 있습니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
-    else
-        diagnosisResult="ftp 접근제어 파일이 없습니다."
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
-    fi
+if [ -z "$FOUND_FILE" ]; then
+    STATUS="FTP 서비스 설정 파일이 존재하지 않습니다(서비스 미사용 권고)."
+fi
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
 else
-    for vulnerability in "${vulnerabilities[@]}"; do
-        diagnosisResult="$vulnerability"
-        echo "WARN: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    done
+    STATUS="[취약] $STATUS"
 fi
 
-# Write final results to CSV if no vulnerabilities found
-if [ $file_checked_and_secure = true ] && [ ${#vulnerabilities[@]} -eq 0 ]; then
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
-
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | vsftpd.conf 확인 및 ftpusers 파일에 root 계정 추가 |
+
 __MD_EOF__

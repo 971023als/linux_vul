@@ -1,70 +1,53 @@
 #!/bin/bash
+# shell_script/centos/U-15.sh
+# -----------------------------------------------------------------------------
+# [U-15] world writable 파일 점검 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 누구나 수정 가능한(World Writable) 파일을 제거하여 비인가된 시스템 변조 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-15"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="world writable 파일 점검"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-15"
-위험도="상"
-진단항목="world writable 파일 점검"
-대응방안="시스템 중요 파일에 world writable 파일이 존재하지 않거나, 존재 시 설정 이유를 확인"
-현황=""
-진단결과=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 1. World Writable 파일 검색 (가상 파일시스템 제외)
+WW_FILES=$(find / \( -path /proc -o -path /sys -o -path /dev -o -path /run \) -prune -o -type f -perm -2 -print 2>/dev/null | head -n 20)
 
-# 검사 시작 디렉터리 설정; 경고: '/' 사용 시 시스템 성능에 큰 영향을 줄 수 있음
-start_dir='/tmp'  # 전체 시스템 스캔을 위해 변경 가능
-
-# world writable 파일 검색
-world_writable_files=$(find "$start_dir" -type f -perm -002)
-
-# 진단 결과 결정
-if [ -z "$world_writable_files" ]; then
-    진단결과="양호"
-    현황="world writable 설정이 되어있는 파일이 없습니다."
+if [ -z "$WW_FILES" ]; then
+    STATUS="World Writable 파일이 존재하지 않습니다."
 else
-    진단결과="취약"
-    현황=$(echo "$world_writable_files" | tr '\n' ', ' | sed 's/, $//')
+    RESULT="취약"
+    STATUS="World Writable 파일이 발견되었습니다:\n$WW_FILES"
+    if [ "$(echo "$WW_FILES" | wc -l)" -ge 20 ]; then
+        STATUS="${STATUS}\n(외 다수 존재...)"
+    fi
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 불필요한 World Writable 파일을 삭제하거나 권한(chmod o-w [FILE]) 변경 |
+
 __MD_EOF__

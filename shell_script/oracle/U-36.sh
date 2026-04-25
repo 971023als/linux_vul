@@ -1,152 +1,64 @@
 #!/bin/bash
+# shell_script/oracle/U-36.sh
+# -----------------------------------------------------------------------------
+# [U-36] 웹 서비스 프로세스 권한 제한 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 웹 서비스가 하위 권한 계정으로 구동되도록 하여 시스템 침해 시 피해 확산 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
-
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
-
-# Initial Values
-category="서비스 관리"
-code="U-36"
-riskLevel="상"
-diagnosisItem="웹서비스 웹 프로세스 권한 제한"
-service=""
-diagnosisResult=""
-status=""
-
-BAR
+set -u
 
 CODE="U-36"
-diagnosisItem="웹서비스 웹 프로세스 권한 제한"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="웹 서비스 프로세스 권한 제한"
 
-# Write initial values to CSV
-echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-BAR
-
-cat << EOF >> $TMP1
-[양호]: 웹서버 프로세스의 권한을 적절히 제한한 경우
-[취약]: 웹서버 프로세스의 권한이 적절히 제한되지 않은 경우
-EOF
-
-BAR
-
-declare -A web_servers
-web_servers=(
-    ["Apache"]="httpd.conf apache2.conf"
-    ["Nginx"]="nginx.conf"
-    ["LiteSpeed"]="httpd_config.conf"
-    ["Microsoft-IIS"]="applicationHost.config"
-    ["Node.js"]="package.json .env"
-    ["Envoy"]="envoy.yaml"
-    ["Caddy"]="Caddyfile"
-    ["Tomcat"]="server.xml web.xml"
-)
-
-check_permissions() {
-    local conf_files=($1)
-    local user_directive=$2
-    local group_directive=$3
-    local vulnerable=false
-    local vulnerabilities=()
-
-    for conf_file in "${conf_files[@]}"; do
-        find_command=$(find / -name "$conf_file" -type f 2>/dev/null)
-        for file_path in $find_command; do
-            if [ -f "$file_path" ]; then
-                if grep -qE "^\s*${user_directive}\s+root" "$file_path"; then
-                    vulnerabilities+=("$file_path - 사용자 root 설정")
-                    vulnerable=true
-                fi
-                if [ -n "$group_directive" ] && grep -qE "^\s*${group_directive}\s+root" "$file_path"; then
-                    vulnerabilities+=("$file_path - 그룹 root 설정")
-                    vulnerable=true
-                fi
-            fi
-        done
-    done
-
-    echo "$vulnerable" "${vulnerabilities[@]}"
-}
-
-overall_vulnerable=false
-vulnerabilities_overall=()
-
-for server_name in "${!web_servers[@]}"; do
-    conf_files=(${web_servers[$server_name]})
-    case $server_name in
-        "Apache"|"LiteSpeed")
-            user_directive="User"
-            group_directive="Group"
-            ;;
-        "Nginx")
-            user_directive="user"
-            ;;
-        "Tomcat")
-            user_directive="tomcat"  # Not a directive, but Tomcat often runs under a 'tomcat' user for security
-            ;;
-        *)
-            user_directive=""
-            group_directive=""
-            ;;
-    esac
-
-    result=$(check_permissions "$conf_files" "$user_directive" "$group_directive")
-    vulnerable=$(echo $result | cut -d' ' -f1)
-    vulnerabilities=$(echo $result | cut -d' ' -f2-)
-
-    if [ "$vulnerable" == "true" ]; then
-        overall_vulnerable=true
-        for vulnerability in $vulnerabilities; do
-            vulnerabilities_overall+=("$vulnerability")
-        done
+if pgrep -x "httpd" > /dev/null; then
+    HTTPD_USER=$(ps -ef | grep -v "root" | grep "httpd" | awk '{print $1}' | head -n 1)
+    if [ -z "$HTTPD_USER" ]; then
+        RESULT="취약"
+        STATUS="Apache(httpd) 프로세스가 root 권한으로 실행 중입니다."
+    else
+        STATUS="Apache(httpd) 프로세스가 하위 권한 계정($HTTPD_USER)으로 실행 중입니다."
     fi
-done
-
-if [ "$overall_vulnerable" == "true" ]; then
-    diagnosisResult="취약"
-    status="취약"
-    for vulnerability in "${vulnerabilities_overall[@]}"; do
-        echo "WARN: $vulnerability" >> $TMP1
-        echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$vulnerability,$status" >> $OUTPUT_CSV
-    done
-else
-    diagnosisResult="양호"
-    status="양호"
-    diagnosisResult="모든 검사된 서버 데몬들이 적절히 권한 제한이 되어 있습니다."
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-cat $TMP1
+if pgrep -x "nginx" > /dev/null; then
+    NGINX_USER=$(ps -ef | grep -v "root" | grep "nginx" | awk '{print $1}' | head -n 1)
+    if [ -z "$NGINX_USER" ]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }Nginx 프로세스가 root 권한으로 실행 중입니다."
+    else
+        STATUS="${STATUS:+${STATUS} / }Nginx 프로세스가 하위 권한 계정($NGINX_USER)으로 실행 중입니다."
+    fi
+fi
 
-echo ; echo
+if [ -z "$STATUS" ]; then
+    STATUS="웹 서비스가 실행 중이지 않습니다."
+fi
 
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 웹 서버 설정 파일에서 구동 계정을 별도의 전용 계정(apache, nginx 등)으로 지정 |
+
 __MD_EOF__

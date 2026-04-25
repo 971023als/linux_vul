@@ -1,83 +1,53 @@
 #!/bin/bash
+# shell_script/oracle/U-04.sh
+# -----------------------------------------------------------------------------
+# [U-04] 패스워드 파일 보호 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제13조(비밀보호), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 패스워드를 shadow 파일에 별도 저장하여 일반 사용자의 접근 및 크래킹 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-04"
+CATEGORY="계정 관리"
+RISK="상"
+ITEM="패스워드 파일 보호"
 
-# Initial Values
-category="계정 관리"
-code="U-04"
-riskLevel="상"
-diagnosisItem="패스워드 파일 보호"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Variables
-passwd_file="/etc/passwd"
-shadow_file="/etc/shadow"
-shadow_used=true  # Assume shadow passwords are used
-_status_list=()
-
-# Check for shadow password usage in /etc/passwd
-if [ -f "$passwd_file" ]; then
-    while IFS= read -r line || [ -n "$line" ]; do
-        IFS=':' read -r -a parts <<< "$line"
-        if [ "${#parts[@]}" -gt 1 ] && [ "${parts[1]}" != "x" ]; then
-            shadow_used=false
-            break
-        fi
-    done < "$passwd_file"
-fi
-
-# Check /etc/shadow file existence and permissions
-if $shadow_used && [ -f "$shadow_file" ]; then
-    if [ ! -r "$shadow_file" ]; then  # Ensure /etc/shadow is read-only
-        _status_list+=("/etc/shadow 파일이 안전한 권한 설정을 갖고 있지 않습니다.")
-        shadow_used=false
+if [ -f "/etc/passwd" ]; then
+    VULN_ACCOUNTS=$(awk -F: '$2 != "x" {print $1}' /etc/passwd)
+    if [ -n "$VULN_ACCOUNTS" ]; then
+        RESULT="취약"
+        STATUS="패스워드가 shadow 파일에 저장되지 않은 계정 발견: ${VULN_ACCOUNTS}"
+    else
+        STATUS="모든 계정의 패스워드가 shadow 파일에 보호되고 있습니다."
     fi
-fi
-
-if ! $shadow_used; then
-    _status_list+=("쉐도우 패스워드를 사용하고 있지 않거나 /etc/shadow 파일의 권한 설정이 적절하지 않습니다.")
-    diagnosisResult="취약"
 else
-    _status_list+=("쉐도우 패스워드를 사용하고 있으며 /etc/shadow 파일의 권한 설정이 적절합니다.")
-    diagnosisResult="양호"
+    RESULT="취약"
+    STATUS="/etc/passwd 파일을 찾을 수 없습니다."
 fi
 
-status=$(IFS=$'\n'; echo "${_status_list[*]}")
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Write diagnosis result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Print the final CSV output
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | pwconv 명령을 사용하여 shadow 패스워드 체계로 변환 |
+
 __MD_EOF__

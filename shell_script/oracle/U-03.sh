@@ -1,92 +1,62 @@
-#!/bin/bash
+#!/bash
+# shell_script/oracle/U-03.sh
+# -----------------------------------------------------------------------------
+# [U-03] 계정 잠금 임계값 설정 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제8조(비밀번호 관리), ISMS-P 2.5.1(사용자 식별)
+# - 목적: 무차별 대입 공격(Brute-force) 발생 시 계정을 잠금 처리하여 추가 시도 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-03"
+CATEGORY="계정 관리"
+RISK="상"
+ITEM="계정 잠금 임계값 설정"
 
-# Initial Values
-category="계정 관리"
-code="U-03"
-riskLevel="상"
-diagnosisItem="계정 잠금 임계값 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+# RHEL 계열 PAM 설정 파일
+PAM_AUTH="/etc/pam.d/system-auth"
+[ ! -f "$PAM_AUTH" ] && PAM_AUTH="/etc/pam.d/password-auth"
 
-# Variables
-deny_files_checked=false
-account_lockout_threshold_set=false
-files_to_check=(
-    "/etc/pam.d/system-auth"
-    "/etc/pam.d/password-auth"
-)
-deny_modules=("pam_tally2.so" "pam_faillock.so")
-_status_list=()
-
-for file_path in "${files_to_check[@]}"; do
-    if [ -f "$file_path" ]; then
-        deny_files_checked=true
-        while IFS= read -r line || [ -n "$line" ]; do
-            line=$(echo "$line" | xargs) # Trim
-            if [[ ! "$line" =~ ^# && "$line" =~ deny ]]; then
-                for deny_module in "${deny_modules[@]}"; do
-                    if [[ "$line" =~ $deny_module ]]; then
-                        deny_value=$(echo "$line" | grep -oP 'deny=\K\d+')
-                        if [[ "$deny_value" -le 10 ]]; then
-                            account_lockout_threshold_set=true
-                        else
-                            _status_list+=("$file_path에서 설정된 계정 잠금 임계값이 10회를 초과합니다.")
-                        fi
-                    fi
-                done
-            fi
-        done < "$file_path"
+if [ -f "$PAM_AUTH" ]; then
+    if grep -qE "pam_faillock.so|pam_tally2.so" "$PAM_AUTH"; then
+        LOCK_CONFIG=$(grep -E "pam_faillock.so|pam_tally2.so" "$PAM_AUTH")
+        if [[ "$LOCK_CONFIG" == *"deny="* ]]; then
+            STATUS="계정 잠금 임계값 설정 모듈이 활성화되어 있습니다."
+        else
+            RESULT="취약"
+            STATUS="잠금 모듈은 있으나 임계값(deny) 설정이 누락되었습니다."
+        fi
+    else
+        RESULT="취약"
+        STATUS="계정 잠금 설정 모듈(pam_faillock 등)이 누락되었습니다."
     fi
-done
-
-if ! $deny_files_checked; then
-    _status_list+=("계정 잠금 임계값을 설정하는 파일을 찾을 수 없습니다.")
-    diagnosisResult="취약"
-elif ! $account_lockout_threshold_set; then
-    _status_list+=("적절한 계정 잠금 임계값 설정이 없습니다.")
-    diagnosisResult="취약"
 else
-    _status_list+=("계정 잠금 임계값이 적절히 설정되었습니다.")
-    diagnosisResult="양호"
+    RESULT="취약"
+    STATUS="PAM 설정 파일($PAM_AUTH)을 찾을 수 없습니다."
 fi
 
-status=$(IFS=$'\n'; echo "${_status_list[*]}")
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Write diagnosis result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Print the final CSV output
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /etc/pam.d/system-auth 에 pam_faillock.so auth/account 설정 추가 |
+
 __MD_EOF__

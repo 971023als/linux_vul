@@ -1,75 +1,55 @@
 #!/bin/bash
+# shell_script/centos/U-51.sh
+# -----------------------------------------------------------------------------
+# [U-51] 계정 UID 중복 점검 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.5.1(사용자 식별)
+# - 목적: 동일한 UID를 가진 중복 계정을 식별하여 권한 부여 오류 및 감사 무결성 훼손 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-51"
+CATEGORY="계정 관리"
+RISK="중"
+ITEM="계정 UID 중복 점검"
 
-# Initial Values
-category="계정관리"
-code="U-51"
-riskLevel="하"
-diagnosisItem="계정이 존재하지 않는 GID 금지"
-service="Account Management"
-diagnosisResult="양호"
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. UID 별 출현 빈도 계산
+DUPLICATE_UIDS=$(cut -d: -f3 /etc/passwd | sort | uniq -d)
 
-if [ -f "/etc/group" ] && [ -f "/etc/passwd" ]; then
-    # Extract GIDs in use from /etc/passwd
-    gids_in_use=$(cut -d: -f4 /etc/passwd | sort -u)
-
-    unnecessary_groups=()
-    while IFS=: read -r group_name _ gid members; do
-        # Check if GID is >= 500 and not in use or group is empty
-        if [ "$gid" -ge 500 ] && [[ ! " $gids_in_use " =~ " $gid " ]] && [ -z "$members" ]; then
-            unnecessary_groups+=("$group_name")
-        fi
-    done < "/etc/group"
-
-    if [ ${#unnecessary_groups[@]} -gt 0 ]; then
-        diagnosisResult="계정이 없는 불필요한 그룹이 존재합니다: ${unnecessary_groups[*]}"
-        status="취약"
-        echo "WARN: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    else
-        diagnosisResult="계정이 없는 불필요한 그룹이 없습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-    fi
+if [ -n "$DUPLICATE_UIDS" ]; then
+    RESULT="취약"
+    VULN_ACCOUNTS=""
+    for UID_VAL in $DUPLICATE_UIDS; do
+        ACCOUNTS=$(grep ":$UID_VAL:" /etc/passwd | cut -d: -f1 | xargs)
+        VULN_ACCOUNTS="${VULN_ACCOUNTS}UID(${UID_VAL}):[${ACCOUNTS}] "
+    done
+    STATUS="중복된 UID를 사용하는 계정이 존재합니다: ${VULN_ACCOUNTS}"
 else
-    diagnosisResult="/etc/group 또는 /etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    STATUS="중복된 UID를 사용하는 계정이 존재하지 않습니다."
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 중복된 UID를 가진 계정의 UID를 고유한 값으로 변경 |
+
 __MD_EOF__

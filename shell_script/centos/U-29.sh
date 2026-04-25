@@ -1,108 +1,59 @@
 #!/bin/bash
+# shell_script/centos/U-29.sh
+# -----------------------------------------------------------------------------
+# [U-29] NIS 서비스 접근 제한 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: NIS 공유 시 인가된 호스트만 접근 가능하도록 제한하여 인증 정보 유출 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-29"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="NIS 서비스 접근 제한"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
+TARGET="/var/yp/securenets"
 
-# Initial Values
-category="서비스 관리"
-code="U-29"
-riskLevel="상"
-diagnosisItem="tftp, talk 서비스 비활성화"
-service="Account Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다.
-[취약]: tftp, talk, ntalk 서비스가 활성화되어 있습니다.
-EOF
-
-services=("tftp" "talk" "ntalk")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-service_found=false
-
-# Check for services in /etc/xinetd.d directory
-if [ -d "$xinetd_dir" ]; then
-    for service in "${services[@]}"; do
-        service_path="$xinetd_dir/$service"
-        if [ -f "$service_path" ]; then
-            if ! grep -q 'disable\s*=\s*yes' "$service_path"; then
-                diagnosisResult="$service 서비스가 /etc/xinetd.d 디렉터리 내 서비스 파일에서 실행 중입니다."
-                status="취약"
-                echo "WARN: $diagnosisResult" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                cat $TMP1
-                echo ; echo
-                exit 0
-            fi
+# 1. NIS 서비스 사용 여부 확인
+if systemctl is-active --quiet ypserv 2>/dev/null; then
+    if [ -f "$TARGET" ]; then
+        # securenets 설정 내에 특정 대역/호스트가 정의되어 있는지 확인
+        if grep -v "^#" "$TARGET" | grep -E "[0-9]" > /dev/null; then
+            STATUS="NIS 접근 제한 설정(securenets)이 정의되어 있습니다."
+        else
+            RESULT="취약"
+            STATUS="securenets 파일은 존재하나 유효한 제한 정책이 설정되어 있지 않습니다."
         fi
-    done
-fi
-
-# Check for services in /etc/inetd.conf file
-if [ -f "$inetd_conf" ]; then
-    for service in "${services[@]}"; do
-        if grep -E "^$service\s" "$inetd_conf" &> /dev/null; then
-            diagnosisResult="$service 서비스가 /etc/inetd.conf 파일에서 실행 중입니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            cat $TMP1
-            echo ; echo
-            exit 0
-        fi
-    done
-fi
-
-# Determine final diagnosis result
-if $service_found; then
-    diagnosisResult="tftp, talk, ntalk 서비스가 활성화되어 있습니다."
-    status="취약"
+    else
+        RESULT="취약"
+        STATUS="NIS 서비스를 사용 중이나 접근 제한 설정 파일($TARGET)이 존재하지 않습니다."
+    fi
 else
-    diagnosisResult="tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다."
-    status="양호"
+    STATUS="NIS 서비스를 사용하고 있지 않습니다(해당없음)."
 fi
 
-# Write final results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /var/yp/securenets 파일에 허용할 네트워크/호스트 명시 |
+
 __MD_EOF__

@@ -1,82 +1,59 @@
 #!/bin/bash
+# shell_script/ubuntu/U-34.sh
+# -----------------------------------------------------------------------------
+# [U-34] DNS 존 트랜스퍼 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 외부인에 의한 도메인 정보(서버 목록 등) 대량 유출 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-34"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="DNS 존 트랜스퍼 설정"
 
-# Initial Values
-category="서비스 관리"
-code="U-34"
-riskLevel="상"
-diagnosisItem="DNS Zone Transfer 설정"
-solution="Zone Transfer를 허가된 사용자에게만 허용"
-diagnosisResult=""
-status=""
-named_conf_path="/etc/named.conf"
-_status_list=()
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# BIND 설정 파일 경로 (Ubuntu)
+NAMED_CONF="/etc/bind/named.conf.options"
+[ ! -f "$NAMED_CONF" ] && NAMED_CONF="/etc/bind/named.conf"
 
-# Check if DNS service is running
-if ps -ef | grep -i 'named' | grep -v 'grep' &> /dev/null; then
-    dns_service_running=true
-else
-    dns_service_running=false
-fi
-
-if $dns_service_running; then
-    if [ -f "$named_conf_path" ]; then
-        if grep -q "allow-transfer { any; }" "$named_conf_path"; then
-            diagnosisResult="/etc/named.conf 파일에 allow-transfer { any; } 설정이 있습니다."
-            status="취약"
-        else
-            diagnosisResult="DNS Zone Transfer가 허가된 사용자에게만 허용되어 있습니다."
-            status="양호"
-        fi
-    else
-        diagnosisResult="/etc/named.conf 파일이 존재하지 않습니다. DNS 서비스 미사용 가능성."
-        status="양호"
+if [ -f "$NAMED_CONF" ]; then
+    # allow-transfer { any; }; 또는 allow-transfer 가 없는지 확인
+    if grep -rEi "allow-transfer" /etc/bind/ 2>/dev/null | grep -qi "any"; then
+        RESULT="취약"
+        STATUS="DNS 설정에서 모든 사용자(any)에게 존 트랜스퍼를 허용하고 있습니다."
+    elif ! grep -rEi "allow-transfer" /etc/bind/ 2>/dev/null | grep -q "allow-transfer"; then
+        # 명시적인 제한이 없으면 기본값에 따라 위험할 수 있음
+        RESULT="취약"
+        STATUS="DNS 설정에 allow-transfer 제한 설정이 명시되어 있지 않습니다."
     fi
 else
-    diagnosisResult="DNS 서비스가 실행 중이지 않습니다."
-    status="양호"
+    STATUS="DNS(BIND) 서비스 설정 파일을 찾을 수 없습니다(해당없음)."
 fi
 
-_status_list+=("$diagnosisResult")
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] "
+    [ -z "$STATUS" ] && STATUS="[양호] DNS 존 트랜스퍼가 적절히 제한되어 있습니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Output log and CSV file contents
-cat $TMP1
-
-echo ; echo
-
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | named.conf.options 또는 zone 설정에서 allow-transfer { none; }; 또는 특정 IP로 제한 |
+
 __MD_EOF__

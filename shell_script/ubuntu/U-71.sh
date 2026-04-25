@@ -1,120 +1,57 @@
 #!/bin/bash
+# shell_script/ubuntu/U-71.sh
+# -----------------------------------------------------------------------------
+# [U-71] 홈 디렉터리로 지정되지 않은 계정 금지
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 홈 디렉터리가 비정상적인 계정을 식별하여 좀비 계정 및 관리되지 않는 계정 정리
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-71"
+CATEGORY="계정 관리"
+RISK="하"
+ITEM="홈 디렉터리로 지정되지 않은 계정 금지"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+RESULT="양호"
+STATUS=""
+VULN_ACCOUNTS=""
+
+# 1. 일반 사용자(UID 1000 이상) 중 홈 디렉터리가 없거나 / 인 계정 확인
+while IFS=: read -r USER_NAME _ UID_VAL _ _ HOME_DIR _; do
+    if [ "$UID_VAL" -ge 1000 ] && [ "$USER_NAME" != "nobody" ]; then
+        if [ ! -d "$HOME_DIR" ] || [ "$HOME_DIR" == "/" ]; then
+            VULN_ACCOUNTS="${VULN_ACCOUNTS}${USER_NAME} "
+            RESULT="취약"
+        fi
+    fi
+done < /etc/passwd
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="모든 일반 계정에 대해 정상적인 홈 디렉터리가 지정되어 있습니다."
+else
+    STATUS="다음 계정들의 홈 디렉터리 설정이 부적절합니다: ${VULN_ACCOUNTS}"
 fi
 
-# Initial Values
-category="서비스 관리"
-code="U-71"
-riskLevel="중"
-diagnosisItem="웹 서비스 정보 숨김"
-service="Account Management"
-diagnosisResult=""
-status=""
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 웹 서버 정보 숨김 설정이 적절히 구성되어 있습니다.
-[취약]: 웹 서버 정보 숨김 설정이 적절히 구성되어 있지 않습니다.
-EOF
-
-declare -A web_servers=(
-    [Apache]="httpd.conf apache2.conf .htaccess ServerTokens:Prod ServerSignature:Off"
-    [Nginx]="nginx.conf server_tokens:off"
-    [LiteSpeed]="httpd_config.conf ServerTokens:Prod ServerSignature:Off"
-    [Microsoft-IIS]=" Use URL Rewrite to remove Server header:Server header removed"
-    [Node.js]=" Set custom Server header in response:Custom Server header value"
-    [Envoy]="envoy.yaml server_name:Custom Server Name"
-    [Caddy]="Caddyfile header:-Server"
-    [Tomcat]="server.xml web.xml server:Custom Server Name Header:Remove Server header"
-)
-
-overall_status="취약"
-
-check_configuration() {
-    local config_files directives
-    IFS=' ' read -r -a config_files <<< "$1"
-    IFS=' ' read -r -a directives <<< "$2"
-    
-    for config_file in "${config_files[@]}"; do
-        find_result=$(find / -name "$config_file" -type f 2>/dev/null)
-        for file in $find_result; do
-            if [[ -f $file ]]; then
-                file_content=$(cat "$file")
-                all_directives_correct=true
-                for directive in "${directives[@]}"; do
-                    key=$(echo "$directive" | cut -d':' -f1)
-                    value=$(echo "$directive" | cut -d':' -f2)
-                    if ! echo "$file_content" | grep -q -i "$key.*$value"; then
-                        all_directives_correct=false
-                        break
-                    fi
-                done
-                if $all_directives_correct; then
-                    return 0
-                fi
-            fi
-        done
-    done
-    return 1
-}
-
-for server in "${!web_servers[@]}"; do
-    config_directives="${web_servers[$server]}"
-    config_files="${config_directives%% *}"
-    directives="${config_directives#* }"
-    
-    if check_configuration "$config_files" "$directives"; then
-        status="양호"
-        diagnosisResult="$server 설정이 적절히 설정되어 있습니다."
-        overall_status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
-    else
-        diagnosisResult="$server 웹 서버에서 정보 숨김 설정이 적절히 구성되어 있지 않습니다."
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
-        overall_status="취약"
-    fi
-done
-
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$overall_status" >> $OUTPUT_CSV
-
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 불필요한 계정 삭제 또는 정상적인 홈 디렉터리 생성 및 할당 |
+
 __MD_EOF__

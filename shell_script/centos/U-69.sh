@@ -1,91 +1,60 @@
 #!/bin/bash
+# shell_script/centos/U-69.sh
+# -----------------------------------------------------------------------------
+# [U-69] 홈 디렉터리 존재 여부 점검 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 존재하지 않는 홈 디렉터리를 가진 계정을 식별하여 비정상 계정 정리
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-69"
+CATEGORY="계정 관리"
+RISK="중"
+ITEM="홈 디렉터리 존재 여부 점검"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
+VULN_ACCOUNTS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-69"
-riskLevel="중"
-diagnosisItem="NFS 설정파일 접근권한"
-service="Account Management"
-diagnosisResult=""
-status=""
+# 1. 일반 사용자(UID 1000 이상) 홈 디렉터리 존재 확인
+USERS=$(awk -F: '$3 >= 1000 && $1 != "nobody" {print $1":"$6}' /etc/passwd)
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: NFS 접근제어 설정파일의 소유자가 root이고, 권한이 644 이하입니다.
-[취약]: /etc/exports 파일의 소유자(owner)가 root가 아니거나 권한이 644보다 큽니다.
-EOF
-
-exports_file='/etc/exports'
-
-if [ -e "$exports_file" ]; then
-    # Get the file's mode (permissions and ownership)
-    mode=$(stat -c "%a" "$exports_file")
-    owner_uid=$(stat -c "%u" "$exports_file")
-
-    # Check if owner is root and file permissions are 644 or less
-    if [ "$owner_uid" -eq 0 ] && [ "$mode" -le 644 ]; then
-        diagnosisResult="NFS 접근제어 설정파일의 소유자가 root이고, 권한이 644 이하입니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
-    else
-        diagnosisResult=""
-        status="취약"
-        if [ "$owner_uid" -ne 0 ]; then
-            diagnosisResult="/etc/exports 파일의 소유자(owner)가 root가 아닙니다."
-            echo "WARN: $diagnosisResult" >> $TMP1
-        fi
-        if [ "$mode" -gt 644 ]; then
-            diagnosisResult="${diagnosisResult:+$diagnosisResult }/etc/exports 파일의 권한이 644보다 큽니다."
-            echo "WARN: $diagnosisResult" >> $TMP1
-        fi
+for USER_DATA in $USERS; do
+    U_NAME=$(echo "$USER_DATA" | cut -d: -f1)
+    U_HOME=$(echo "$USER_DATA" | cut -d: -f2)
+    
+    if [ ! -d "$U_HOME" ]; then
+        RESULT="취약"
+        VULN_ACCOUNTS="${VULN_ACCOUNTS}${U_NAME}(${U_HOME}) "
     fi
+done
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="모든 사용자의 홈 디렉터리가 시스템에 존재합니다."
 else
-    diagnosisResult="/etc/exports 파일이 없습니다."
-    status="N/A"
-    echo "INFO: $diagnosisResult" >> $TMP1
+    STATUS="홈 디렉터리가 존재하지 않는 계정이 식별되었습니다: ${VULN_ACCOUNTS}"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 홈 디렉터리가 없는 불필요한 계정 삭제 또는 디렉터리 생성 |
+
 __MD_EOF__

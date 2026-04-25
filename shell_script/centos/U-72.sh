@@ -1,96 +1,74 @@
 #!/bin/bash
+# shell_script/centos/U-72.sh
+# -----------------------------------------------------------------------------
+# [U-72] 로그 기록의 정기적 검토 및 보고 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제25조(로그기록 및 관리), ISMS-P 2.10.1(로깅 및 감시)
+# - 목적: 주요 시스템 로그가 적절히 기록되도록 설정하여 보안 사고 발생 시 증거 확보
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-72"
+CATEGORY="로그 관리"
+RISK="상"
+ITEM="로그 기록의 정기적 검토 및 보고"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
+TARGET="/etc/rsyslog.conf"
 
-# Initial Values
-category="로그 관리"
-code="U-72"
-riskLevel="하"
-diagnosisItem="정책에 따른 시스템 로깅 설정"
-service="Account Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: /etc/rsyslog.conf 파일의 내용이 정확합니다.
-[취약]: /etc/rsyslog.conf 파일의 내용이 잘못되었습니다.
-EOF
-
-filename="/etc/rsyslog.conf"
-expected_content=(
-    "*.info;mail.none;authpriv.none;cron.none /var/log/messages"
-    "authpriv.* /var/log/secure"
-    "mail.* /var/log/maillog"
-    "cron.* /var/log/cron"
-    "*.alert /dev/console"
-    "*.emerg *"
-)
-
-# Check for the existence of the logging file
-if [ ! -e "$filename" ]; then
-    diagnosisResult="$filename 파일이 존재하지 않습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-else
-    # Check the contents of the logging file
-    content_mismatch=false
-    for content in "${expected_content[@]}"; do
-        if ! grep -Fxq "$content" "$filename"; then
-            content_mismatch=true
-            diagnosisResult="$filename 파일의 내용이 잘못되었습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            break
-        fi
-    done
-
-    if [ "$content_mismatch" = false ]; then
-        diagnosisResult="$filename 파일의 내용이 정확합니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
+# 1. rsyslog 설정 파일 분석
+if [ -f "$TARGET" ]; then
+    # 주요 로그 카테고리 기록 여부 확인
+    CHECK_FLAGS=0
+    
+    # 1) 인증 로그 (authpriv)
+    if grep -v "^#" "$TARGET" | grep -q "authpriv"; then
+        CHECK_FLAGS=$((CHECK_FLAGS + 1))
     fi
+    # 2) 커널 로그 (kern)
+    if grep -v "^#" "$TARGET" | grep -q "kern"; then
+        CHECK_FLAGS=$((CHECK_FLAGS + 1))
+    fi
+    # 3) 메일 로그 (mail)
+    if grep -v "^#" "$TARGET" | grep -q "mail"; then
+        CHECK_FLAGS=$((CHECK_FLAGS + 1))
+    fi
+    # 4) 크론 로그 (cron)
+    if grep -v "^#" "$TARGET" | grep -q "cron"; then
+        CHECK_FLAGS=$((CHECK_FLAGS + 1))
+    fi
+
+    if [ "$CHECK_FLAGS" -ge 4 ]; then
+        STATUS="주요 시스템 로그(auth, kern, mail, cron)가 적절히 기록되도록 설정되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="주요 로그 중 일부가 rsyslog 설정에서 누락되었습니다 (탐지된 로그 수: ${CHECK_FLAGS}/4)."
+    fi
+else
+    RESULT="취약"
+    STATUS="rsyslog 설정 파일($TARGET)이 존재하지 않습니다."
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | rsyslog.conf 파일에 주요 로그 항목(authpriv.*, kern.* 등) 추가 |
+
 __MD_EOF__

@@ -1,91 +1,61 @@
 #!/bin/bash
+# shell_script/ubuntu/U-21.sh
+# -----------------------------------------------------------------------------
+# [U-21] r 서비스 비활성화
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 보안에 취약한 r-services(rsh, rlogin, rexec)를 차단하여 인증 우회 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-21"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="r 서비스 비활성화"
 
-# Initial Values
-category="서비스 관리"
-code="U-21"
-riskLevel="상"
-diagnosisItem="r 계열 서비스 비활성화"
-solution="불필요한 r 계열 서비스 비활성화"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 점검 대상 서비스 리스트
+R_SERVICES=("rsh.socket" "rlogin.socket" "rexec.socket" "rsh" "rlogin" "rexec")
 
-cat << EOF >> $TMP1
-[양호]: 모든 r 계열 서비스가 비활성화되어 있습니다.
-[취약]: 불필요한 r 계열 서비스가 실행 중입니다.
-EOF
-
-r_commands=("rsh" "rlogin" "rexec" "shell" "login" "exec")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-vulnerable_services=()
-
-# Check services under xinetd.d
-if [ -d "$xinetd_dir" ]; then
-    for r_command in "${r_commands[@]}"; do
-        service_path="$xinetd_dir/$r_command"
-        if [ -f "$service_path" ] && grep -q 'disable\s*=\s*no' "$service_path"; then
-            vulnerable_services+=("$r_command")
+if command -v systemctl >/dev/null 2>&1; then
+    for SVC in "${R_SERVICES[@]}"; do
+        if systemctl is-active --quiet "$SVC" 2>/dev/null; then
+            RESULT="취약"
+            STATUS="${STATUS:+${STATUS} / }${SVC} 서비스가 활성화되어 있습니다."
         fi
     done
 fi
 
-# Check services in inetd.conf
-if [ -f "$inetd_conf" ]; then
-    for r_command in "${r_commands[@]}"; do
-        if grep -q "^$r_command" "$inetd_conf"; then
-            vulnerable_services+=("$r_command")
-        fi
-    done
+# inetd/xinetd 설정 확인
+if [ -d "/etc/xinetd.d" ]; then
+    if grep -rEq "rsh|rlogin|rexec" /etc/xinetd.d/ --exclude-dir=.* 2>/dev/null; then
+        # disable = yes 인지 확인하는 로직이 필요하나, 파일 존재 자체로 경고
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }/etc/xinetd.d 에 r-services 관련 설정이 존재합니다."
+    fi
 fi
 
-# Update diagnosis result
-if [ ${#vulnerable_services[@]} -gt 0 ]; then
-    diagnosisResult="불필요한 r 계열 서비스가 실행 중입니다: ${vulnerable_services[*]}"
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] r-services(rsh, rlogin, rexec)가 비활성화되어 있습니다."
 else
-    diagnosisResult="모든 r 계열 서비스가 비활성화되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    STATUS="[취약] $STATUS"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | r-services 관련 서비스 중지 및 패키지 삭제 (apt remove rsh-server rsh-redone-server) |
+
 __MD_EOF__

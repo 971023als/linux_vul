@@ -1,148 +1,67 @@
 #!/bin/bash
+# shell_script/centos/U-40.sh
+# -----------------------------------------------------------------------------
+# [U-40] 웹 서비스 파일 업로드 및 다운로드 제한 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 대용량 파일 업로드/다운로드를 제한하여 시스템 자원 고갈 및 DoS 방어
+# -----------------------------------------------------------------------------
 
-. function.sh
-
-OUTPUT_CSV="output.csv"
-
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
-
-# Initial Values
-category="서비스 관리"
-code="U-40"
-riskLevel="상"
-diagnosisItem="웹서비스 파일 업로드 및 다운로드 제한"
-service=""
-diagnosisResult=""
-status=""
-
-BAR
+set -u
 
 CODE="U-40"
-diagnosisItem="웹서비스 파일 업로드 및 다운로드 제한"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="웹 서비스 파일 업로드 및 다운로드 제한"
 
-# Write initial values to CSV
-echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-BAR
-
-cat << EOF >> $TMP1
-[양호]: 모든 검사된 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다.
-[취약]: 파일 업로드 및 다운로드 제한 설정이 부적절합니다.
-EOF
-
-BAR
-
-declare -A web_servers
-web_servers=(
-    ["Apache"]="httpd.conf apache2.conf .htaccess LimitRequestBody"
-    ["Nginx"]="nginx.conf client_max_body_size"
-    ["LiteSpeed"]="httpd_config.conf .htaccess MaxRequestBodySize"
-    ["Microsoft-IIS"]="web.config maxAllowedContentLength"
-    ["Node.js"]="body-parser limit"
-    ["Envoy"]="envoy.yaml max_request_bytes"
-    ["Caddy"]="Caddyfile max_request_body"
-    ["Tomcat"]="server.xml web.xml maxPostSize"
-)
-
-find_config_files() {
-    local config_files=($1)
-    local found_files=()
-
-    for conf_file in "${config_files[@]}"; do
-        find_command=$(find / -name "$conf_file" -type f 2>/dev/null)
-        for file_path in $find_command; do
-            if [ -f "$file_path" ]; then
-                found_files+=("$file_path")
-            fi
-        done
-    done
-
-    echo "${found_files[@]}"
-}
-
-check_upload_download_restrictions() {
-    local found_files=($1)
-    local upload_directive=$2
-    local download_directive=$3
-    local vulnerabilities=()
-
-    for file_path in "${found_files[@]}"; do
-        while IFS= read -r line; do
-            if [[ $line == *"$upload_directive"* ]] && [[ $line != *"$download_directive"* ]]; then
-                vulnerabilities+=("$file_path")
-                break
-            fi
-        done < "$file_path"
-    done
-
-    echo "${vulnerabilities[@]}"
-}
-
-overall_vulnerable=false
-vulnerabilities_overall=()
-
-for server_name in "${!web_servers[@]}"; do
-    IFS=' ' read -r -a config_and_directives <<< "${web_servers[$server_name]}"
-    config_files=("${config_and_directives[@]:0:${#config_and_directives[@]}-2}")
-    upload_directive="${config_and_directives[-2]}"
-    download_directive="${config_and_directives[-1]}"
-
-    found_files=($(find_config_files "${config_files[@]}"))
-    vulnerabilities=($(check_upload_download_restrictions "${found_files[@]}" "$upload_directive" "$download_directive"))
-
-    if [ "${#vulnerabilities[@]}" -gt 0 ]; then
-        overall_vulnerable=true
-        for vulnerability in "${vulnerabilities[@]}"; do
-            vulnerabilities_overall+=("$server_name: $vulnerability 파일에서 파일 업로드 및 다운로드 제한 설정이 부적절합니다.")
-        done
+# 1. Apache(httpd) 점검
+HTTPD_CONF="/etc/httpd/conf/httpd.conf"
+if [ -f "$HTTPD_CONF" ]; then
+    # LimitRequestBody 설정 확인 (기본값 0: 무제한)
+    if grep -r "LimitRequestBody" /etc/httpd/ 2>/dev/null | grep -v "^#" > /dev/null; then
+        STATUS="Apache 설정에 LimitRequestBody(업로드 용량 제한)가 적용되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="Apache 설정에 LimitRequestBody 설정이 누락되어 있습니다(무제한 허용 위험)."
     fi
-done
-
-if [ "$overall_vulnerable" == "true" ]; then
-    diagnosisResult="취약"
-    status="취약"
-    for vulnerability in "${vulnerabilities_overall[@]}"; do
-        echo "WARN: $vulnerability" >> $TMP1
-        echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$vulnerability,$status" >> $OUTPUT_CSV
-    done
-else
-    diagnosisResult="양호"
-    status="양호"
-    diagnosisResult="모든 검사된 웹서비스 설정 파일에서 파일 업로드 및 다운로드가 적절히 제한되어 있습니다."
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$CODE,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-cat $TMP1
+# 2. Nginx 점검
+NGINX_CONF="/etc/nginx/nginx.conf"
+if [ -f "$NGINX_CONF" ]; then
+    if grep -r "client_max_body_size" /etc/nginx/ 2>/dev/null | grep -v "^#" > /dev/null; then
+        STATUS="${STATUS:+${STATUS} / }Nginx 설정에 client_max_body_size 가 적용되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }Nginx 설정에 client_max_body_size 설정이 누락되어 있습니다."
+    fi
+fi
 
-echo ; echo
+if [ -z "$STATUS" ]; then
+    STATUS="웹 서비스가 실행 중이지 않습니다."
+fi
 
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | Apache(LimitRequestBody), Nginx(client_max_body_size) 설정 추가 |
+
 __MD_EOF__

@@ -1,77 +1,55 @@
 #!/bin/bash
+# shell_script/ubuntu/U-48.sh
+# -----------------------------------------------------------------------------
+# [U-48] 패스워드 최소 사용 기간 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제8조(비밀번호 관리), ISMS-P 2.5.1(사용자 식별)
+# - 목적: 패스워드 변경 후 즉시 다시 변경하는 행위를 방지하여 과거 패스워드 재사용 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-48"
+CATEGORY="계정 관리"
+RISK="중"
+ITEM="패스워드 최소 사용 기간 설정"
 
-# Initial Values
-category="계정관리"
-code="U-48"
-riskLevel="중"
-diagnosisItem="패스워드 최소 사용기간 설정"
-service="Account Management"
-diagnosisResult=""
-status="양호"
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-login_defs_path="/etc/login.defs"
-result="양호"
-
-if [ -f "$login_defs_path" ]; then
-    while IFS= read -r line; do
-        if echo "$line" | grep -q "PASS_MIN_DAYS" && ! echo "$line" | grep -q "^#"; then
-            min_days=$(echo "$line" | awk '{print $2}')
-            if [ "$min_days" -lt 1 ]; then
-                result="취약"
-                diagnosisResult="/etc/login.defs 파일에 패스워드 최소 사용 기간이 1일 미만으로 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            break
-        fi
-    done < "$login_defs_path"
+# 1. /etc/login.defs 점검
+LOGIN_DEFS="/etc/login.defs"
+if [ -f "$LOGIN_DEFS" ]; then
+    MIN_DAYS=$(grep "^PASS_MIN_DAYS" "$LOGIN_DEFS" | awk '{print $2}')
+    if [ -n "$MIN_DAYS" ] && [ "$MIN_DAYS" -ge 1 ]; then
+        STATUS="PASS_MIN_DAYS가 ${MIN_DAYS}일로 적절히 설정되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="PASS_MIN_DAYS가 1일 미만(${MIN_DAYS:-미설정})으로 설정되어 있습니다."
+    fi
 else
-    result="취약"
-    diagnosisResult="/etc/login.defs 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    RESULT="취약"
+    STATUS="/etc/login.defs 파일을 찾을 수 없습니다."
 fi
 
-if [ "$result" = "양호" ]; then
-    diagnosisResult="패스워드 최소 사용 기간이 적절하게 설정되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
 fi
 
-# Output CSV
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /etc/login.defs 에서 PASS_MIN_DAYS 1 설정 |
+
 __MD_EOF__

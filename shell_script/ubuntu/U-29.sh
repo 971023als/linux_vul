@@ -1,108 +1,61 @@
 #!/bin/bash
+# shell_script/ubuntu/U-29.sh
+# -----------------------------------------------------------------------------
+# [U-29] tftp, talk 비활성화
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 보안에 취약한 파일 전송(tftp) 및 메시지(talk) 서비스 차단
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-29"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="tftp, talk 비활성화"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-29"
-riskLevel="상"
-diagnosisItem="tftp, talk 서비스 비활성화"
-service="Account Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다.
-[취약]: tftp, talk, ntalk 서비스가 활성화되어 있습니다.
-EOF
-
-services=("tftp" "talk" "ntalk")
-xinetd_dir="/etc/xinetd.d"
-inetd_conf="/etc/inetd.conf"
-service_found=false
-
-# Check for services in /etc/xinetd.d directory
-if [ -d "$xinetd_dir" ]; then
-    for service in "${services[@]}"; do
-        service_path="$xinetd_dir/$service"
-        if [ -f "$service_path" ]; then
-            if ! grep -q 'disable\s*=\s*yes' "$service_path"; then
-                diagnosisResult="$service 서비스가 /etc/xinetd.d 디렉터리 내 서비스 파일에서 실행 중입니다."
-                status="취약"
-                echo "WARN: $diagnosisResult" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                cat $TMP1
-                echo ; echo
-                exit 0
-            fi
+# 1. tftp, talk 서비스 점검
+VULN_SERVICES=""
+if command -v systemctl >/dev/null 2>&1; then
+    for SVC in "tftp" "talk" "ntalk"; do
+        if systemctl is-active --quiet "$SVC" 2>/dev/null; then
+            RESULT="취약"
+            VULN_SERVICES="${VULN_SERVICES}${SVC} "
         fi
     done
 fi
 
-# Check for services in /etc/inetd.conf file
-if [ -f "$inetd_conf" ]; then
-    for service in "${services[@]}"; do
-        if grep -E "^$service\s" "$inetd_conf" &> /dev/null; then
-            diagnosisResult="$service 서비스가 /etc/inetd.conf 파일에서 실행 중입니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            cat $TMP1
-            echo ; echo
-            exit 0
+# 2. xinetd/inetd 점검
+if [ -d "/etc/xinetd.d" ]; then
+    for SVC in "tftp" "talk" "ntalk"; do
+        if grep -rEi "disable\s*=\s*no" "/etc/xinetd.d/" 2>/dev/null | grep -qi "$SVC"; then
+            RESULT="취약"
+            VULN_SERVICES="${VULN_SERVICES}${SVC}(xinetd) "
         fi
     done
 fi
 
-# Determine final diagnosis result
-if $service_found; then
-    diagnosisResult="tftp, talk, ntalk 서비스가 활성화되어 있습니다."
-    status="취약"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] tftp, talk 서비스가 비활성화되어 있습니다."
 else
-    diagnosisResult="tftp, talk, ntalk 서비스가 모두 비활성화되어 있습니다."
-    status="양호"
+    STATUS="[취약] 다음 서비스가 활성화되어 있습니다: ${VULN_SERVICES}"
 fi
 
-# Write final results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 해당 서비스 중지 및 패키지 삭제 (apt remove tftpd talkd) |
+
 __MD_EOF__

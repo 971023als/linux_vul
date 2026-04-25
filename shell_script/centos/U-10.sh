@@ -1,125 +1,75 @@
 #!/bin/bash
+# shell_script/centos/U-10.sh
+# -----------------------------------------------------------------------------
+# [U-10] /etc/(x)inetd.conf 파일 소유자 및 권한 설정 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 네트워크 서비스 설정 파일의 무단 수정을 방지하여 서비스 오용 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-10"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-10"
-위험도="상"
-진단항목="/etc/(x)inetd.conf 파일 소유자 및 권한 설정"
-대응방안="/etc/(x)inetd.conf 파일과 /etc/xinetd.d 디렉터리 내 파일의 소유자가 root이고, 권한이 600 미만인 경우"
-현황=""
-진단결과=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+# 점검 대상 리스트
+TARGETS=("/etc/inetd.conf" "/etc/xinetd.conf")
+FOUND=false
 
-# 파일 소유자 및 권한 검사 함수
-check_file_ownership_and_permissions() {
-    file_path=$1
-    if [ ! -e "$file_path" ]; then
-        return 1 # 파일이 존재하지 않음
-    fi
-    
-    mode=$(stat -c "%a" "$file_path")
-    owner_uid=$(stat -c "%u" "$file_path")
-    
-    if [ "$owner_uid" -eq 0 ] && [ "$mode" -lt 600 ]; then
-        return 0 # 조건 충족
-    else
-        return 2 # 조건 불충족
-    fi
-}
-
-# 디렉터리 내 파일 소유자 및 권한 검사 함수
-check_directory_files_ownership_and_permissions() {
-    directory_path=$1
-    if [ ! -d "$directory_path" ]; then
-        return 1 # 디렉터리가 존재하지 않음
-    fi
-    
-    for file_path in "$directory_path"/*; do
-        if ! check_file_ownership_and_permissions "$file_path"; then
-            return 2 # 조건 불충족
+for TARGET in "${TARGETS[@]}"; do
+    if [ -f "$TARGET" ]; then
+        FOUND=true
+        OWNER=$(stat -c "%U" "$TARGET")
+        PERMS=$(stat -c "%a" "$TARGET")
+        
+        if [ "$OWNER" != "root" ]; then
+            RESULT="취약"
+            STATUS="${STATUS:+${STATUS} / }$TARGET 소유자가 root가 아님($OWNER)"
         fi
-    done
-    
-    return 0 # 모든 파일이 조건 충족
-}
-
-# 파일 및 디렉터리 검사
-check_passed=true
-files_to_check=('/etc/inetd.conf' '/etc/xinetd.conf')
-directories_to_check=('/etc/xinetd.d')
-
-for file_path in "${files_to_check[@]}"; do
-    check_file_ownership_and_permissions "$file_path"
-    result=$?
-    if [ $result -eq 1 ]; then
-        _status_list+="$file_path 파일이 없습니다. "
-        check_passed=false
-    elif [ $result -eq 2 ]; then
-        _status_list+="$file_path 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
-        check_passed=false
+        
+        if [ "$PERMS" -gt 600 ]; then
+            RESULT="취약"
+            STATUS="${STATUS:+${STATUS} / }$TARGET 권한이 600보다 큼($PERMS)"
+        fi
     fi
 done
 
-for directory_path in "${directories_to_check[@]}"; do
-    check_directory_files_ownership_and_permissions "$directory_path"
-    result=$?
-    if [ $result -eq 1 ]; then
-        _status_list+="$directory_path 디렉터리가 없습니다. "
-        check_passed=false
-    elif [ $result -eq 2 ]; then
-        _status_list+="$directory_path 디렉터리 내 파일의 소유자가 root가 아니거나 권한이 600 미만입니다. "
-        check_passed=false
+# xinetd.d 디렉터리 점검 (RHEL 계열에서 다수 활용)
+if [ -d "/etc/xinetd.d" ]; then
+    VULN_XINETD=$(find /etc/xinetd.d -type f \( -not -user root -o -perm /0177 \) 2>/dev/null)
+    if [ -n "$VULN_XINETD" ]; then
+        FOUND=true
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }/etc/xinetd.d 내 일부 파일의 소유자/권한이 부적절함"
     fi
-done
-
-# 검사 결과에 따라 진단 결과 업데이트
-if $check_passed; then
-    진단결과="양호"
-else
-    진단결과="취약"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+if ! $FOUND; then
+    RESULT="양호"
+    STATUS="[양호] inetd/xinetd 설정 파일이 존재하지 않습니다(해당없음)."
+elif [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] (x)inetd 설정 파일의 소유자 및 권한 설정이 적절합니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root [FILE] && chmod 600 [FILE] |
+
 __MD_EOF__

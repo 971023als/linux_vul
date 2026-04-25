@@ -1,79 +1,55 @@
 #!/bin/bash
+# shell_script/centos/U-57.sh
+# -----------------------------------------------------------------------------
+# [U-57] NFS root 제한 설정 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 원격 root 권한 획득을 방지하기 위해 NFS 공유 시 root 권한 매핑 제한
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-57"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="NFS root 제한 설정"
 
-# Initial Values
-category="파일 및 디렉토리 관리"
-code="U-57"
-riskLevel="중"
-diagnosisItem="홈디렉토리 소유자 및 권한 설정"
-service="File and Directory Management"
-diagnosisResult=""
-status="양호"
+RESULT="양호"
+STATUS=""
+TARGET="/etc/exports"
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Get all user entries and iterate
-getent passwd | while IFS=: read -r username _ uid _ _ homedir _; do
-    # Skip system users by UID
-    if [ "$uid" -ge 1000 ]; then
-        if [ -d "$homedir" ]; then
-            dir_owner_uid=$(stat -c "%u" "$homedir")
-            if [ "$dir_owner_uid" != "$uid" ]; then
-                diagnosisResult="${homedir} 홈 디렉터리의 소유자가 ${username}이(가) 아닙니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            if [ "$(stat -c "%A" "$homedir" | cut -c8)" == "w" ]; then
-                diagnosisResult="${homedir} 홈 디렉터리에 타 사용자(other) 쓰기 권한이 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-        else
-            diagnosisResult="${homedir} 홈 디렉터리가 존재하지 않습니다."
-            status="취약"
-            echo "WARN: $diagnosisResult"
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
+# 1. /etc/exports 파일 분석
+if [ -f "$TARGET" ]; then
+    # no_root_squash 옵션이 있는지 확인 (root 권한 그대로 허용)
+    if grep -v "^#" "$TARGET" | grep -q "no_root_squash"; then
+        RESULT="취약"
+        VULN_SHARES=$(grep -v "^#" "$TARGET" | grep "no_root_squash" | awk '{print $1}' | xargs)
+        STATUS="NFS 공유 중 root 권한 제한(root_squash)이 설정되지 않은 경로가 존재합니다: ${VULN_SHARES}"
+    else
+        STATUS="NFS 모든 공유 항목에 root_squash 또는 적절한 제한이 설정되어 있습니다."
     fi
-done
-
-if [ "$status" = "양호" ]; then
-    diagnosisResult="모든 홈 디렉터리가 적절히 설정되었습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+else
+    STATUS="/etc/exports 파일이 존재하지 않습니다(해당없음)."
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /etc/exports 파일의 옵션을 no_root_squash 에서 root_squash 로 변경 |
+
 __MD_EOF__

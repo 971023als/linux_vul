@@ -1,89 +1,58 @@
 #!/bin/bash
+# shell_script/ubuntu/U-56.sh
+# -----------------------------------------------------------------------------
+# [U-56] NFS 서비스 비활성화
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 불필요한 NFS 서비스를 중지하여 원격 파일 시스템 접근 위험 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-56"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="NFS 서비스 비활성화"
 
-# Initial Values
-category="파일 및 디렉토리 관리"
-code="U-56"
-riskLevel="중"
-diagnosisItem="UMASK 설정 관리"
-service="File and Directory Management"
-diagnosisResult="양호"
-status="양호"
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. NFS 서비스(서버 및 클라이언트 관련) 실행 여부 확인
+NFS_SERVICES=("nfs-kernel-server" "nfs-common" "rpcbind")
+ACTIVE_SERVICES=""
 
-# Define files to check
-files_to_check=(
-    "/etc/profile"
-    "/etc/bash.bashrc"
-    "/etc/csh.login"
-    "/etc/csh.cshrc"
-    /home/*/.profile
-    /home/*/.bashrc
-    /home/*/.cshrc
-    /home/*/.login
-)
-
-checked_files=0
-
-# Check umask values in each file
-for file_path in "${files_to_check[@]}"; do
-    if [ -f "$file_path" ]; then
-        checked_files=$((checked_files + 1))
-        if grep -q "umask" "$file_path" && ! grep -E "^#" "$file_path" | grep -q "umask"; then
-            umask_values=$(grep "umask" "$file_path" | awk '{print $2}' | tr -d '`')
-            for value in $umask_values; do
-                if [ $(("$value")) -lt 22 ]; then
-                    diagnosisResult="$file_path 파일에서 UMASK 값 ($value)이 022 이상으로 설정되지 않았습니다."
-                    status="취약"
-                    echo "WARN: $diagnosisResult"
-                    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                fi
-            done
-        fi
+for SVC in "${NFS_SERVICES[@]}"; do
+    if systemctl is-active --quiet "$SVC" 2>/dev/null; then
+        ACTIVE_SERVICES="${ACTIVE_SERVICES}${SVC} "
+        RESULT="취약"
     fi
 done
 
-if [ "$checked_files" -eq 0 ]; then
-    diagnosisResult="검사할 파일이 없습니다."
-    status="정보 없음"
-    echo "INFO: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-elif [ "$status" = "양호" ]; then
-    diagnosisResult="모든 검사된 파일에서 UMASK 값이 022 이상으로 적절히 설정되었습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="NFS 관련 서비스가 모두 비활성화되어 있습니다."
+else
+    # NFS를 실제 사용하는 경우를 위해 '수동 검토' 의견 포함
+    STATUS="NFS 관련 서비스(${ACTIVE_SERVICES})가 활성화되어 있습니다. 업무상 불필요 시 중지 권고."
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 불필요한 NFS 서비스 중지 (systemctl stop [SERVICE] && systemctl disable [SERVICE]) |
+
 __MD_EOF__

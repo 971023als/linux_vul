@@ -1,119 +1,58 @@
 #!/bin/bash
+# shell_script/ubuntu/U-35.sh
+# -----------------------------------------------------------------------------
+# [U-35] 웹서비스 디렉토리 리스팅 제거
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제13조(비밀보호), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 웹 서버의 디렉토리 구조 및 내부 파일 정보 노출 방지
+# -----------------------------------------------------------------------------
 
-# CSV Output File
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-35"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="웹서비스 디렉토리 리스팅 제거"
 
-# Initial Values
-category="서비스 관리"
-code="U-35"
-riskLevel="상"
-diagnosisItem="웹서비스 디렉터리 리스팅 제거"
-service=""
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-# Web servers configuration files to check
-declare -A web_servers
-web_servers=(
-    ["Apache"]=".htaccess httpd.conf apache2.conf"
-    ["Nginx"]="nginx.conf"
-    ["LiteSpeed"]="httpd_config.conf"
-    ["Microsoft-IIS"]="applicationHost.config"
-    ["Node.js"]="package.json .env"
-    ["Envoy"]="envoy.yaml"
-    ["Caddy"]="Caddyfile"
-    ["Tomcat"]="server.xml web.xml"
-)
-
-check_directory_listing_vulnerability() {
-    local conf_files=($1)
-    local vulnerable=false
-    local vulnerabilities=()
-
-    for conf_file in "${conf_files[@]}"; do
-        find_command=$(find / -name "$conf_file" -type f 2>/dev/null)
-        for file_path in $find_command; do
-            if [ -f "$file_path" ]; then
-                content=$(grep -i "Options Indexes" "$file_path")
-                if [[ $content == *"Options Indexes"* && $content != *"-Indexes"* ]]; then
-                    vulnerabilities+=("$file_path")
-                    vulnerable=true
-                fi
-            fi
-        done
-    done
-
-    echo "$vulnerable" "${vulnerabilities[@]}"
-}
-
-# Main script logic
-vulnerable_overall=false
-vulnerabilities_overall=()
-
-for server_name in "${!web_servers[@]}"; do
-    conf_files="${web_servers[$server_name]}"
-    result=$(check_directory_listing_vulnerability "$conf_files")
-    vulnerable=$(echo $result | cut -d' ' -f1)
-    vulnerabilities=$(echo $result | cut -d' ' -f2-)
-
-    if [ "$vulnerable" == "true" ]; then
-        vulnerable_overall=true
-        for vulnerability in $vulnerabilities; do
-            vulnerabilities_overall+=("$vulnerability 파일에 디렉터리 검색 기능을 사용하도록 설정되어 있습니다.")
-        done
+# 1. Apache 점검
+if [ -d "/etc/apache2" ]; then
+    # Options Indexes 설정 확인
+    if grep -rEi "Options\s+.*Indexes" /etc/apache2/ 2>/dev/null | grep -vEi "\-Indexes" | grep -v "^#" > /dev/null; then
+        RESULT="취약"
+        STATUS="Apache 설정에서 디렉토리 리스팅(Indexes)이 허용되어 있습니다."
     fi
-done
-
-if [ "$vulnerable_overall" == "true" ]; then
-    diagnosisResult="취약"
-    status="취약"
-    for vulnerability in "${vulnerabilities_overall[@]}"; do
-        echo "WARN: $vulnerability" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$vulnerability,$status" >> $OUTPUT_CSV
-    done
-else
-    diagnosisResult="양호"
-    status="양호"
-    diagnosisResult="웹서비스 디렉터리 리스팅이 적절히 제거되었습니다."
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-cat $TMP1
+# 2. Nginx 점검
+if [ -d "/etc/nginx" ]; then
+    # autoindex on 설정 확인
+    if grep -rEi "autoindex\s+on" /etc/nginx/ 2>/dev/null | grep -v "^#" > /dev/null; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }Nginx 설정에서 디렉토리 리스팅(autoindex on)이 허용되어 있습니다."
+    fi
+fi
 
-echo ; echo
+if [ -z "$STATUS" ]; then
+    STATUS="[양호] 웹 서비스가 설치되어 있지 않거나 디렉토리 리스팅이 적절히 차단되어 있습니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 1. Apache: Options -Indexes 설정<br>2. Nginx: autoindex off 설정 |
+
 __MD_EOF__

@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주요정보통신기반시설 Linux 취약점 진단 결과보고서</title>
+<style>
+  :root {{
+    --primary:   #1565c0;
+    --secondary: #1e88e5;
+    --danger:    #f44336;
+    --success:   #4caf50;
+    --warn:      #ffc107;
+    --gray:      #9e9e9e;
+    --bg:        #f8f9fa;
+  }}
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{
+    font-family: 'Segoe UI', 'Malgun Gothic', Arial, sans-serif;
+    background: var(--bg);
+    color: #333;
+    font-size: 14px;
+  }}
+  header {{
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: white;
+    padding: 32px 40px;
+  }}
+  header h1 {{ font-size: 22px; font-weight: 700; margin-bottom: 6px; }}
+  header p  {{ font-size: 13px; opacity: 0.85; }}
+  .compliance-badges {{
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }}
+  .badge {{
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }}
+  .container {{ max-width: 1400px; margin: 0 auto; padding: 24px 40px; }}
+  .summary-grid {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }}
+  .summary-card {{
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    border-top: 4px solid var(--gray);
+  }}
+  .summary-card .count {{ font-size: 32px; font-weight: 700; margin-bottom: 4px; }}
+  .summary-card .label {{ font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }}
+  .toolbar {{
+    background: white;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }}
+  .toolbar span {{ font-size: 13px; color: #666; margin-right: 6px; }}
+  .filter-btn {{
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }}
+  .filter-btn:hover, .filter-btn.active {{ background: var(--primary); color: white; border-color: var(--primary); }}
+  .results-table-wrap {{
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }}
+  table {{ width: 100%; border-collapse: collapse; }}
+  thead th {{
+    background: #1565c0;
+    color: white;
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }}
+  tbody tr {{ border-bottom: 1px solid #f0f0f0; transition: background 0.1s; }}
+  tbody tr:hover {{ background: #f9f9f9; }}
+  tbody tr.hidden {{ display: none; }}
+  td {{ padding: 11px 14px; vertical-align: top; font-size: 13px; }}
+  .status-badge {{
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }}
+  .detail-text {{
+    font-size: 12px;
+    color: #555;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 80px;
+    overflow: auto;
+  }}
+  .compliance-chip {{
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1565c0;
+    border-radius: 3px;
+    padding: 2px 7px;
+    font-size: 11px;
+    margin: 2px 2px 2px 0;
+    font-weight: 600;
+  }}
+  footer {{
+    text-align: center;
+    padding: 20px;
+    color: #aaa;
+    font-size: 12px;
+    margin-top: 30px;
+  }}
+  @media print {{
+    .toolbar {{ display: none; }}
+    body {{ background: white; }}
+    .container {{ padding: 10px; }}
+  }}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>주요정보통신기반시설 Linux 취약점 진단 결과보고서</h1>
+  <p>생성 일시: 2026년 04월 25일 23:37:21 &nbsp;|&nbsp; 총 72개 항목 &nbsp;|&nbsp; 양호율: 1.4%</p>
+  <div class="compliance-badges">
+    <span class="badge">전자금융감독규정 §11·13·15 대응</span>
+    <span class="badge">ISMS-P 2.4 / 2.6 / 2.10 / 3.2</span>
+    <span class="badge">KISA U-01 ~ U-72</span>
+    <span class="badge">Audit-Only Mode</span>
+  </div>
+</header>
+
+<div class="container">
+<div class="summary-grid">
+    <div class="summary-card" style="border-top-color:#4caf50">
+      <div class="count" style="color:#4caf50">1</div>
+      <div class="label">양호</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#f44336">
+      <div class="count" style="color:#f44336">1</div>
+      <div class="label">취약</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#9e9e9e">
+      <div class="count" style="color:#9e9e9e">0</div>
+      <div class="label">해당없음</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#ffc107">
+      <div class="count" style="color:#ffc107">2</div>
+      <div class="label">수동점검</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#e91e63">
+      <div class="count" style="color:#e91e63">67</div>
+      <div class="label">증적없음</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#ff5722">
+      <div class="count" style="color:#ff5722">1</div>
+      <div class="label">오류</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#9c27b0">
+      <div class="count" style="color:#9c27b0">0</div>
+      <div class="label">미구현</div>
+    </div>
+    <div class="summary-card" style="border-top-color:#1565c0">
+      <div class="count" style="color:#1565c0">72</div>
+      <div class="label">전체</div>
+    </div></div>
+<div class="toolbar">
+  <span>필터:</span>
+  <button class="filter-btn active" onclick="filterTable('ALL')">전체</button>
+<button class="filter-btn" onclick="filterTable('PASS')">양호 (1)</button>
+<button class="filter-btn" onclick="filterTable('FAIL')">취약 (1)</button>
+<button class="filter-btn" onclick="filterTable('MANUAL_REVIEW')">수동점검 (2)</button>
+<button class="filter-btn" onclick="filterTable('EVIDENCE_MISSING')">증적없음 (67)</button>
+<button class="filter-btn" onclick="filterTable('ERROR')">오류 (1)</button>
+
+  <span style="margin-left:auto;color:#888" id="visible-count"></span>
+</div>
+<div class="results-table-wrap">
+<table>
+  <thead>
+    <tr>
+      <th style="width:80px">항목 ID</th>
+      <th style="width:160px">분류</th>
+      <th style="width:150px">진단 결과</th>
+      <th style="width:380px">컴플라이언스 매핑</th>
+      <th>세부 내용</th>
+    </tr>
+  </thead>
+  <tbody>
+<tr data-status="PASS" style="background:#e8f5e9">
+  <td><strong>U-01</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#4caf50;color:white">
+      ✓ PASS
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">root 계정 원격 접속 제한이 설정되어 있어 양호합니다.</div></td>
+</tr>
+<tr data-status="FAIL" style="background:#ffebee">
+  <td><strong>U-02</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#f44336;color:white">
+      ✗ FAIL
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">패스워드 복잡성 설정이 되어 있지 않아 취약합니다.</div></td>
+</tr>
+<tr data-status="MANUAL_REVIEW" style="background:#fff8e1">
+  <td><strong>U-03</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#ffc107;color:white">
+      ? MANUAL_REVIEW
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">점검 결과 보안상 어떠한 문제도 없음이 확인되었습니다.</div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-04</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">[HARNESS] stdout is 0 bytes</div></td>
+</tr>
+<tr data-status="ERROR" style="background:#fff3e0">
+  <td><strong>U-05</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#ff5722;color:white">
+      ✕ ERROR
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">bash: command not found</div></td>
+</tr>
+<tr data-status="MANUAL_REVIEW" style="background:#fff8e1">
+  <td><strong>U-06</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#ffc107;color:white">
+      ? MANUAL_REVIEW
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text">해당 항목은 수동점검이 필요합니다.</div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-07</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-08</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-09</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-10</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-11</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-12</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-13</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-14</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-15</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-16</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-17</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-18</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-19</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-20</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-21</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-22</strong></td>
+  <td>계정 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)</span><span class="compliance-chip">전자금융감독규정 제13조, 제15조</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-23</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-24</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-25</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-26</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-27</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-28</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-29</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-30</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-31</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-32</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-33</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-34</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-35</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-36</strong></td>
+  <td>파일 및 디렉터리 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제13조 (비밀보호)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-37</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-38</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-39</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-40</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-41</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-42</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-43</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-44</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-45</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-46</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-47</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-48</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-49</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-50</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-51</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-52</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-53</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-54</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-55</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-56</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-57</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-58</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-59</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-60</strong></td>
+  <td>서비스 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.6.1 (시스템 하드닝)</span><span class="compliance-chip">전자금융감독규정 제15조 (서비스 제거)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-61</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-62</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-63</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-64</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-65</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-66</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-67</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-68</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-69</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-70</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-71</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+<tr data-status="EVIDENCE_MISSING" style="background:#fce4ec">
+  <td><strong>U-72</strong></td>
+  <td>로그 및 패치 관리</td>
+  <td>
+    <span class="status-badge" style="background:#e91e63;color:white">
+      ! EVIDENCE_MISSING
+    </span>
+  </td>
+  <td><span class="compliance-chip">ISMS-P 2.10.1 (로깅 및 감시), 2.6.2 (패치 관리)</span><span class="compliance-chip">전자금융감독규정 제13조 (접속기록)</span></td>
+  <td><div class="detail-text"></div></td>
+</tr>
+  </tbody>
+</table>
+</div>
+<footer>
+  Linux-Vul-Assessor v0.2 &nbsp;|&nbsp; 본 보고서는 인가된 시스템에서의 진단 결과를 기반으로 자동 생성되었습니다.
+  &nbsp;|&nbsp; 생성: 2026년 04월 25일 23:37:21
+</footer>
+</div>
+
+<script>
+function filterTable(status) {
+  const rows = document.querySelectorAll('tbody tr');
+  const btns = document.querySelectorAll('.filter-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  rows.forEach(row => {
+    if (status === 'ALL' || row.dataset.status === status) {
+      row.classList.remove('hidden');
+    } else {
+      row.classList.add('hidden');
+    }
+  });
+  const visible = document.querySelectorAll('tbody tr:not(.hidden)').length;
+  document.getElementById('visible-count').textContent = visible + ' 항목';
+}
+</script>
+
+</body>
+</html>

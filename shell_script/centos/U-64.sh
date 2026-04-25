@@ -1,105 +1,61 @@
 #!/bin/bash
+# shell_script/centos/U-64.sh
+# -----------------------------------------------------------------------------
+# [U-64] at 파일 권한 설정 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 일반 사용자의 at 명령어 사용을 제한하여 악의적인 예약 작업 실행 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-64"
+CATEGORY="서비스 관리"
+RISK="하"
+ITEM="at 파일 권한 설정"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
+CHECK_FILES=("/etc/at.allow" "/etc/at.deny")
+VULN_STATUS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-64"
-riskLevel="중"
-diagnosisItem="ftpusers 파일 설정(FTP 서비스 root 계정 접근제한)"
-service="Account Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: FTP 서비스 root 계정 접근이 제한되어 있습니다.
-[취약]: FTP 서비스 root 계정 접근 제한 설정이 충분하지 않습니다.
-EOF
-
-# 검사할 ftpusers 파일 및 설정 파일 목록
-ftpusers_files=(
-    "/etc/ftpusers" "/etc/ftpd/ftpusers" "/etc/proftpd.conf"
-    "/etc/vsftp/ftpusers" "/etc/vsftp/user_list" "/etc/vsftpd.ftpusers"
-    "/etc/vsftpd.user_list"
-)
-
-# 실행 중인 FTP 서비스 확인
-if ! pgrep -f -e ftpd && ! pgrep -f -e vsftpd && ! pgrep -f -e proftpd; then
-    status="FTP 서비스가 비활성화 되어 있습니다."
-    result="양호"
-else
-    root_access_restricted=false
-
-    for ftpusers_file in "${ftpusers_files[@]}"; do
-        if [ -f "$ftpusers_file" ]; then
-            # proftpd.conf의 경우 'RootLogin on' 설정 확인
-            if [[ "$ftpusers_file" == *proftpd.conf* ]] && grep -q "RootLogin on" "$ftpusers_file"; then
-                result="취약"
-                status="$ftpusers_file 파일에 'RootLogin on' 설정이 있습니다."
-                echo "WARN: $status" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
-                break
-            # 다른 ftpusers 파일의 경우 'root' 존재 확인
-            elif grep -q "^root$" "$ftpusers_file"; then
-                root_access_restricted=true
-            fi
+for FILE in "${CHECK_FILES[@]}"; do
+    if [ -f "$FILE" ]; then
+        OWNER=$(stat -c %U "$FILE")
+        PERM=$(stat -c %a "$FILE")
+        
+        # 소유자 root 및 권한 640 이하 확인
+        if [ "$OWNER" != "root" ] || [ "$PERM" -gt 640 ]; then
+            RESULT="취약"
+            VULN_STATUS="${VULN_STATUS}${FILE}(소유:${OWNER},권한:${PERM}) "
         fi
-    done
-
-    if $root_access_restricted; then
-        result="양호"
-        status="FTP 서비스 root 계정 접근이 제한되어 있습니다."
-        echo "OK: $status" >> $TMP1
-    else
-        result="취약"
-        status="FTP 서비스 root 계정 접근 제한 설정이 충분하지 않습니다."
-        echo "WARN: $status" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
     fi
+done
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="at 관련 설정 파일의 소유자 및 권한이 적절합니다."
+else
+    STATUS="at 관련 파일의 권한 설정이 부적절합니다: ${VULN_STATUS}"
 fi
 
-# Write final results to CSV if no vulnerabilities found
-if [ "$result" = "양호" ]; then
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$result,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
 fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root [파일] && chmod 640 [파일] |
+
 __MD_EOF__

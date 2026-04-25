@@ -1,84 +1,65 @@
 #!/bin/bash
+# shell_script/centos/U-13.sh
+# -----------------------------------------------------------------------------
+# [U-13] SUID, SGID, 설정 파일 점검 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.5.5(특수 권한 관리)
+# - 목적: 불필요한 특수 권한(SUID/SGID)이 설정된 파일을 제거하여 권한 상승 공격 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-13"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="SUID, SGID, 설정 파일 점검"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-13"
-위험도="상"
-진단항목="SUID, SGID 설정 파일 점검"
-대응방안="주요 실행파일의 권한에 SUID와 SGID에 대한 설정이 부여되어 있지 않은 경우"
-현황=""
-진단결과=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-# 검사할 실행 파일 목록
-executables=(
+# 1. 점검 대상 SUID/SGID 파일 목록 (RHEL 계열 권고 대상)
+CHECK_LIST=(
     "/sbin/dump" "/sbin/restore" "/sbin/unix_chkpwd"
-    "/usr/bin/at" "/usr/bin/lpq" "/usr/bin/lpq-lpd"
-    "/usr/bin/lpr" "/usr/bin/lpr-lpd" "/usr/bin/lprm"
-    "/usr/bin/lprm-lpd" "/usr/bin/newgrp" "/usr/sbin/lpc"
-    "/usr/sbin/lpc-lpd" "/usr/sbin/traceroute"
+    "/usr/bin/at" "/usr/bin/lpq" "/usr/bin/lpr" "/usr/bin/lprm" "/usr/bin/newgrp"
+    "/usr/sbin/lpc" "/usr/sbin/lpd"
 )
 
-vulnerable_files=()
+VULN_FILES=""
 
-for executable in "${executables[@]}"; do
-    if [ -f "$executable" ]; then
-        mode=$(stat -c "%A" "$executable")
-        if [[ $mode == *s* ]]; then
-            vulnerable_files+=("$executable")
+for FILE in "${CHECK_LIST[@]}"; do
+    if [ -f "$FILE" ]; then
+        # SUID(4000) 또는 SGID(2000) 비트 확인
+        if [ -u "$FILE" ] || [ -g "$FILE" ]; then
+            VULN_FILES="${VULN_FILES}${FILE} "
+            RESULT="취약"
         fi
     fi
 done
 
-if [ ${#vulnerable_files[@]} -gt 0 ]; then
-    진단결과="취약"
-    현황=$(printf ", %s" "${vulnerable_files[@]}")
-    현황=${현황:2}
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="주요 파일들에 불필요한 SUID/SGID 설정이 없습니다."
 else
-    진단결과="양호"
-    현황="SUID나 SGID에 대한 설정이 부여된 주요 실행 파일이 없습니다."
+    STATUS="다음 파일들에 SUID/SGID 설정이 존재합니다: ${VULN_FILES}"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 불필요한 경우 chmod -s [FILE] 명령으로 SUID/SGID 제거 |
+
 __MD_EOF__

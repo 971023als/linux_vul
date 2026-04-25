@@ -1,62 +1,63 @@
 #!/bin/bash
+# shell_script/centos/U-43.sh
+# -----------------------------------------------------------------------------
+# [U-43] 로그 파일의 정기적 점검 및 보존 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제25조(로그기록 및 관리), ISMS-P 2.10.1(로깅 및 감시)
+# - 목적: 로그 파일의 기록 여부를 확인하여 시스템 이상 징후 조기 발견 및 사후 분석 증거 확보
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,logFile,result,status" > $OUTPUT_CSV
-fi
+CODE="U-43"
+CATEGORY="로그 관리"
+RISK="상"
+ITEM="로그 파일의 정기적 점검 및 보존"
 
-# Initial Values
-category="로그 관리"
-code="U-43"
-riskLevel="상"
-diagnosisItem="로그의 정기적 검토 및 보고"
-service="Log Management"
-status="양호"
+RESULT="양호"
+STATUS=""
 
-# Log file list
-declare -A log_files=(
-    ["UTMP"]="/var/log/utmp"
-    ["WTMP"]="/var/log/wtmp"
-    ["BTMP"]="/var/log/btmp"
-    ["SULOG"]="/var/log/sulog"
-    ["XFERLOG"]="/var/log/xferlog"
-)
+# 1. RHEL 주요 로그 파일 리스트
+LOG_FILES=("/var/log/messages" "/var/log/secure" "/var/log/maillog" "/var/log/cron" "/var/log/boot.log")
+VULN_STATUS=""
 
-# Log file existence check
-for log_name in "${!log_files[@]}"; do
-    log_path="${log_files[$log_name]}"
-    if [ -f "$log_path" ]; then
-        result="존재함"
-    else
-        result="존재하지 않음"
+for LOG in "${LOG_FILES[@]}"; do
+    if [ -f "$LOG" ]; then
+        # 마지막 수정 시간이 7일(168시간) 이상 경과했는지 확인 (로그 중단 여부)
+        LAST_MOD=$(stat -c %Y "$LOG")
+        NOW=$(date +%s)
+        DIFF=$(( (NOW - LAST_MOD) / 3600 ))
+
+        if [ "$DIFF" -gt 168 ]; then
+            VULN_STATUS="${VULN_STATUS}${LOG}(${DIFF}시간 경과) "
+            RESULT="취약"
+        fi
     fi
-    # Write results to CSV
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$log_name,$result,$status" >> $OUTPUT_CSV
 done
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="모든 주요 로그 파일이 최근(7일 이내)까지 기록되고 있습니다."
+else
+    STATUS="다음 로그 파일들의 기록이 중단된 것으로 보입니다: ${VULN_STATUS}"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] ${STATUS}"
+else
+    STATUS="[취약] ${STATUS}"
+fi
 
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | ${RESULT} |
+| 현황 | ${STATUS} |
+| 대응방안 | 주요 로그 파일의 존재 여부 및 최신 기록 여부를 정기적으로 점검 |
 __MD_EOF__

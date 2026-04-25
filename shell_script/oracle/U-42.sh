@@ -1,76 +1,60 @@
 #!/bin/bash
+# shell_script/oracle/U-42.sh
+# -----------------------------------------------------------------------------
+# [U-42] 최신 보안 패치 및 업데이트 점검 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.2(취약점 관리)
+# - 목적: 최신 보안 패치를 적용하여 알려진 취약점을 통한 시스템 침해 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-42"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="최신 보안 패치 및 업데이트 점검"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
 
-# Initial Values
-category="패치 관리"
-code="U-42"
-riskLevel="상"
-diagnosisItem="최신 보안패치 및 벤더 권고사항 적용"
-service="Patch Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 시스템은 최신 보안 패치를 보유하고 있습니다.
-[취약]: 시스템에 보안 패치가 필요합니다.
-EOF
-
-# Ubuntu 시스템에서 보안 패치를 확인하는 명령어 실행
-output=$(sudo unattended-upgrades --dry-run --debug 2>&1)
-
-# 출력 내용에서 보안 패치 여부를 확인
-if [[ $output == *"All upgrades installed"* ]]; then
-    diagnosisResult="시스템은 최신 보안 패치를 보유하고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+if command -v dnf > /dev/null; then
+    PENDING_SEC=$(dnf updateinfo list security 2>/dev/null | grep "Security" | wc -l)
+    if [ "$PENDING_SEC" -gt 0 ]; then
+        RESULT="취약"
+        STATUS="미적용된 보안 업데이트가 ${PENDING_SEC}건 존재합니다."
+    else
+        STATUS="모든 보안 업데이트가 적용되어 있습니다."
+    fi
+elif command -v yum > /dev/null; then
+    PENDING_SEC=$(yum check-update --security 2>/dev/null | grep -i "security" | wc -l)
+    if [ "$PENDING_SEC" -gt 0 ]; then
+        RESULT="취약"
+        STATUS="미적용된 보안 업데이트가 존재합니다(yum check-update --security 확인 필요)."
+    else
+        STATUS="보안 업데이트가 최신 상태이거나 추가 확인이 필요합니다."
+    fi
 else
-    diagnosisResult="시스템에 보안 패치가 필요합니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+    STATUS="패키지 매니저(dnf/yum)를 확인할 수 없습니다."
 fi
 
-# Write result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Log and output CSV
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | dnf update --security 또는 yum update --security 실행 |
+
 __MD_EOF__

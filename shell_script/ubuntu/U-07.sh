@@ -1,73 +1,61 @@
 #!/bin/bash
+# shell_script/ubuntu/U-07.sh
+# -----------------------------------------------------------------------------
+# [U-07] /etc/passwd 파일 소유자 및 권한 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 사용자 계정 정보가 포함된 파일의 무단 수정을 방지하여 계정 변조 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-07"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="/etc/passwd 파일 소유자 및 권한 설정"
 
-# Initial Values
-category="파일 및 디렉터리 관리"
-code="U-07"
-riskLevel="상"
-diagnosisItem="/etc/passwd 파일 소유자 및 권한 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
+TARGET="/etc/passwd"
 
-passwd_file='/etc/passwd'
-_status_list=()
-
-# Check if /etc/passwd file exists
-if [ -e "$passwd_file" ]; then
-    # Get file permissions and owner
-    mode=$(stat -c "%a" "$passwd_file")
-    owner_uid=$(stat -c "%u" "$passwd_file")
-
-    # Check if the owner is root
-    if [ "$owner_uid" -eq 0 ]; then
-        # Check if permissions are 644 or less
-        if [ "$mode" -le 644 ]; then
-            diagnosisResult="양호"
-            status="/etc/passwd 파일의 소유자가 root이고, 권한이 $mode입니다."
-        else
-            diagnosisResult="취약"
-            status="/etc/passwd 파일의 권한이 $mode로 설정되어 있어 취약합니다."
-        fi
-    else
-        diagnosisResult="취약"
-        status="/etc/passwd 파일의 소유자가 root가 아닙니다."
+if [ -f "$TARGET" ]; then
+    OWNER=$(stat -c "%U" "$TARGET")
+    PERMS=$(stat -c "%a" "$TARGET")
+    
+    # 소유자가 root가 아니거나, 권한이 644보다 큰 경우 (Write 권한이 타인에게 있는 경우)
+    if [ "$OWNER" != "root" ]; then
+        RESULT="취약"
+        STATUS="소유자가 root가 아닌 $OWNER 입니다."
+    fi
+    
+    # 644(rw-r--r--) 이하인지 체크
+    if [ "$PERMS" -gt 644 ]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }권한이 644보다 큰 $PERMS 입니다."
     fi
 else
-    diagnosisResult="N/A"
-    status="/etc/passwd 파일이 없습니다."
+    RESULT="취약"
+    STATUS="$TARGET 파일을 찾을 수 없습니다."
 fi
 
-# Write diagnosis result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,\"$status\"" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $TARGET 파일의 소유자 및 권한 설정이 적절합니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Print the final CSV output
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root ${TARGET} && chmod 644 ${TARGET} |
+
 __MD_EOF__

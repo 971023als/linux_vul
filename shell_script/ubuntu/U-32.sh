@@ -1,80 +1,52 @@
 #!/bin/bash
+# shell_script/ubuntu/U-32.sh
+# -----------------------------------------------------------------------------
+# [U-32] 일반사용자의 Sendmail 실행 방지
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 일반 사용자가 메일 큐를 조작하거나 Sendmail의 취약점을 이용하여 권한을 획득하는 행위 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-32"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="일반사용자의 Sendmail 실행 방지"
 
-# Initial Values
-category="서비스 관리"
-code="U-32"
-riskLevel="상"
-diagnosisItem="일반사용자의 Sendmail 실행 방지"
-solution="SMTP 서비스 미사용 또는 일반 사용자의 Sendmail 실행 방지 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-restriction_set=false
-_status_list=()
-
-# Find sendmail.cf files and check for restrictqrun option
-find / -name 'sendmail.cf' -type f 2>/dev/null | while read -r file_path; do
-    if grep -q 'restrictqrun' "$file_path" && ! grep -q '^#' "$file_path"; then
-        _status_list+=("$file_path 파일에 restrictqrun 옵션이 설정되어 있습니다.")
-        restriction_set=true
-        break # Stop checking further if one valid file is found
-    fi
-done
-
-# Determine the diagnosis result
-if $restriction_set; then
-    diagnosisResult="모든 sendmail.cf 파일에 restrictqrun 옵션이 적절히 설정되어 있습니다."
-    status="양호"
-    if [ ${#_status_list[@]} -eq 0 ]; then
-        _status_list+=("모든 sendmail.cf 파일에 restrictqrun 옵션이 적절히 설정되어 있습니다.")
+# 1. Sendmail 설정 파일 내 PrivacyOptions 점검
+if [ -f "/etc/mail/sendmail.cf" ]; then
+    if ! grep -qi "PrivacyOptions" "/etc/mail/sendmail.cf" | grep -qi "restrictqrun"; then
+        RESULT="취약"
+        STATUS="Sendmail 설정에 restrictqrun 옵션이 누락되어 일반 사용자가 큐를 실행할 수 있습니다."
     fi
 else
-    diagnosisResult="sendmail.cf 파일 중 restrictqrun 옵션이 설정되어 있지 않은 파일이 있습니다."
-    status="취약"
-    if [ ${#_status_list[@]} -eq 0 ]; then
-        _status_list+=("sendmail.cf 파일 중 restrictqrun 옵션이 설정되어 있지 않은 파일이 있습니다.")
-    fi
+    # Postfix는 기본적으로 큐 접근이 제한되어 있음
+    STATUS="Sendmail 서비스가 설치되어 있지 않거나 설정 파일이 없습니다(해당없음)."
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+    [[ "$STATUS" == *"(해당없음)"* ]] || STATUS="[양호] 일반사용자의 Sendmail 큐 실행이 제한되어 있습니다."
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Output log and CSV file contents
-cat $TMP1
-
-echo ; echo
-
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | sendmail.cf 파일의 PrivacyOptions 에 restrictqrun 추가 |
+
 __MD_EOF__

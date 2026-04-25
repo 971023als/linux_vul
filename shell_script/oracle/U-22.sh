@@ -1,94 +1,73 @@
 #!/bin/bash
+# shell_script/oracle/U-22.sh
+# -----------------------------------------------------------------------------
+# [U-22] cron 파일 소유자 및 권한 설정 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 예약 작업 설정 파일의 무단 수정을 방지하여 악성 스크립트 실행 차단
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-22"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="cron 파일 소유자 및 권한 설정"
 
-# Initial Values
-category="서비스 관리"
-code="U-22"
-riskLevel="상"
-diagnosisItem="crond 파일 소유자 및 권한 설정"
-solution="crontab 명령어 일반사용자 금지 및 cron 관련 파일 640 이하 권한 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-TMP1=$(basename "$0").log
-> $TMP1
+CRON_FILES=("/etc/crontab" "/etc/cron.allow" "/etc/cron.deny")
+VULN_STATUS=""
 
-cat << EOF >> $TMP1
-[양호]: 모든 cron 관련 파일 및 명령어가 적절한 권한 설정을 가지고 있습니다.
-[취약]: cron 관련 파일 및 명령어가 부적절한 권한 설정을 가지고 있습니다.
-EOF
-
-# Check crontab command permissions
-crontab_paths=("/usr/bin/crontab" "/usr/sbin/crontab" "/bin/crontab")
-for path in "${crontab_paths[@]}"; do
-    if [ -e "$path" ]; then
-        permission=$(stat -c "%a" "$path")
-        if [ "$permission" -gt 750 ]; then
-            diagnosisResult="$path 명령어의 권한이 750보다 큽니다."
-            status="취약"
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+for FILE in "${CRON_FILES[@]}"; do
+    if [ -f "$FILE" ]; then
+        OWNER=$(stat -c "%U" "$FILE")
+        PERMS=$(stat -c "%a" "$FILE")
+        
+        if [ "$OWNER" != "root" ] || [ "$PERMS" -gt 640 ]; then
+            VULN_STATUS="${VULN_STATUS}${FILE}(${OWNER}, ${PERMS}) "
+            RESULT="취약"
         fi
-        break
     fi
 done
 
-# Check cron related directories and files
-cron_paths=("/etc/cron.hourly" "/etc/cron.daily" "/etc/cron.weekly" "/etc/cron.monthly" "/var/spool/cron" "/var/spool/cron/crontabs" "/etc/crontab" "/etc/cron.allow" "/etc/cron.deny")
-for cron_path in "${cron_paths[@]}"; do
-    if [ -d "$cron_path" ] || [ -f "$cron_path" ]; then
-        files=$(find "$cron_path" -type f 2>/dev/null)
-        for file in $files; do
-            permission=$(stat -c "%a" "$file")
-            owner=$(stat -c "%u" "$file")
-            if [ "$owner" -ne 0 ] || [ "$permission" -gt 640 ]; then
-                diagnosisResult="$file 파일의 소유자(owner)가 root가 아닙니다 또는 권한이 640보다 큽니다."
-                status="취약"
-                echo "WARN: $diagnosisResult" >> $TMP1
-                echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-        done
+CRON_DIRS=("/etc/cron.d" "/etc/cron.daily" "/etc/cron.hourly" "/etc/cron.monthly" "/etc/cron.weekly")
+for DIR in "${CRON_DIRS[@]}"; do
+    if [ -d "$DIR" ]; then
+        DIR_OWNER=$(stat -c "%U" "$DIR")
+        DIR_PERMS=$(stat -c "%a" "$DIR")
+        if [ "$DIR_OWNER" != "root" ] || [ "$DIR_PERMS" -gt 700 ]; then
+            VULN_STATUS="${VULN_STATUS}${DIR}(${DIR_OWNER}, ${DIR_PERMS}) "
+            RESULT="취약"
+        fi
     fi
 done
 
-# Final check if no vulnerabilities found
-if [ -z "$diagnosisResult" ]; then
-    diagnosisResult="모든 cron 관련 파일 및 명령어가 적절한 권한 설정을 가지고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="모든 cron 관련 파일 및 디렉터리의 소유자/권한 설정이 적절합니다."
+else
+    STATUS="다음 cron 파일/디렉터리의 설정이 부적절합니다: ${VULN_STATUS}"
 fi
 
-cat $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | cron 관련 파일의 소유자를 root로 변경하고 권한을 640 이하로 설정 |
+
 __MD_EOF__

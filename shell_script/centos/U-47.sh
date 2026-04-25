@@ -1,77 +1,58 @@
 #!/bin/bash
+# shell_script/centos/U-47.sh
+# -----------------------------------------------------------------------------
+# [U-47] 패스워드 최대 사용 기간 설정 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.5.4(비밀번호 관리)
+# - 목적: 패스워드를 정기적으로 변경하게 하여 탈취된 패스워드의 사용 기간 단축
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+CODE="U-47"
+CATEGORY="계정 관리"
+RISK="중"
+ITEM="패스워드 최대 사용 기간 설정"
+
+RESULT="양호"
+STATUS=""
+TARGET="/etc/login.defs"
+
+# 1. login.defs 점검
+if [ -f "$TARGET" ]; then
+    MAX_DAYS=$(grep "^PASS_MAX_DAYS" "$TARGET" | awk '{print $2}')
+    if [ -n "$MAX_DAYS" ] && [ "$MAX_DAYS" -le 90 ]; then
+        STATUS="PASS_MAX_DAYS 가 ${MAX_DAYS}일로 적절히 설정되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="PASS_MAX_DAYS 가 설정되어 있지 않거나 90일을 초과합니다."
+    fi
+    
+    # 추가: PASS_MIN_DAYS 확인 (변경 최소 간격)
+    MIN_DAYS=$(grep "^PASS_MIN_DAYS" "$TARGET" | awk '{print $2}')
+    if [ -n "$MIN_DAYS" ] && [ "$MIN_DAYS" -ge 1 ]; then
+        STATUS="${STATUS} / PASS_MIN_DAYS=${MIN_DAYS} 적용됨."
+    fi
 fi
 
-# Initial Values
-category="계정관리"
-code="U-47"
-riskLevel="중"
-diagnosisItem="패스워드 최대 사용기간 설정"
-service="Account Management"
-diagnosisResult="양호"
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-login_defs_path="/etc/login.defs"
-result="양호"
-
-if [ -f "$login_defs_path" ]; then
-    while IFS= read -r line; do
-        if echo "$line" | grep -q "PASS_MAX_DAYS" && ! echo "$line" | grep -q "^#"; then
-            max_days=$(echo "$line" | awk '{print $2}')
-            if [ "$max_days" -gt 90 ]; then
-                result="취약"
-                diagnosisResult="/etc/login.defs 파일에 패스워드 최대 사용 기간이 90일을 초과하여 $max_days 일로 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            break
-        fi
-    done < "$login_defs_path"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
 else
-    result="취약"
-    diagnosisResult="/etc/login.defs 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    STATUS="[취약] $STATUS"
 fi
 
-if [ "$result" = "양호" ]; then
-    diagnosisResult="패스워드 최대 사용 기간이 적절하게 설정되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-fi
-
-# Output CSV
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /etc/login.defs 에서 PASS_MAX_DAYS 를 90 이하로 설정 |
+
 __MD_EOF__

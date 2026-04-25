@@ -1,83 +1,58 @@
 #!/bin/bash
+# shell_script/ubuntu/U-31.sh
+# -----------------------------------------------------------------------------
+# [U-31] 스팸 메일 릴레이 제한
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 메일 서버가 스팸 메일 발송의 경유지(Open Relay)로 악용되는 것을 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+CODE="U-31"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="스팸 메일 릴레이 제한"
+
+RESULT="양호"
+STATUS=""
+
+# 1. Sendmail 릴레이 설정 확인
+if [ -f "/etc/mail/sendmail.cf" ]; then
+    if grep -qi "PromiscuousRelay" "/etc/mail/sendmail.cf"; then
+        RESULT="취약"
+        STATUS="Sendmail이 모든 릴레이를 허용(PromiscuousRelay)하도록 설정되어 있습니다."
+    fi
 fi
 
-# Initial Values
-category="서비스 관리"
-code="U-31"
-riskLevel="상"
-diagnosisItem="스팸 메일 릴레이 제한"
-solution="SMTP 서비스 릴레이 제한 설정"
-diagnosisResult=""
-status=""
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-search_directory='/etc/mail/'
-vulnerable_found=false
-_status_list=()
-
-# Search for sendmail.cf files and analyze their contents
-find "$search_directory" -name 'sendmail.cf' -type f | while read -r file_path; do
-    if [ -f "$file_path" ]; then
-        if grep -qE 'R\$\*' "$file_path" || grep -qEi 'Relaying denied' "$file_path"; then
-            _status_list+=("$file_path 파일에 릴레이 제한이 적절히 설정되어 있습니다.")
-        else
-            vulnerable_found=true
-            _status_list+=("$file_path 파일에 릴레이 제한 설정이 없습니다.")
-        fi
+# 2. Postfix 릴레이 설정 확인
+if [ -f "/etc/postfix/main.cf" ]; then
+    # smtpd_recipient_restrictions 가 적절한지 확인 (permit_mynetworks, reject_unauth_destination 포함 여부)
+    RELAY_RESTRICT=$(grep "^smtpd_recipient_restrictions" /etc/postfix/main.cf)
+    if [ -n "$RELAY_RESTRICT" ] && [[ "$RELAY_RESTRICT" != *"reject_unauth_destination"* ]]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }Postfix 설정에 reject_unauth_destination 옵션이 누락되어 Open Relay 위험이 있습니다."
     fi
-done
+fi
 
-# Determine the diagnosis result
-if $vulnerable_found; then
-    diagnosisResult="릴레이 제한 설정이 없습니다."
-    status="취약"
+if [ -z "$STATUS" ]; then
+    STATUS="[양호] 메일 릴레이 제한 설정이 적절하거나 메일 서버를 사용하지 않습니다."
 else
-    if [ ${#_status_list[@]} -eq 0 ]; then
-        diagnosisResult="sendmail.cf 파일을 찾을 수 없거나 접근할 수 없습니다."
-        status="양호"
-    else
-        diagnosisResult="릴레이 제한이 적절히 설정되어 있습니다."
-        status="양호"
-    fi
+    STATUS="[취약] $STATUS"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Output log and CSV file contents
-cat $TMP1
-
-echo ; echo
-
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 1. Sendmail: access DB를 활용하여 특정 IP만 허용<br>2. Postfix: main.cf 에서 smtpd_recipient_restrictions 설정 강화 |
+
 __MD_EOF__

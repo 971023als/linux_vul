@@ -1,90 +1,61 @@
 #!/bin/bash
+# shell_script/oracle/U-18.sh
+# -----------------------------------------------------------------------------
+# [U-18] 접속 IP 및 포트 제한 (Oracle Linux)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 허가된 IP와 서비스 포트만 접근을 허용하여 외부 공격 노출 최소화
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-18"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="접속 IP 및 포트 제한"
 
-# Initial Values
-category="파일 및 디렉터리 관리"
-code="U-18"
-riskLevel="상"
-diagnosisItem="접속 IP 및 포트 제한"
-solution="특정 호스트에 대한 IP 주소 및 포트 제한 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-# Initial log file
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 적절한 IP 및 포트 제한 설정이 확인된 경우
-[취약]: 'ALL: ALL' 설정이 없거나 부적절하게 설정된 경우
-EOF
-
-hosts_deny_path='/etc/hosts.deny'
-hosts_allow_path='/etc/hosts.allow'
-
-# Check if file exists and contains specific string
-check_file_exists_and_content() {
-    local file_path=$1
-    local search_string=$2
-    if [ -f "$file_path" ]; then
-        if grep -q -i "^$search_string" "$file_path"; then
-            return 0 # Search string is present in the file
-        fi
-    fi
-    return 1 # File does not exist or search string is not present in the file
-}
-
-# Check /etc/hosts.deny
-if ! check_file_exists_and_content "$hosts_deny_path" "ALL: ALL"; then
-    diagnosisResult="$hosts_deny_path 파일에 'ALL: ALL' 설정이 없거나 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
-else
-    # Check /etc/hosts.allow
-    if check_file_exists_and_content "$hosts_allow_path" "ALL: ALL"; then
-        diagnosisResult="$hosts_allow_path 파일에 'ALL: ALL' 설정이 있습니다."
-        status="취약"
-        echo "WARN: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if systemctl is-active --quiet firewalld 2>/dev/null; then
+    RULES_COUNT=$(firewall-cmd --list-all --permanent | grep -E "services:|ports:|rich rules:" | wc -l)
+    if [ "$RULES_COUNT" -gt 0 ]; then
+        STATUS="firewalld 가 활성화되어 있으며, 정책이 설정되어 있습니다."
     else
-        diagnosisResult="적절한 IP 및 포트 제한 설정이 확인되었습니다."
-        status="양호"
-        echo "OK: $diagnosisResult" >> $TMP1
-        echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+        RESULT="취약"
+        STATUS="firewalld 가 실행 중이나 세부 제한 정책이 정의되어 있지 않습니다."
     fi
+elif systemctl is-active --quiet iptables 2>/dev/null; then
+    IPT_COUNT=$(iptables -L -n | grep -vE "^Chain|^target" | wc -l)
+    if [ "$IPT_COUNT" -gt 0 ]; then
+        STATUS="iptables 가 활성화되어 있으며, 정책이 설정되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="iptables 가 실행 중이나 세부 제한 정책이 정의되어 있지 않습니다."
+    fi
+else
+    RESULT="취약"
+    STATUS="firewalld 및 iptables 방화벽 서비스가 비활성화되어 있습니다."
 fi
 
-cat $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | firewalld 또는 iptables를 활성화하고 인가된 IP/포트만 허용하도록 설정 |
+
 __MD_EOF__

@@ -1,96 +1,62 @@
 #!/bin/bash
+# shell_script/ubuntu/U-46.sh
+# -----------------------------------------------------------------------------
+# [U-46] 패스워드 최소 길이 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제8조(비밀번호 관리), ISMS-P 2.5.1(사용자 식별)
+# - 목적: 짧은 패스워드 사용을 금지하여 무차별 대입 공격에 의한 계정 탈취 예방
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-46"
+CATEGORY="계정 관리"
+RISK="중"
+ITEM="패스워드 최소 길이 설정"
 
-# Initial Values
-category="계정관리"
-code="U-46"
-riskLevel="중"
-diagnosisItem="패스워드 최소 길이 설정"
-service="Account Management"
-diagnosisResult="양호"
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-files_to_check=(
-    "/etc/login.defs:PASS_MIN_LEN"
-    "/etc/pam.d/system-auth:minlen"
-    "/etc/pam.d/password-auth:minlen"
-    "/etc/security/pwquality.conf:minlen"
-)
-
-file_exists_count=0
-minlen_file_exists_count=0
-no_settings_in_minlen_file=0
-
-for item in "${files_to_check[@]}"; do
-    IFS=: read -r file_path setting_key <<< "$item"
-    if [ -f "$file_path" ]; then
-        file_exists_count=$((file_exists_count + 1))
-        if grep -iq "$setting_key" "$file_path"; then
-            minlen_file_exists_count=$((minlen_file_exists_count + 1))
-            min_length=$(grep -i "$setting_key" "$file_path" | grep -v '^#' | grep -o '[0-9]*' | head -1)
-            if [ -n "$min_length" ] && [ "$min_length" -lt 8 ]; then
-                diagnosisResult="$file_path 파일에 $setting_key 가 8 미만으로 설정되어 있습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            elif [ -z "$min_length" ]; then
-                no_settings_in_minlen_file=$((no_settings_in_minlen_file + 1))
-            fi
-        else
-            no_settings_in_minlen_file=$((no_settings_in_minlen_file + 1))
-        fi
+# 1. /etc/login.defs 점검
+LOGIN_DEFS="/etc/login.defs"
+if [ -f "$LOGIN_DEFS" ]; then
+    MIN_LEN=$(grep "^PASS_MIN_LEN" "$LOGIN_DEFS" | awk '{print $2}')
+    if [ -n "$MIN_LEN" ] && [ "$MIN_LEN" -ge 8 ]; then
+        STATUS="login.defs 에 PASS_MIN_LEN이 ${MIN_LEN}으로 적절히 설정되어 있습니다."
+    else
+        RESULT="취약"
+        STATUS="login.defs 에 PASS_MIN_LEN이 8자 미만(${MIN_LEN:-미설정})으로 설정되어 있습니다."
     fi
-done
-
-if [ "$file_exists_count" -eq 0 ]; then
-    diagnosisResult="패스워드 최소 길이를 설정하는 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-elif [ "$minlen_file_exists_count" -eq "$no_settings_in_minlen_file" ]; then
-    diagnosisResult="패스워드 최소 길이를 설정한 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
 fi
 
-if [ "$status" != "취약" ]; then
-    diagnosisResult="패스워드 최소 길이가 적절하게 설정되어 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 2. PAM 설정 점검 (Ubuntu는 주로 common-password의 pam_pwquality 사용)
+PAM_PW="/etc/pam.d/common-password"
+if [ -f "$PAM_PW" ]; then
+    PAM_MINLEN=$(grep "pam_pwquality.so" "$PAM_PW" | grep -o "minlen=[0-9]*" | cut -d= -f2)
+    if [ -n "$PAM_MINLEN" ] && [ "$PAM_MINLEN" -ge 8 ]; then
+        STATUS="${STATUS} / PAM 설정에 minlen이 ${PAM_MINLEN}으로 설정되어 있습니다."
+        RESULT="양호" # login.defs가 낮더라도 PAM이 우선하면 양호로 판단 가능
+    fi
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | /etc/login.defs 또는 /etc/pam.d/common-password 에서 최소 길이 8자 이상 설정 |
+
 __MD_EOF__

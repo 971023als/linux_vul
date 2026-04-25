@@ -349,7 +349,7 @@ def generate_report(input_path: Path, output_path: Path) -> None:
         dt = datetime.fromisoformat(generated_at)
         generated_str = dt.strftime("%Y년 %m월 %d일 %H:%M:%S")
     except Exception as e:
-        _log.debug("날짜 파싱 실패: %v → raw 사용", e)
+        _log.debug("날짜 파싱 실패: %s → raw 사용", e)
         generated_str = generated_at
 
     total      = meta.get("total", len(results))

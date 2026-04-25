@@ -1,76 +1,58 @@
 #!/bin/bash
+# shell_script/ubuntu/U-49.sh
+# -----------------------------------------------------------------------------
+# [U-49] 불필요한 계정 제거
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 사용하지 않는 시스템 계정(lp, uucp 등)을 제거하여 계정 도용 위험 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-49"
+CATEGORY="계정 관리"
+RISK="하"
+ITEM="불필요한 계정 제거"
 
-# Initial Values
-category="계정관리"
-code="U-49"
-riskLevel="하"
-diagnosisItem="불필요한 계정 제거"
-service="Account Management"
-diagnosisResult="양호"
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. 점검 대상 불필요 계정 리스트
+# lp, uucp, nuucp 등 기본적으로 사용하지 않는 계정들
+UNNECESSARY_ACCOUNTS=("lp" "uucp" "nuucp" "games")
+VULN_ACCOUNTS=""
 
-# 로그인이 가능한 쉘 목록
-login_shells=("/bin/bash" "/bin/sh")
-# 검사할 불필요한 계정 목록
-unnecessary_accounts=("user" "test" "guest" "info" "adm" "mysql" "user1")
-
-# 불필요한 계정 찾기
-found_accounts=()
-for account in "${unnecessary_accounts[@]}"; do
-    if getent passwd "$account" > /dev/null; then
-        shell=$(getent passwd "$account" | cut -d: -f7)
-        for login_shell in "${login_shells[@]}"; do
-            if [[ "$shell" == "$login_shell" ]]; then
-                found_accounts+=("$account")
-                break
-            fi
-        done
+for ACCOUNT in "${UNNECESSARY_ACCOUNTS[@]}"; do
+    if getent passwd "$ACCOUNT" >/dev/null 2>&1; then
+        VULN_ACCOUNTS="${VULN_ACCOUNTS}${ACCOUNT} "
+        RESULT="취약"
     fi
 done
 
-if [ ${#found_accounts[@]} -gt 0 ]; then
-    diagnosisResult="불필요한 계정이 존재합니다: ${found_accounts[*]}"
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="불필요한 시스템 계정이 존재하지 않습니다."
 else
-    diagnosisResult="불필요한 계정이 존재하지 않습니다."
-    status="양호"
-    echo "OK: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    STATUS="불필요한 계정이 발견되었습니다: ${VULN_ACCOUNTS}(사용 여부 확인 후 삭제 권고)"
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 사용하지 않는 시스템 계정 삭제 (userdel [ACCOUNT]) |
+
 __MD_EOF__

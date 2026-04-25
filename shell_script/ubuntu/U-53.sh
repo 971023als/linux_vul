@@ -1,81 +1,62 @@
 #!/bin/bash
+# shell_script/ubuntu/U-53.sh
+# -----------------------------------------------------------------------------
+# [U-53] 사용자 shell 제한
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 로그인이 필요 없는 시스템 계정에 셸 접속을 제한하여 계정 탈취 시도 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-53"
+CATEGORY="계정 관리"
+RISK="하"
+ITEM="사용자 shell 제한"
 
-# Initial Values
-category="계정관리"
-code="U-53"
-riskLevel="하"
-diagnosisItem="사용자 shell 점검"
-service="Account Management"
-diagnosisResult=""
-status="양호"
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. 로그인이 불필요한 시스템 계정 목록
+# Ubuntu 기본 시스템 계정들
+SYSTEM_ACCOUNTS=("bin" "sys" "daemon" "adm" "lp" "sync" "shutdown" "halt" "mail" "news" "uucp" "operator" "games" "list" "irc" "gnats" "nobody" "systemd-network" "systemd-resolve" "proxy" "www-data" "backup" "list" "irc" "gnats" "nobody")
 
-# 불필요한 계정 목록
-unnecessary_accounts=(
-    "daemon" "bin" "sys" "adm" "listen" "nobody" "nobody4"
-    "noaccess" "diag" "operator" "gopher" "games" "ftp" "apache"
-    "httpd" "www-data" "mysql" "mariadb" "postgres" "mail" "postfix"
-    "news" "lp" "uucp" "nuucp"
-)
+VULN_ACCOUNTS=""
 
-if [ -f "/etc/passwd" ]; then
-    found_issues=false
-    while IFS=: read -r username _ _ _ _ _ shell; do
-        for account in "${unnecessary_accounts[@]}"; do
-            if [ "$username" == "$account" ] && [ "$shell" != "/bin/false" ] && [ "$shell" != "/sbin/nologin" ]; then
-                diagnosisResult="계정 $username에 /bin/false 또는 /sbin/nologin 쉘이 부여되지 않았습니다."
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-                found_issues=true
-                break 2
-            fi
-        done
-    done < /etc/passwd
-
-    if [ "$found_issues" = false ]; then
-        diagnosisResult="모든 불필요한 계정에 대해 적절한 쉘이 설정되어 있습니다."
-        status="양호"
-        echo "OK: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+for ACCOUNT in "${SYSTEM_ACCOUNTS[@]}"; do
+    SHELL_VAL=$(getent passwd "$ACCOUNT" | cut -d: -f7)
+    if [ -n "$SHELL_VAL" ]; then
+        if [[ "$SHELL_VAL" != *"/nologin" ]] && [[ "$SHELL_VAL" != *"/false" ]]; then
+            VULN_ACCOUNTS="${VULN_ACCOUNTS}${ACCOUNT}(${SHELL_VAL}) "
+            RESULT="취약"
+        fi
     fi
+done
+
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="모든 시스템 계정에 적절한 셸 제한(/sbin/nologin 등)이 설정되어 있습니다."
 else
-    diagnosisResult="/etc/passwd 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    STATUS="다음 시스템 계정들에 셸 접속이 허용되어 있습니다: ${VULN_ACCOUNTS}"
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 시스템 계정의 셸을 /usr/sbin/nologin 으로 변경 (usermod -s /usr/sbin/nologin [ACCOUNT]) |
+
 __MD_EOF__

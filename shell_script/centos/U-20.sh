@@ -1,66 +1,62 @@
 #!/bin/bash
+# shell_script/centos/U-20.sh
+# -----------------------------------------------------------------------------
+# [U-20] Anonymous FTP 비활성화 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: 누구나 접속 가능한 익명 FTP 서비스를 차단하여 중요 데이터 유출 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,solution,diagnosisResult,status" > $OUTPUT_CSV
+CODE="U-20"
+CATEGORY="서비스 관리"
+RISK="상"
+ITEM="Anonymous FTP 비활성화"
+
+RESULT="양호"
+STATUS=""
+
+# 1. FTP 서비스 실행 여부 및 익명 설정 확인
+FTP_CONF="/etc/vsftpd/vsftpd.conf"
+[ ! -f "$FTP_CONF" ] && FTP_CONF="/etc/vsftpd.conf"
+
+if pgrep -x "vsftpd" > /dev/null; then
+    if [ -f "$FTP_CONF" ]; then
+        if grep -qi "anonymous_enable=YES" "$FTP_CONF"; then
+            RESULT="취약"
+            STATUS="vsftpd에서 Anonymous FTP가 활성화되어 있습니다."
+        fi
+    fi
 fi
 
-# Initial Values
-category="시스템 설정"
-code="U-20"
-riskLevel="상"
-diagnosisItem="Anonymous FTP 비활성화"
-solution="[양호]: Anonymous FTP (익명 ftp) 접속을 차단한 경우\n[취약]: Anonymous FTP (익명 ftp) 접속을 차단하지 않은 경우"
-diagnosisResult=""
-status=""
+# 2. ftp 계정 존재 여부 및 셸 제한 확인
+if getent passwd ftp > /dev/null 2>&1; then
+    FTP_SHELL=$(getent passwd ftp | cut -d: -f7)
+    if [[ "$FTP_SHELL" != *"/nologin" ]] && [[ "$FTP_SHELL" != *"/false" ]]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }ftp 계정의 셸 제한이 설정되어 있지 않습니다."
+    fi
+fi
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: Anonymous FTP (익명 ftp) 접속을 차단한 경우
-[취약]: Anonymous FTP (익명 ftp) 접속을 차단하지 않은 경우
-EOF
-
-# Check if the ftp user exists in /etc/passwd
-if grep -q "^ftp:" /etc/passwd; then
-    diagnosisResult="FTP 계정이 /etc/passwd 파일에 있습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] Anonymous FTP 서비스가 비활성화되어 있습니다."
 else
-    diagnosisResult="FTP 계정이 /etc/passwd 파일에 없습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$solution,$diagnosisResult,$status" >> $OUTPUT_CSV
+    STATUS="[취약] $STATUS"
 fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | vsftpd.conf에서 anonymous_enable=NO 설정 및 ftp 계정 삭제 또는 nologin 설정 |
+
 __MD_EOF__

@@ -1,86 +1,65 @@
 #!/bin/bash
+# shell_script/ubuntu/U-11.sh
+# -----------------------------------------------------------------------------
+# [U-11] /etc/rsyslog.conf 파일 소유자 및 권한 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.10.1(로깅 및 감시), 2.6.1(시스템 하드닝)
+# - 목적: 로그 설정 파일의 무단 수정을 방지하여 침적 은폐 목적의 로그 중단 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
-fi
+CODE="U-11"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="/etc/rsyslog.conf 파일 소유자 및 권한 설정"
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-11"
-위험도="상"
-진단항목="/etc/syslog.conf 파일 소유자 및 권한 설정"
-대응방안="/etc/syslog.conf 파일의 소유자가 root(또는 bin, sys)이고, 권한이 640 이하인 경우"
-현황=""
-진단결과="파일 없음"
+RESULT="양호"
+STATUS=""
 
-syslog_conf_files=("/etc/rsyslog.conf" "/etc/syslog.conf" "/etc/syslog-ng.conf")
-file_exists_count=0
-compliant_files_count=0
+# 점검 대상 리스트
+TARGETS=("/etc/rsyslog.conf" "/etc/syslog.conf")
+FOUND=false
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-for file_path in "${syslog_conf_files[@]}"; do
-    if [ -f "$file_path" ]; then
-        ((file_exists_count++))
-        mode=$(stat -c "%a" "$file_path")
-        owner_name=$(stat -c "%U" "$file_path")
-
-        if [[ "$owner_name" == "root" || "$owner_name" == "bin" || "$owner_name" == "sys" ]] && [ "$mode" -le 640 ]; then
-            ((compliant_files_count++))
-            _status_list+="$file_path 파일의 소유자가 $owner_name이고, 권한이 $mode입니다. "
-        else
-            _status_list+="$file_path 파일의 소유자나 권한이 기준에 부합하지 않습니다. "
+for TARGET in "${TARGETS[@]}"; do
+    if [ -f "$TARGET" ]; then
+        FOUND=true
+        OWNER=$(stat -c "%U" "$TARGET")
+        PERMS=$(stat -c "%a" "$TARGET")
+        
+        if [ "$OWNER" != "root" ]; then
+            RESULT="취약"
+            STATUS="${STATUS:+${STATUS} / }$TARGET 소유자가 root가 아님($OWNER)"
+        fi
+        
+        if [ "$PERMS" -gt 644 ]; then
+            RESULT="취약"
+            STATUS="${STATUS:+${STATUS} / }$TARGET 권한이 644보다 큰 $PERMS 입니다."
         fi
     fi
 done
 
-if [ "$file_exists_count" -gt 0 ]; then
-    if [ "$compliant_files_count" -eq "$file_exists_count" ]; then
-        진단결과="양호"
-    else
-        진단결과="취약"
-    fi
+if ! $FOUND; then
+    RESULT="취약"
+    STATUS="rsyslog.conf 또는 syslog.conf 파일을 찾을 수 없습니다(로깅 미설정 우려)."
+elif [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] 로깅 설정 파일의 소유자 및 권한 설정이 적절합니다."
 else
-    진단결과="파일 없음"
-    현황="설정 파일을 찾을 수 없습니다."
+    STATUS="[취약] $STATUS"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
-
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root ${TARGETS[0]} && chmod 644 ${TARGETS[0]} |
+
 __MD_EOF__

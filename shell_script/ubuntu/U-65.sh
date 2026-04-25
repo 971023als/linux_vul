@@ -1,99 +1,60 @@
 #!/bin/bash
+# shell_script/ubuntu/U-65.sh
+# -----------------------------------------------------------------------------
+# [U-65] SNMP 서비스 권한 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: ISMS-P 2.6.1(시스템 하드닝)
+# - 목적: SNMP 설정 파일의 권한을 제한하여 Community String 등 주요 정보 유출 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-65"
+CATEGORY="서비스 관리"
+RISK="중"
+ITEM="SNMP 서비스 권한 설정"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
+RESULT="양호"
+STATUS=""
+TARGET="/etc/snmp/snmpd.conf"
+
+if [ -f "$TARGET" ]; then
+    OWNER=$(stat -c "%U" "$TARGET")
+    PERMS=$(stat -c "%a" "$TARGET")
+    
+    if [ "$OWNER" != "root" ]; then
+        RESULT="취약"
+        STATUS="소유자가 root가 아닌 $OWNER 입니다."
+    fi
+    
+    # 640 이하 권고 (Community String 보호)
+    if [ "$PERMS" -gt 640 ]; then
+        RESULT="취약"
+        STATUS="${STATUS:+${STATUS} / }권한이 640보다 큰 $PERMS 입니다."
+    fi
+else
+    STATUS="SNMP 설정 파일($TARGET)이 존재하지 않습니다(해당없음)."
 fi
 
-# Initial Values
-category="서비스 관리"
-code="U-65"
-riskLevel="중"
-diagnosisItem="at 서비스 권한 설정"
-service="Account Management"
-diagnosisResult=""
-status=""
-
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 모든 at 관련 파일이 적절한 권한 설정을 가지고 있습니다.
-[취약]: at 명령어 실행 파일이 다른 사용자(other)에 의해 실행 가능하거나, at 접근 제어 파일의 소유자가 root가 아니거나 권한이 640보다 큼
-EOF
-
-# at 명령어 실행 파일 권한 확인
-permission_issues_found=false
-
-# PATH 내 at 명령어 경로 확인 및 권한 검사
-for path in ${PATH//:/ }; do
-    if [[ -x "$path/at" ]]; then
-        permissions=$(stat -c "%a" "$path/at")
-        if [[ "$permissions" =~ .*[2-7]. ]]; then
-            diagnosisResult="$path/at 실행 파일이 다른 사용자(other)에 의해 실행이 가능합니다."
-            status="취약"
-            permission_issues_found=true
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    fi
-done
-
-# /etc/at.allow 및 /etc/at.deny 파일 권한 확인
-at_access_control_files=("/etc/at.allow" "/etc/at.deny")
-for file in "${at_access_control_files[@]}"; do
-    if [[ -f "$file" ]]; then
-        permissions=$(stat -c "%a" "$file")
-        file_owner=$(stat -c "%U" "$file")
-        if [[ "$file_owner" != "root" ]] || [[ "$permissions" -gt 640 ]]; then
-            diagnosisResult="$file 파일의 소유자가 $file_owner이고, 권한이 ${permissions}입니다."
-            status="취약"
-            permission_issues_found=true
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    fi
-done
-
-# 진단 결과 결정
-if ! $permission_issues_found; then
-    diagnosisResult="모든 at 관련 파일이 적절한 권한 설정을 가지고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    [ -z "$STATUS" ] && STATUS="[양호] SNMP 설정 파일의 소유자 및 권한 설정이 적절합니다."
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
 fi
 
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chown root ${TARGET} && chmod 640 ${TARGET} |
+
 __MD_EOF__

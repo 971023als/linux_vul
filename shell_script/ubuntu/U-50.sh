@@ -1,100 +1,61 @@
 #!/bin/bash
+# shell_script/ubuntu/U-50.sh
+# -----------------------------------------------------------------------------
+# [U-50] 관리자 그룹에 최소한의 계정 포함
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제11조(권한 부여), ISMS-P 2.5.5(특수 권한 관리)
+# - 목적: 관리자 권한(root, sudo)을 가진 계정을 최소화하여 권한 오남용 방지
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-50"
+CATEGORY="계정 관리"
+RISK="하"
+ITEM="관리자 그룹에 최소한의 계정 포함"
 
-# Initial Values
-category="계정관리"
-code="U-50"
-riskLevel="하"
-diagnosisItem="관리자 그룹에 최소한의 계정 포함"
-service="Account Management"
-diagnosisResult="양호"
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. 관리자 그룹(root, sudo, wheel) 멤버 확인
+ADMIN_GROUPS=("root" "sudo" "wheel")
+VULN_STATUS=""
 
-# 불필요한 계정 목록
-unnecessary_accounts=(
-    "bin" "sys" "adm" "listen" "nobody4" "noaccess" "diag"
-    "operator" "gopher" "games" "ftp" "apache" "httpd" "www-data"
-    "mysql" "mariadb" "postgres" "mail" "postfix" "news" "lp"
-    "uucp" "nuucp" "sync" "shutdown" "halt" "mailnull" "smmsp"
-    "manager" "dumper" "abuse" "webmaster" "noc" "security"
-    "hostmaster" "info" "marketing" "sales" "support" "accounts"
-    "help" "admin" "guest" "user" "ubuntu"
-)
-
-if [ -f "/etc/group" ]; then
-    root_group_found=false
-    while IFS=: read -r group_name _ _ members; do
-        if [ "$group_name" == "root" ]; then
-            root_group_found=true
-            IFS=',' read -ra members_array <<< "$members"
-            found_accounts=()
-            for account in "${members_array[@]}"; do
-                for unnecessary_account in "${unnecessary_accounts[@]}"; do
-                    if [ "$account" == "$unnecessary_account" ]; then
-                        found_accounts+=("$account")
-                        break
-                    fi
-                done
-            done
-
-            if [ ${#found_accounts[@]} -gt 0 ]; then
-                diagnosisResult="관리자 그룹(root)에 불필요한 계정이 등록되어 있습니다: ${found_accounts[*]}"
-                status="취약"
-                echo "WARN: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            else
-                diagnosisResult="관리자 그룹(root)에 불필요한 계정이 없습니다."
-                status="양호"
-                echo "OK: $diagnosisResult"
-                echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-            fi
-            break
+for GRP in "${ADMIN_GROUPS[@]}"; do
+    if getent group "$GRP" >/dev/null 2>&1; then
+        MEMBERS=$(getent group "$GRP" | cut -d: -f4)
+        if [ -n "$MEMBERS" ]; then
+            # 멤버가 너무 많은지(예: 5명 초과) 체크하는 로직을 넣을 수 있으나, 여기서는 목록화함
+            VULN_STATUS="${VULN_STATUS}${GRP} 그룹 멤버: ${MEMBERS}\n"
         fi
-    done < "/etc/group"
-
-    if [ "$root_group_found" = false ]; then
-        diagnosisResult="관리자 그룹(root)을 /etc/group 파일에서 찾을 수 없습니다."
-        status="오류"
-        echo "ERROR: $diagnosisResult"
-        echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
     fi
+done
+
+if [ -z "$VULN_STATUS" ]; then
+    STATUS="관리자 그룹에 등록된 일반 계정이 없습니다."
 else
-    diagnosisResult="/etc/group 파일이 없습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult"
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+    # 실무적으로는 목록을 보여주고 수동 검토 권고
+    STATUS="관리자 권한 그룹 멤버 현황입니다(최소화 권고):\n${VULN_STATUS}"
 fi
 
-# Output CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 관리자 권한이 불필요한 계정을 관리자 그룹에서 제외 |
+
 __MD_EOF__

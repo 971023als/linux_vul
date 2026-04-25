@@ -1,72 +1,57 @@
 #!/bin/bash
+# shell_script/ubuntu/U-66.sh
+# -----------------------------------------------------------------------------
+# [U-66] 로그 파일 권한 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제25조(로그기록 및 관리), ISMS-P 2.10.1(로깅 및 감시)
+# - 목적: 로그 파일의 권한을 제한하여 비인가된 사용자의 로그 변조 및 삭제 방어
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-66"
+CATEGORY="로그 관리"
+RISK="중"
+ITEM="로그 파일 권한 설정"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-66"
-riskLevel="중"
-diagnosisItem="SNMP 서비스 구동 점검"
-service="Account Management"
-diagnosisResult=""
-status=""
+# 1. 점검 대상 주요 로그 파일
+LOG_FILES=("/var/log/auth.log" "/var/log/syslog" "/var/log/messages" "/var/log/secure" "/var/log/lastlog" "/var/log/wtmp")
+VULN_STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+for LOG in "${LOG_FILES[@]}"; do
+    if [ -f "$LOG" ]; then
+        OWNER=$(stat -c "%U" "$LOG")
+        PERMS=$(stat -c "%a" "$LOG")
+        
+        # 소유자 root 또는 syslog, 권한 640 이하 권고
+        if [[ "$OWNER" != "root" && "$OWNER" != "syslog" ]] || [ "$PERMS" -gt 640 ]; then
+            VULN_STATUS="${VULN_STATUS}${LOG}(${OWNER}, ${PERMS}) "
+            RESULT="취약"
+        fi
+    fi
+done
 
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: SNMP 서비스를 사용하지 않고 있습니다.
-[취약]: SNMP 서비스를 사용하고 있습니다.
-EOF
-
-# SNMP 서비스 실행 여부 확인
-if ps -ef | grep -i "snmp" | grep -v "grep" > /dev/null; then
-    diagnosisResult="SNMP 서비스를 사용하고 있습니다."
-    status="취약"
-    echo "WARN: $diagnosisResult" >> $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] 주요 로그 파일의 소유자 및 권한 설정이 적절합니다."
 else
-    diagnosisResult="SNMP 서비스를 사용하지 않고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
+    STATUS="[취약] 다음 로그 파일의 설정이 부적절합니다: ${VULN_STATUS}"
 fi
 
-# Write results to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-cat $TMP1
-
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 주요 로그 파일의 소유자를 root로 변경하고 권한을 640 이하로 설정 |
+
 __MD_EOF__

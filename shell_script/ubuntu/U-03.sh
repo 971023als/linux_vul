@@ -1,92 +1,71 @@
 #!/bin/bash
+# shell_script/ubuntu/U-03.sh
+# -----------------------------------------------------------------------------
+# [U-03] 계정 잠금 임계값 설정
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제13조(비밀보호), ISMS-P 2.4.3(인증 및 권한 부여)
+# - 목적: 패스워드 무차별 대입 공격(Brute-force) 시 계정을 자동 잠금하여 시스템 보호
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,diagnosisResult,status" > $OUTPUT_CSV
-fi
+CODE="U-03"
+CATEGORY="계정 관리"
+RISK="상"
+ITEM="계정 잠금 임계값 설정"
 
-# Initial Values
-category="계정 관리"
-code="U-03"
-riskLevel="상"
-diagnosisItem="계정 잠금 임계값 설정"
-diagnosisResult=""
-status=""
+RESULT="양호"
+STATUS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
+# 1. PAM 설정 파일 확인 (Ubuntu/Debian 기준)
+# Ubuntu 20.04+ 에서는 pam_faillock.so 를 권장하며 common-auth 에 설정함
+PAM_COMMON_AUTH="/etc/pam.d/common-auth"
 
-# Variables
-deny_files_checked=false
-account_lockout_threshold_set=false
-files_to_check=(
-    "/etc/pam.d/system-auth"
-    "/etc/pam.d/password-auth"
-)
-deny_modules=("pam_tally2.so" "pam_faillock.so")
-_status_list=()
-
-for file_path in "${files_to_check[@]}"; do
-    if [ -f "$file_path" ]; then
-        deny_files_checked=true
-        while IFS= read -r line || [ -n "$line" ]; do
-            line=$(echo "$line" | xargs) # Trim
-            if [[ ! "$line" =~ ^# && "$line" =~ deny ]]; then
-                for deny_module in "${deny_modules[@]}"; do
-                    if [[ "$line" =~ $deny_module ]]; then
-                        deny_value=$(echo "$line" | grep -oP 'deny=\K\d+')
-                        if [[ "$deny_value" -le 10 ]]; then
-                            account_lockout_threshold_set=true
-                        else
-                            _status_list+=("$file_path에서 설정된 계정 잠금 임계값이 10회를 초과합니다.")
-                        fi
-                    fi
-                done
-            fi
-        done < "$file_path"
-    fi
-done
-
-if ! $deny_files_checked; then
-    _status_list+=("계정 잠금 임계값을 설정하는 파일을 찾을 수 없습니다.")
-    diagnosisResult="취약"
-elif ! $account_lockout_threshold_set; then
-    _status_list+=("적절한 계정 잠금 임계값 설정이 없습니다.")
-    diagnosisResult="취약"
+if [ ! -f "$PAM_COMMON_AUTH" ]; then
+    RESULT="취약"
+    STATUS="PAM 인증 설정 파일($PAM_COMMON_AUTH)을 찾을 수 없습니다."
 else
-    _status_list+=("계정 잠금 임계값이 적절히 설정되었습니다.")
-    diagnosisResult="양호"
+    # 2. 계정 잠금 모듈 및 임계값(deny) 확인
+    # pam_faillock.so 또는 pam_tally2.so 확인
+    LOCK_MODULE=$(grep -E "pam_faillock.so|pam_tally2.so" "$PAM_COMMON_AUTH" | grep -v "^#" | head -n 1)
+    
+    if [ -z "$LOCK_MODULE" ]; then
+        RESULT="취약"
+        STATUS="계정 잠금 모듈(pam_faillock 또는 pam_tally2)이 설정되어 있지 않습니다."
+    else
+        # deny 값 추출
+        DENY_VAL=$(echo "$LOCK_MODULE" | grep -oP 'deny=\K\d+')
+        
+        if [ -z "$DENY_VAL" ]; then
+            RESULT="취약"
+            STATUS="계정 잠금 임계값(deny)이 명시되어 있지 않습니다."
+        elif [ "$DENY_VAL" -gt 10 ]; then
+            RESULT="취약"
+            STATUS="계정 잠금 임계값이 10회를 초과($DENY_VAL회)하여 설정되어 있습니다."
+        else
+            STATUS="계정 잠금 임계값이 $DENY_VAL회로 적절히 설정되어 있습니다."
+        fi
+    fi
 fi
 
-status=$(IFS=$'\n'; echo "${_status_list[*]}")
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-# Write diagnosis result to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-# Print the final CSV output
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 1. /etc/pam.d/common-auth 파일에 auth required pam_faillock.so preauth silent deny=5 unlock_time=900 등 추가<br>2. auth [default=die] pam_faillock.so authfail deny=5 unlock_time=900 등 추가 |
+
 __MD_EOF__

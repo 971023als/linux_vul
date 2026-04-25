@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generated_at": "2026-04-25T15:00:02.570751",
+    "generated_at": "2026-04-25T23:37:21.884325",
     "total": 72,
     "summary": {
       "PASS": 1,
       "FAIL": 1,
-      "NA": 1,
-      "MANUAL_REVIEW": 0,
-      "EVIDENCE_MISSING": 69,
-      "ERROR": 0,
+      "NA": 0,
+      "MANUAL_REVIEW": 2,
+      "EVIDENCE_MISSING": 67,
+      "ERROR": 1,
       "NOT_IMPLEMENTED": 0
     }
   },
@@ -21,7 +21,7 @@
       "financial_reg": "전자금융감독규정 제13조, 제15조",
       "exit_code": 0,
       "detail": "",
-      "raw_output": "양호: root 원격 접속 제한됨"
+      "raw_output": "root 계정 원격 접속 제한이 설정되어 있어 양호합니다."
     },
     {
       "id": "U-02",
@@ -31,17 +31,17 @@
       "financial_reg": "전자금융감독규정 제13조, 제15조",
       "exit_code": 0,
       "detail": "",
-      "raw_output": "취약: 패스워드 복잡성 미설정"
+      "raw_output": "패스워드 복잡성 설정이 되어 있지 않아 취약합니다."
     },
     {
       "id": "U-03",
       "category": "계정 관리",
-      "status": "NA",
+      "status": "MANUAL_REVIEW",
       "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
       "financial_reg": "전자금융감독규정 제13조, 제15조",
       "exit_code": 0,
       "detail": "",
-      "raw_output": "해당없음: 서비스 미사용"
+      "raw_output": "점검 결과 보안상 어떠한 문제도 없음이 확인되었습니다."
     },
     {
       "id": "U-04",
@@ -50,28 +50,28 @@
       "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
       "financial_reg": "전자금융감독규정 제13조, 제15조",
       "exit_code": 0,
-      "detail": "",
+      "detail": "[HARNESS] stdout is 0 bytes",
       "raw_output": ""
     },
     {
       "id": "U-05",
       "category": "계정 관리",
-      "status": "EVIDENCE_MISSING",
+      "status": "ERROR",
       "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
       "financial_reg": "전자금융감독규정 제13조, 제15조",
-      "exit_code": 0,
-      "detail": "",
-      "raw_output": ""
+      "exit_code": 127,
+      "detail": "bash: command not found",
+      "raw_output": "명령어를 찾을 수 없습니다."
     },
     {
       "id": "U-06",
       "category": "계정 관리",
-      "status": "EVIDENCE_MISSING",
+      "status": "MANUAL_REVIEW",
       "isms_p": "2.4.3 (인증 및 권한 부여), 2.4.7 (원격접근 통제)",
       "financial_reg": "전자금융감독규정 제13조, 제15조",
       "exit_code": 0,
       "detail": "",
-      "raw_output": ""
+      "raw_output": "해당 항목은 수동점검이 필요합니다."
     },
     {
       "id": "U-07",

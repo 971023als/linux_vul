@@ -38,12 +38,29 @@ def check_remote_root_access_restriction():
         "진단 항목": "root 계정 원격접속 제한",
         "진단 결과": "양호",  # 기본 값을 "양호"로 가정
         "현황": [],
-        "대응방안": "원격 터미널 서비스 사용 시 root 직접 접속을 차단"
+        "대응방안": "원격 터미널 서비스 사용 시 root 직접 접속을 차단 / /etc/securetty 에서 pts/* 제거"
     }
+
+    # /etc/securetty 점검 (RHEL 계열: 콘솔 root 접속 제한)
+    # pts/ 항목이 있으면 원격 터미널에서 root 로그인 허용 → 취약
+    securetty = "/etc/securetty"
+    try:
+        with open(securetty, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('#') or not line:
+                    continue
+                if line.startswith('pts/'):
+                    results["현황"].append(f"/etc/securetty 에 원격 접속 허용 항목이 있습니다: {line}")
+                    results["진단 결과"] = "취약"
+    except FileNotFoundError:
+        results["현황"].append("/etc/securetty 파일이 없습니다(기본 안전).")
+    except Exception as e:
+        results["현황"].append(f"/etc/securetty 검사 중 오류 발생: {e}")
 
     # Telnet 서비스 검사
     try:
-        telnet_status = subprocess.run(["grep", "-E", "telnet\s+\d+/tcp", "/etc/services"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        telnet_status = subprocess.run(["grep", "-E", r"telnet\s+\d+/tcp", "/etc/services"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if telnet_status.stdout:
             results["현황"].append("Telnet 서비스 포트가 활성화되어 있습니다.")
             results["진단 결과"] = "취약"

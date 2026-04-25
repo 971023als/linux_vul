@@ -1,109 +1,55 @@
 #!/bin/bash
+# shell_script/ubuntu/U-17.sh
+# -----------------------------------------------------------------------------
+# [U-17] $HOME/.rhosts, hosts.equiv 사용 금지
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제15조(네트워크 보안), ISMS-P 2.4.7(원격접근 통제)
+# - 목적: 인증 없이 로그인할 수 있는 r-services의 신뢰 설정을 차단하여 무단 접근 방어
+# -----------------------------------------------------------------------------
 
-OUTPUT_CSV="output.csv"
+set -u
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "분류,코드,위험도,진단항목,대응방안,진단결과,현황" > $OUTPUT_CSV
+CODE="U-17"
+CATEGORY="파일 및 디렉터리 관리"
+RISK="상"
+ITEM="\$HOME/.rhosts, hosts.equiv 사용 금지"
+
+RESULT="양호"
+STATUS=""
+
+# 1. /etc/hosts.equiv 점검
+if [ -f "/etc/hosts.equiv" ]; then
+    RESULT="취약"
+    STATUS="/etc/hosts.equiv 파일이 존재합니다."
 fi
 
-# 변수 설정
-분류="파일 및 디렉터리 관리"
-코드="U-17"
-위험도="상"
-진단항목="\$HOME/.rhosts, hosts.equiv 사용 금지"
-대응방안="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 소유자, 권한, 설정 검증"
-현황=""
-진단결과="양호"
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-# /etc/hosts.equiv 파일 검증
-check_file_security() {
-    local file=$1
-    local owner_expected=$2
-
-    if [ ! -e "$file" ]; then
-        return 0 # 파일이 없으면 검사하지 않음
-    fi
-
-    local owner=$(stat -c '%U' "$file")
-    local permissions=$(stat -c '%a' "$file")
-
-    # 소유자 검사
-    if [ "$owner" != "$owner_expected" ]; then
-        _status_list+="$file: 소유자가 $owner_expected가 아님, "
-        return 1
-    fi
-
-    # 권한 검사 (600 이하인지)
-    if [ "$permissions" -gt 600 ]; then
-        _status_list+="$file: 권한이 600보다 큼, "
-        return 1
-    fi
-
-    # '+' 문자 검사
-    if grep -q '+' "$file"; then
-        _status_list+="$file: 파일 내에 '+' 문자가 있음, "
-        return 1
-    fi
-
-    return 0
-}
-
-check_file_security "/etc/hosts.equiv" "root"
-hosts_equiv_result=$?
-
-# 사용자별 .rhosts 파일 검증
+# 2. 사용자별 .rhosts 점검
+VULN_RHOSTS=""
 while IFS=: read -r username _ _ _ _ homedir _; do
-    if [ -d "$homedir" ] && [ "$homedir" != "/sbin/nologin" ] && [ "$homedir" != "/bin/false" ]; then
-        rhosts_path="$homedir/.rhosts"
-        check_file_security "$rhosts_path" "$username"
-        rhosts_result=$?
-        if [ $rhosts_result -ne 0 ]; then
-            진단결과="취약"
-        fi
+    if [ -f "$homedir/.rhosts" ]; then
+        VULN_RHOSTS="${VULN_RHOSTS}${username}($homedir/.rhosts)\n"
+        RESULT="취약"
     fi
 done < /etc/passwd
 
-# 결과 업데이트
-if [ -z "$현황" ]; then
-    현황="login, shell, exec 서비스 사용 시 /etc/hosts.equiv 및 \$HOME/.rhosts 파일 문제 없음"
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] r-services 관련 신뢰 설정 파일(.rhosts, hosts.equiv)이 존재하지 않습니다."
+else
+    STATUS="[취약] $STATUS${VULN_RHOSTS:+\n사용자별 .rhosts 발견:\n$VULN_RHOSTS}"
 fi
 
-# 결과를 로그 파일에 기록
-echo "현황: $현황" >> $TMP1
-
-# CSV 파일에 결과 추가
-echo "$분류,$코드,$위험도,$진단항목,$대응방안,$진단결과,$현황" >> $OUTPUT_CSV
-
-# 로그 파일 출력
-cat $TMP1
-
-# CSV 파일 출력
-echo ; echo
-
-status="${_status_list[*]}"
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | .rhosts 및 hosts.equiv 파일 삭제 |
+
 __MD_EOF__

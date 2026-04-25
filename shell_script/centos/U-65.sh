@@ -1,99 +1,62 @@
 #!/bin/bash
+# shell_script/centos/U-65.sh
+# -----------------------------------------------------------------------------
+# [U-65] 로그 파일 권한 설정 (CentOS/RHEL/Oracle)
+# -----------------------------------------------------------------------------
+# - 관련 법령: 전자금융감독규정 제25조(로그기록 및 관리), ISMS-P 2.10.1(로깅 및 감시)
+# - 목적: 로그 파일의 권한을 제한하여 비인가된 사용자의 로그 위변조 및 삭제 방지
+# -----------------------------------------------------------------------------
 
-. function.sh
+set -u
 
-OUTPUT_CSV="output.csv"
+CODE="U-65"
+CATEGORY="로그 관리"
+RISK="중"
+ITEM="로그 파일 권한 설정"
 
-# Set CSV Headers if the file does not exist
-if [ ! -f $OUTPUT_CSV ]; then
-    echo "category,code,riskLevel,diagnosisItem,service,diagnosisResult,status" > $OUTPUT_CSV
-fi
+RESULT="양호"
+STATUS=""
 
-# Initial Values
-category="서비스 관리"
-code="U-65"
-riskLevel="중"
-diagnosisItem="at 서비스 권한 설정"
-service="Account Management"
-diagnosisResult=""
-status=""
+# 1. RHEL 주요 로그 파일 리스트
+LOG_FILES=("/var/log/messages" "/var/log/secure" "/var/log/maillog" "/var/log/cron" "/var/log/boot.log")
+VULN_LOGS=""
 
-# Write initial values to CSV
-echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-
-TMP1=$(basename "$0").log
-> $TMP1
-
-cat << EOF >> $TMP1
-[양호]: 모든 at 관련 파일이 적절한 권한 설정을 가지고 있습니다.
-[취약]: at 명령어 실행 파일이 다른 사용자(other)에 의해 실행 가능하거나, at 접근 제어 파일의 소유자가 root가 아니거나 권한이 640보다 큼
-EOF
-
-# at 명령어 실행 파일 권한 확인
-permission_issues_found=false
-
-# PATH 내 at 명령어 경로 확인 및 권한 검사
-for path in ${PATH//:/ }; do
-    if [[ -x "$path/at" ]]; then
-        permissions=$(stat -c "%a" "$path/at")
-        if [[ "$permissions" =~ .*[2-7]. ]]; then
-            diagnosisResult="$path/at 실행 파일이 다른 사용자(other)에 의해 실행이 가능합니다."
-            status="취약"
-            permission_issues_found=true
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+for LOG in "${LOG_FILES[@]}"; do
+    if [ -f "$LOG" ]; then
+        PERM=$(stat -c %a "$LOG")
+        # 타인(Others)에게 쓰기 권한이 있거나, 640을 초과하는지 확인
+        # 보안 가이드: 640 이하 (일반 사용자는 읽기 불가능해야 함)
+        if [ "$PERM" -gt 640 ]; then
+            RESULT="취약"
+            VULN_LOGS="${VULN_LOGS}${LOG}(${PERM}) "
         fi
     fi
 done
 
-# /etc/at.allow 및 /etc/at.deny 파일 권한 확인
-at_access_control_files=("/etc/at.allow" "/etc/at.deny")
-for file in "${at_access_control_files[@]}"; do
-    if [[ -f "$file" ]]; then
-        permissions=$(stat -c "%a" "$file")
-        file_owner=$(stat -c "%U" "$file")
-        if [[ "$file_owner" != "root" ]] || [[ "$permissions" -gt 640 ]]; then
-            diagnosisResult="$file 파일의 소유자가 $file_owner이고, 권한이 ${permissions}입니다."
-            status="취약"
-            permission_issues_found=true
-            echo "WARN: $diagnosisResult" >> $TMP1
-            echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
-        fi
-    fi
-done
-
-# 진단 결과 결정
-if ! $permission_issues_found; then
-    diagnosisResult="모든 at 관련 파일이 적절한 권한 설정을 가지고 있습니다."
-    status="양호"
-    echo "OK: $diagnosisResult" >> $TMP1
-    echo "$category,$code,$riskLevel,$diagnosisItem,$service,$diagnosisResult,$status" >> $OUTPUT_CSV
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="주요 로그 파일의 권한이 적절히 제한되어 있습니다."
+else
+    STATUS="다음 로그 파일들의 권한 설정이 취약합니다: ${VULN_LOGS}"
 fi
 
-cat $TMP1
+if [[ "$RESULT" == "양호" ]]; then
+    STATUS="[양호] $STATUS"
+else
+    STATUS="[취약] $STATUS"
+fi
 
-echo ; echo
-
-
-# ==== MD OUTPUT (stdout — shell_runner.sh 가 캡처하여 stdout.txt 저장) ====
-_md_code="${code:-${CODE:-U-??}}"
-_md_category="${category:-}"
-_md_risk="${riskLevel:-${severity:-}}"
-_md_item="${diagnosisItem:-${check_item:-진단항목}}"
-_md_result="${diagnosisResult:-${result:-}}"
-_md_status="${status:-${details:-${service:-}}}"
-_md_solution="${solution:-${recommendation:-}}"
-
+# ==== 표준 출력 (Markdown) ====
 cat << __MD_EOF__
-# ${_md_code}: ${_md_item}
+# ${CODE}: ${ITEM}
 
 | 항목 | 내용 |
 |------|------|
-| 분류 | ${_md_category} |
-| 코드 | ${_md_code} |
-| 위험도 | ${_md_risk} |
-| 진단항목 | ${_md_item} |
-| 진단결과 | ${_md_result} |
-| 현황 | ${_md_status} |
-| 대응방안 | ${_md_solution} |
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | chmod 640 [로그파일] 명령으로 권한 축소 |
+
 __MD_EOF__
