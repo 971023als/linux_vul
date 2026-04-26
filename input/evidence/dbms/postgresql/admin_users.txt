@@ -1,0 +1,6 @@
+# PostgreSQL 슈퍼유저 계정 목록 (pg_roles rolsuper=t)
+# 생성일시: 2026-04-26
+rolname   rolsuper  rolcreaterole  rolcreatedb  rolbypassrls
+--------  --------  -------------  -----------  ------------
+postgres  t         t              t            t
+# NOTE: 슈퍼유저는 postgres 단일 계정만 존재

@@ -1,0 +1,15 @@
+# Oracle 계정 목록 export (DBA_USERS 기반)
+# 생성일시: 2026-04-26  진단대상: PRODDB
+USERNAME            ACCOUNT_STATUS    CREATED      PROFILE       LAST_LOGIN
+--------------------  ---------------  -----------  ------------ -----------
+SYS                   OPEN             2020-01-15   DEFAULT       2026-04-25
+SYSTEM                OPEN             2020-01-15   DEFAULT       2026-04-24
+DBSNMP                EXPIRED & LOCKED 2020-01-15   MONITORING    N/A
+OUTLN                 EXPIRED & LOCKED 2020-01-15   DEFAULT       N/A
+HR                    EXPIRED & LOCKED 2020-01-15   DEFAULT       N/A
+OE                    EXPIRED & LOCKED 2020-01-15   DEFAULT       N/A
+SH                    EXPIRED & LOCKED 2020-01-15   DEFAULT       N/A
+SCOTT                 EXPIRED & LOCKED 2020-01-15   DEFAULT       N/A
+APPUSER               OPEN             2023-05-10   APP_PROFILE   2026-04-25
+READONLY_USER         OPEN             2024-01-20   RO_PROFILE    2026-04-20
+# NOTE: 불필요한 샘플 계정(HR, OE, SH, SCOTT)은 모두 EXPIRED & LOCKED 처리됨

@@ -1,0 +1,6 @@
+# 세션 타임아웃 설정 export
+# 생성일시: 2026-04-26
+# PostgreSQL idle session timeout
+idle_in_transaction_session_timeout=30000
+tcp_keepalives_idle=600
+# NOTE: 30초 idle 트랜잭션 종료

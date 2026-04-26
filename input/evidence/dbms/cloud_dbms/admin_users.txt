@@ -1,0 +1,7 @@
+# Cloud DBMS 관리자 역할 export (IAM Role + RDS 슈퍼유저)
+# 생성일시: 2026-04-26
+ROLE/USER              LEVEL        IAM_POLICY
+---------------------  -----------  -----------------------
+rds-admin-role         AWS IAM      AdministratorAccess (제한)
+admin (DB 마스터)      rds_superuser  Secrets Manager 관리
+# NOTE: 관리자 접근은 IAM MFA + AWS Secrets Manager 통제

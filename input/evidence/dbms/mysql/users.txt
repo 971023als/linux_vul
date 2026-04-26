@@ -1,0 +1,10 @@
+# MySQL 계정 목록 export (mysql.user 기반)
+# 생성일시: 2026-04-26  진단대상: mysql-prod
+Host        User            account_locked  password_expired  password_last_changed
+---------   --------------- --------------  ----------------  ---------------------
+localhost   root            N               N                 2026-01-10
+localhost   mysql.sys       Y               N                 2020-01-15
+localhost   appuser         N               N                 2026-04-01
+localhost   readonly        N               N                 2026-03-15
+%           test_backup     Y               Y                 2023-06-01
+# NOTE: test_backup 계정 account_locked=Y (비활성)

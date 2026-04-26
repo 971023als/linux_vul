@@ -1,0 +1,11 @@
+# PostgreSQL 암호화 설정 export (pg_cryptokey + pgcrypto)
+# 생성일시: 2026-04-26
+# TDE: PostgreSQL 기본 미지원 → pgcrypto 또는 OS 레벨 암호화 사용
+disk_encryption=dm-crypt (LUKS AES-256)
+data_directory_encryption=ENABLED
+# 컬럼 암호화 (pgcrypto):
+TABLE               COLUMN              METHOD
+------------------  ------------------  ------
+customers           card_number         pgp_sym_encrypt (AES-256)
+customers           ssn                 pgp_sym_encrypt (AES-256)
+# NOTE: OS 레벨 + 컬럼 레벨 암호화 적용

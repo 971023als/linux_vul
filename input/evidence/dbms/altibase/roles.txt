@@ -1,0 +1,8 @@
+# Altibase 권한 목록 export
+# 생성일시: 2026-04-26
+GRANTEE   PRIV_NAME             GRANT_OPTION
+--------  --------------------  ------------
+APPUSER   SELECT ANY TABLE      NO
+APPUSER   INSERT ANY TABLE      NO
+READONLY  SELECT ANY TABLE      NO
+# NOTE: PUBLIC 역할에 불필요한 권한 없음

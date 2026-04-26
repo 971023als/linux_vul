@@ -1,0 +1,7 @@
+# Altibase 관리자 계정 목록 (SYSTEM 권한 보유)
+# 생성일시: 2026-04-26
+USER_NAME   PRIV_NAME
+----------  ------------------
+SYS         ALL SYSTEM PRIV
+SYSTEM_     DATABASE ADMIN
+# NOTE: 관리자 계정 2개만 존재, 최소화 확인

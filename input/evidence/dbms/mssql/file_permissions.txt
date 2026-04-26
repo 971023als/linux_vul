@@ -1,0 +1,6 @@
+# 파일 접근 권한 export
+# 생성일시: 2026-04-26
+# MSSQL 주요 파일 권한 (Get-Acl)
+C:\Program Files\MSSQL\Data\proddb.mdf  SYSTEM:Full, MSSQL_SVC:Full, Admins:Read
+C:\Program Files\MSSQL\Backup\         SYSTEM:Full, MSSQL_SVC:Full
+# NOTE: Everyone 권한 없음

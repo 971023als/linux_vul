@@ -1,0 +1,4 @@
+# POSTGRESQL Listener 설정 (해당 없음 - Listener Control Utility 미적용)
+# 생성일시: 2026-04-26
+# NA: 이 DBMS 유형은 Oracle/Tibero Listener 개념이 없습니다.
+NA=true

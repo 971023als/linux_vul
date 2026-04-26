@@ -1,0 +1,5 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# Tibero DSN 설정
+TDS_ENCRYPTION=1
+# 이중화 계정 비밀번호: Tibero Wallet 사용

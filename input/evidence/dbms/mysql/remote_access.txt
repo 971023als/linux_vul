@@ -1,0 +1,9 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# MySQL 원격 접속 설정 (my.cnf + iptables)
+bind-address=10.0.1.5
+max_connections=100
+# 원격 접속 허용 계정:
+# appuser@10.0.1.0/24 - ALLOWED
+# root@localhost - LOCALHOST ONLY
+# iptables: 3306/TCP → 10.0.0.0/8 only

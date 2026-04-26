@@ -1,0 +1,8 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# MySQL 감사 설정 (audit_log 플러그인)
+audit_log_file=/var/log/mysql/audit.log
+audit_log_format=JSON
+audit_log_policy=ALL
+audit_log_rotate_on_size=104857600
+# NOTE: 로그인/로그아웃, 쿼리, 에러 감사 활성화

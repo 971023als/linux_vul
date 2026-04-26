@@ -1,0 +1,4 @@
+# 파일 접근 권한 export
+# 생성일시: 2026-04-26
+# Cloud DBMS: 파일 권한 직접 관리 불가 (AWS 관리)
+NA=cloud_managed

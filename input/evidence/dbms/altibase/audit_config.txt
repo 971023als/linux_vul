@@ -1,0 +1,6 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# Altibase 감사 설정
+AUDIT_ENABLED=1
+AUDIT_LOG_DIR=/altibase_home/audit
+# 감사 이벤트: LOGIN, LOGOUT, DDL, DCL, CONNECT FAILURE

@@ -1,0 +1,9 @@
+# PUBLIC 역할 권한 export
+# 생성일시: 2026-04-26
+# PUBLIC 역할에 부여된 권한 목록:
+PRIVILEGE                OBJECT               GRANTED_BY
+-----------------------  -------------------  ----------
+EXECUTE                  없음 (회수됨)        -
+SELECT                   없음 (회수됨)        -
+# NOTE: PUBLIC 역할에 불필요한 권한 없음 확인
+# UTL_FILE, UTL_HTTP 등 위험 패키지 PUBLIC 권한 회수됨

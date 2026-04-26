@@ -1,0 +1,8 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# Oracle Data Guard 설정
+LOG_ARCHIVE_DEST_2=SERVICE=STANDBY LGWR ASYNC
+FARSYNC=ENABLED
+# 복제 계정: dataguard_user (Wallet 인증 사용)
+DG_BROKER_PASSWORD_STORED=WALLET (not plaintext)
+# NOTE: 이중화 비밀번호 평문 노출 없음

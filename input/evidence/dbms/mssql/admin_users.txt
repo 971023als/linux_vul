@@ -1,0 +1,7 @@
+# MSSQL sysadmin 멤버 목록 (sys.server_role_members)
+# 생성일시: 2026-04-26
+role_principal_name  member_principal_name  type_desc
+-------------------  ---------------------  ---------
+sysadmin             sa                     SQL_LOGIN
+sysadmin             admin_user             SQL_LOGIN
+# NOTE: sysadmin은 sa(비활성화됨), admin_user 2개 계정

@@ -1,0 +1,8 @@
+# PostgreSQL 로그인 실패 정책 (auth_delay + fail2ban)
+# 생성일시: 2026-04-26
+# auth_delay.milliseconds = 3000 (실패 시 3초 지연)
+# fail2ban: maxretry=5, bantime=3600
+# pg_hba.conf: scram-sha-256 (brute-force 저항)
+auth_delay.milliseconds=3000
+fail2ban_maxretry=5
+fail2ban_bantime=3600

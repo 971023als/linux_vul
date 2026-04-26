@@ -1,0 +1,9 @@
+# Altibase 계정 목록 export (SYSTEM_.SYS_USERS_ 기반)
+# 생성일시: 2026-04-26
+USER_NAME          USER_TYPE  ACCOUNT_STATUS  LAST_DDL_TIME
+-----------------  ---------  --------------  -------------
+SYS                1          OPEN            2026-01-15
+SYSTEM_            1          OPEN            2020-01-01
+ALTIBASE_          1          EXPIRED&LOCKED  2020-01-01
+APPUSER            0          OPEN            2026-04-01
+READONLY           0          OPEN            2026-03-10

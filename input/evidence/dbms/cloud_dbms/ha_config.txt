@@ -1,0 +1,7 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# Cloud DBMS 고가용성 설정 (RDS Multi-AZ)
+MultiAZ=true
+replication_type=ASYNC
+# AWS 관리 복제 (비밀번호 노출 없음)
+# NOTE: N/A (클라우드 관리 복제)

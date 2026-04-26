@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 2개 확인:  STATUS=SUPPORTED(patch_status.txt) EOS_DATE=20[2-9][7-9](patch_status.txt)
+EVIDENCE=현재 지원 버전 사용 확인됨

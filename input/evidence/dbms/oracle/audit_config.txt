@@ -1,0 +1,12 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# Oracle 감사 설정 export (V$OPTION + DBA_AUDIT_TRAIL)
+UNIFIED_AUDITING=TRUE
+AUDIT_TRAIL=DB,EXTENDED
+# 감사 대상 이벤트:
+# - 로그인/로그아웃
+# - DDL (CREATE, ALTER, DROP)
+# - DML (INSERT, UPDATE, DELETE) on sensitive tables
+# - 권한 변경 (GRANT, REVOKE)
+# - SYS 계정 액션
+AUDIT_SYS_OPERATIONS=TRUE

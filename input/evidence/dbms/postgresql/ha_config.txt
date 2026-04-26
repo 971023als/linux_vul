@@ -1,0 +1,7 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# PostgreSQL Streaming Replication
+wal_level=replica
+primary_conninfo=host=standby-db port=5432 sslmode=require
+# 복제 계정: replicator (pg_hba.conf scram-sha-256)
+# NOTE: SSL 복제, 평문 비밀번호 미노출

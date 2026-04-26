@@ -1,0 +1,7 @@
+# MySQL 권한 목록 (SHOW GRANTS 요약)
+# 생성일시: 2026-04-26
+GRANTS FOR appuser@localhost:
+  GRANT SELECT, INSERT, UPDATE, DELETE ON proddb.* TO 'appuser'@'localhost'
+GRANTS FOR readonly@localhost:
+  GRANT SELECT ON proddb.* TO 'readonly'@'localhost'
+# NOTE: WITH GRANT OPTION 없음. 최소 권한 원칙 준수

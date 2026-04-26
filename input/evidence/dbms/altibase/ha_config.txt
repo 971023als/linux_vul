@@ -1,0 +1,5 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# Altibase RP(Replication) 설정
+REP_SSL_ENABLE=1
+# 복제 계정 비밀번호: 암호화 저장

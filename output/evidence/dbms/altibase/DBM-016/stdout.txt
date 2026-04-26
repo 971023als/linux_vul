@@ -1,0 +1,1 @@
+스크립트가 구현되지 않았습니다: /sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/altibase/DBM-016.sh

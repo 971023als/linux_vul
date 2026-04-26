@@ -1,0 +1,10 @@
+# MSSQL Registry Procedure 권한 export
+# 생성일시: 2026-04-26
+# 확인 대상: xp_regread, xp_regwrite, xp_instance_regread, xp_instance_regwrite
+PROCEDURE               GRANTEE  PERMISSION  DENY
+----------------------  -------  ----------  ----
+xp_regread              public   EXECUTE     YES (DENIED)
+xp_regwrite             public   EXECUTE     YES (DENIED)
+xp_instance_regread     public   EXECUTE     YES (DENIED)
+xp_instance_regwrite    public   EXECUTE     YES (DENIED)
+# NOTE: public에 대한 EXECUTE 권한 DENY 확인됨

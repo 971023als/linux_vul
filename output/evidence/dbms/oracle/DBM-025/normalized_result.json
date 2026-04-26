@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 4개 확인:  일반 계정.*불가(audit_table_privileges.txt) 접근 불가(audit_table_privileges.txt) DBA.*전용(audit_table_privileges.txt) SYSAUDIT(audit_table_privileges.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "감사 테이블 접근 권한 DBA 전용 확인됨"}

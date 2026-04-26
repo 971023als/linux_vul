@@ -1,0 +1,6 @@
+# 네트워크 암호화 설정 export
+# 생성일시: 2026-04-26
+rds.force_ssl=1
+ssl_version=TLSv1.2
+# AWS Certificate Manager 인증서 사용
+# NOTE: 전송 암호화 강제 (AWS RDS)

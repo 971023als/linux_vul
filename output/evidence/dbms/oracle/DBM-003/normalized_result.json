@@ -1,0 +1,1 @@
+{"status": "MANUAL_REVIEW", "reason": "admin_users.txt 계정 수가 최소화되고 roles.txt에서 과다 권한이 없으면 PASS 후보", "raw_status": "MANUAL_REVIEW", "exit_code": 0, "evidence_count": 24, "in_pass_count": false, "evidence": "증적 파일은 존재하나 자동 판단 기준 미충족"}

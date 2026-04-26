@@ -1,0 +1,8 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# PostgreSQL 원격 접속 설정 (pg_hba.conf)
+# pg_hba.conf 원격 접속 규칙:
+host  proddb  appuser   10.0.1.0/24  scram-sha-256
+host  proddb  readonly  10.0.1.0/24  scram-sha-256
+# listen_addresses=10.0.1.5 (특정 IP만 바인딩)
+listen_addresses=10.0.1.5

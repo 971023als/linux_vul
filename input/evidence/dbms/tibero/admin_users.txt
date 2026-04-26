@@ -1,0 +1,8 @@
+# Tibero DBA 권한 계정 목록
+# 생성일시: 2026-04-26
+USERNAME    GRANTED_ROLE    ADMIN_OPTION
+----------  --------------- ------------
+SYS         DBA             YES
+SYSCAT      DBA             NO
+TIBERO      DBA             NO
+# NOTE: DBA 3개 계정 (SYSCAT EXPIRED&LOCKED으로 비활성화됨)

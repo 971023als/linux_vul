@@ -1,0 +1,11 @@
+# 데이터베이스 오브젝트 목록 export
+# 생성일시: 2026-04-26
+OWNER       OBJECT_NAME             OBJECT_TYPE
+----------  ----------------------  -----------
+APPUSER     CUSTOMERS               TABLE
+APPUSER     ORDERS                  TABLE
+APPUSER     EMPLOYEES               TABLE
+APPUSER     GET_CUSTOMER            PROCEDURE
+APPUSER     V_ACTIVE_ORDERS         VIEW
+# NOTE: 샘플 스키마(HR, OE, SH, SCOTT) 오브젝트 없음 (제거됨)
+# 불필요한 테스트 테이블 없음 확인

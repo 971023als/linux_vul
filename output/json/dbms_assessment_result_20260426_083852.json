@@ -1,0 +1,59 @@
+{
+  "assessment_id": "dbm-20260426_083852",
+  "tool": {
+    "name": "dbms-assessor",
+    "version": "0.1",
+    "baseline_file": "5. 26년_전금업_DBMS취약점(2).xlsx"
+  },
+  "target": {
+    "profile": "oracle",
+    "scope": "dbms",
+    "asset_name": "masked",
+    "ip": "masked"
+  },
+  "policy": {
+    "audit_only": true,
+    "dry_run": true,
+    "remediate": false,
+    "direct_db_access": false,
+    "not_implemented_as_pass": false,
+    "evidence_required": true
+  },
+  "summary": {
+    "total": 1,
+    "applicable": 0,
+    "pass": 0,
+    "fail": 0,
+    "na": 1,
+    "manual_review": 0,
+    "evidence_missing": 0,
+    "error": 0,
+    "not_implemented": 0
+  },
+  "results": [
+    {
+      "id": "DBM-030",
+      "source_id": "30",
+      "title": "xp_cmdshell 사용 비활성화",
+      "profile": "oracle",
+      "risk_level": 4,
+      "severity_label": "HIGH",
+      "status": "NA",
+      "reason": "이 DBMS 유형에 해당 없는 항목",
+      "script": {
+        "path": "",
+        "runner": "",
+        "exit_code": 0
+      },
+      "raw_output_path": "",
+      "error_output_path": "",
+      "input_evidence_path": "input/evidence/dbms/oracle/",
+      "evidence": [],
+      "description": "MSSQL의 xp_cmdshell 확장 저장 프로시저가 비활성화되어 있는지 점검한다.",
+      "recommendation": "xp_cmdshell을 비활성화(sp_configure 'xp_cmdshell', 0)하고 사용을 금지한다.",
+      "manual_review_required": false,
+      "error_message": null
+    }
+  ],
+  "generated_at": "2026-04-25T23:38:53.133977Z"
+}

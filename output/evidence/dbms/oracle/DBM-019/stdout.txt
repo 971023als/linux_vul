@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 3개 확인:  600(file_permissions.txt) 640(file_permissions.txt) 비인가자.*불가(file_permissions.txt)
+EVIDENCE=주요 설정 파일 600/640 권한 확인됨

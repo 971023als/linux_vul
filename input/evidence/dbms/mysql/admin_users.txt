@@ -1,0 +1,6 @@
+# MySQL 슈퍼유저 계정 목록
+# 생성일시: 2026-04-26
+Host       User   Super_priv  Grant_priv  Create_user_priv
+---------  -----  ----------  ----------  ----------------
+localhost  root   Y           Y           Y
+# NOTE: root 계정은 localhost만 접속 허용, 원격 접속 불가

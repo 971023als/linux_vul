@@ -1,0 +1,6 @@
+# 패치 현황 export
+# 생성일시: 2026-04-26
+Tibero 7.0.2
+LAST_PATCH=2024-06-01
+EOS_DATE=2027-12-31
+STATUS=SUPPORTED

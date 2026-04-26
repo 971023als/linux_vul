@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 5개 확인:  PASSWORD_REUSE_MAX=[1-9](password_reuse_policy.txt) REUSE_TIME(password_policy.txt) REUSE_TIME(password_reuse_policy.txt) password_reuse(password_policy.txt) password_reuse(password_reuse_policy.txt)
+EVIDENCE=이전 비밀번호 재사용 제한(4개 이상) 확인됨

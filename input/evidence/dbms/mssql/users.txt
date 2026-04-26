@@ -1,0 +1,10 @@
+# MSSQL 로그인 목록 export (sys.sql_logins 기반)
+# 생성일시: 2026-04-26  진단대상: SQLPROD01
+name                  type_desc        is_disabled  is_expiration_checked  is_policy_checked
+--------------------  ---------------  -----------  ---------------------  -----------------
+sa                    SQL_LOGIN        1            0                      1
+admin_user            SQL_LOGIN        0            1                      1
+app_user              SQL_LOGIN        0            1                      1
+test_user             SQL_LOGIN        1            1                      1
+readonly_user         SQL_LOGIN        0            1                      1
+# NOTE: sa 비활성화(is_disabled=1), test_user 비활성화 확인됨

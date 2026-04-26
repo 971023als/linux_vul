@@ -1,0 +1,9 @@
+# Cloud DBMS 암호화 설정 export (RDS + KMS)
+# 생성일시: 2026-04-26
+storage_encrypted=true
+kms_key_id=arn:aws:kms:ap-northeast-2:123456789:key/mrk-***MASKED***
+performance_insights_kms_key_id=arn:aws:kms:***MASKED***
+# 전송 암호화: SSL/TLS 강제 (rds.force_ssl=1)
+rds.force_ssl=1
+ssl_version=TLSv1.2
+# NOTE: 저장·전송 암호화 모두 적용됨 (AWS KMS 관리)

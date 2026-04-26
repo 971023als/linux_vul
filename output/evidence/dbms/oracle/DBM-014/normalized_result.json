@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 3개 확인:  STATUS=SUPPORTED(patch_status.txt) CPU_APPLIED(patch_status.txt) LAST_PATCH(patch_status.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "최신 패치 적용 및 지원 버전 확인됨"}

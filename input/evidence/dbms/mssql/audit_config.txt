@@ -1,0 +1,9 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# MSSQL 감사 설정 export (sys.server_audits)
+audit_name=PROD_SERVER_AUDIT
+status=STARTED
+audit_action_id=LOGIN, LOGOUT, FAILED_LOGIN, OBJECT_PERMISSION_CHANGE
+audit_file_path=C:\Audit\SQLPROD01\
+is_state_enabled=1
+# C2 감사: ENABLED

@@ -1,0 +1,13 @@
+# Oracle Listener 설정 export (listener.ora)
+# 생성일시: 2026-04-26
+LISTENER =
+  (DESCRIPTION_LIST =
+    (DESCRIPTION =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = db-prod-01)(PORT = 1521))
+    )
+  )
+# ADMIN_RESTRICTIONS=ON (원격 관리 차단)
+ADMIN_RESTRICTIONS_LISTENER=ON
+# SECURE_REGISTER_LISTENER=IPC (로컬 등록만 허용)
+SECURE_REGISTER_LISTENER=IPC
+# NOTE: Listener 비밀번호 설정 및 원격 관리 차단 확인됨

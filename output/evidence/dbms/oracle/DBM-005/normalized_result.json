@@ -1,0 +1,1 @@
+{"status": "MANUAL_REVIEW", "reason": "로그인 실패 잠금 정책 수동 확인 필요", "raw_status": "MANUAL_REVIEW", "exit_code": 0, "evidence_count": 24, "in_pass_count": false, "evidence": "증적 파일 존재하나 자동 판단 불가"}

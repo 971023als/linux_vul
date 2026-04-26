@@ -1,0 +1,6 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# Tibero 감사 설정 (DBA_AUDIT_TRAIL)
+AUDIT_TRAIL=DB
+AUDIT_SYS_OPERATIONS=TRUE
+# 감사 이벤트: LOGIN, LOGOUT, DDL, GRANT, REVOKE

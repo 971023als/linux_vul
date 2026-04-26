@@ -1,0 +1,7 @@
+# Cloud DBMS 로그인 실패 정책 (파라미터 그룹 + IAM)
+# 생성일시: 2026-04-26
+# RDS 파라미터: failed_login_attempts=5 (PostgreSQL)
+# IAM: MFA 필수, 연속 실패 시 임시 자격 증명 만료
+failed_login_attempts=5
+password_lock_time=30
+iam_mfa_required=true

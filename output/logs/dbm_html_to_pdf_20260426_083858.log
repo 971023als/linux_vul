@@ -1,0 +1,17 @@
+[dbm_html_to_pdf] PDF 생성 도구를 찾을 수 없습니다.
+
+다음 중 하나를 설치하세요:
+  1) WeasyPrint (권장):
+       pip install weasyprint
+       # 한글 폰트 필요 시: apt-get install fonts-noto-cjk
+  2) Playwright:
+       pip install playwright
+       playwright install chromium
+
+설치 후 다시 실행:
+  python3 tools/dbm_html_to_pdf.py
+  또는
+  ./main.sh dbm report
+
+HTML 보고서는 이미 생성되어 있습니다:
+  /sessions/hopeful-lucid-wozniak/mnt/linux_vul/output/html/dbms_report.html

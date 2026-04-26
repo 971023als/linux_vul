@@ -1,0 +1,9 @@
+# PostgreSQL 계정 목록 export (pg_roles 기반)
+# 생성일시: 2026-04-26  진단대상: pg-prod
+rolname         rolsuper  rolcreatedb  rolcanlogin  rolvaliduntil        rolconnlimit
+--------------  --------  -----------  -----------  -------------------  ------------
+postgres        t         t            t            NULL                 -1
+appuser         f         f            t            2027-01-01 00:00:00  10
+readonly        f         f            t            2027-01-01 00:00:00  5
+pgbouncer       f         f            t            NULL                 -1
+# NOTE: 슈퍼유저는 postgres 단일 계정만 존재

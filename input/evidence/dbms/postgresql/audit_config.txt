@@ -1,0 +1,9 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# PostgreSQL 감사 설정 (pgaudit)
+pgaudit.log=ddl,role,connection,misc
+pgaudit.log_catalog=on
+pgaudit.log_client=off
+log_connections=on
+log_disconnections=on
+log_failed_connections=on

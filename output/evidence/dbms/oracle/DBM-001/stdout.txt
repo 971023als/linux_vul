@@ -1,0 +1,3 @@
+STATUS=FAIL
+REASON=취약 패턴이 감지되었습니다:  default(users.txt) default(password_policy.txt)
+EVIDENCE=입력 증적에서 취약 설정 발견

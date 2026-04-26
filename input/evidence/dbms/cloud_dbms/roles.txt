@@ -1,0 +1,8 @@
+# Cloud DBMS 역할 export (IAM DB 역할 + RDS 역할)
+# 생성일시: 2026-04-26
+ROLE                  MEMBERS          PRIVILEGES
+--------------------  ---------------  --------------------------
+rds_superuser         admin            모든 권한
+pg_read_all_data      readonly         SELECT only
+app_role              appuser          DML on proddb.*
+# NOTE: pg_execute_server_program 역할 미부여 확인

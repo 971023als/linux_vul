@@ -1,0 +1,7 @@
+# 감사 설정 export
+# 생성일시: 2026-04-26
+# Cloud DBMS 감사 설정 (RDS Enhanced Monitoring + CloudWatch)
+audit_log=ENABLED
+cloudwatch_logs_exports=postgresql
+performance_insights_enabled=true
+# 감사 로그 → CloudWatch Logs → S3 → 1년 보관

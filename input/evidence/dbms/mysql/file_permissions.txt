@@ -1,0 +1,7 @@
+# 파일 접근 권한 export
+# 생성일시: 2026-04-26
+# MySQL 주요 파일 권한
+-rw------- mysql mysql /etc/my.cnf
+-rw------- mysql mysql /var/lib/mysql/mysql.sock
+drwx------ mysql mysql /var/lib/mysql/
+# NOTE: 600 권한, mysql 계정 전용

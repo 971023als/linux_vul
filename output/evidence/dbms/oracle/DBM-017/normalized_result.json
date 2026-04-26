@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 7개 확인:  APPUSER(users.txt) APPUSER(admin_users.txt) appuser(users.txt) appuser(admin_users.txt) READONLY(users.txt) readonly(users.txt) 변경승인(admin_users.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "개인별 계정 분리 및 공용 계정 없음 확인됨"}

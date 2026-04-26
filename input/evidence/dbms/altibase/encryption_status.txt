@@ -1,0 +1,7 @@
+# Altibase 암호화 설정 export
+# 생성일시: 2026-04-26
+ENCRYPT_ALGORITHM=AES256
+ENCRYPTED_COLUMNS:
+  CUSTOMERS.CARD_NO   - AES256
+  CUSTOMERS.SSN       - AES256
+# NOTE: 중요 컬럼 암호화 적용됨

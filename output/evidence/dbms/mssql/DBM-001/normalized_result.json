@@ -1,0 +1,1 @@
+{"status": "MANUAL_REVIEW", "reason": "dry-run 모드 – 실제 실행 생략", "raw_status": "MANUAL_REVIEW", "exit_code": 0, "evidence_count": 0, "in_pass_count": false, "evidence": "스크립트 존재 확인: /sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/mssql/DBM-001.sh"}

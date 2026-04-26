@@ -1,0 +1,6 @@
+# 패치 현황 export
+# 생성일시: 2026-04-26
+RDS PostgreSQL 16.1 (Managed)
+AWS_MINOR_VERSION_UPGRADE=auto
+EOS=AWS 관리 (자동 유지보수)
+STATUS=SUPPORTED

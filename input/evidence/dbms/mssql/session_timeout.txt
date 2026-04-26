@@ -1,0 +1,7 @@
+# 세션 타임아웃 설정 export
+# 생성일시: 2026-04-26
+# MSSQL 세션 타임아웃 설정
+# remote query timeout(s): 600
+# lock_timeout: 30000ms
+remote_query_timeout=600
+lock_timeout=30000

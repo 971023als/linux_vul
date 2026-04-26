@@ -1,0 +1,7 @@
+# MSSQL SA 계정 상태 export
+# 생성일시: 2026-04-26
+name  is_disabled  is_locked  type_desc   password_hash_algorithm
+----  -----------  ---------  ----------  -----------------------
+sa    1            0          SQL_LOGIN   BCRYPT
+# NOTE: sa 계정 is_disabled=1 (비활성화됨)
+# sa 계정 이름 변경: SQL_SA_ACCOUNT (추가 보안)

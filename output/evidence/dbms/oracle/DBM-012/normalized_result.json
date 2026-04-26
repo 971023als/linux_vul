@@ -1,0 +1,1 @@
+{"status": "MANUAL_REVIEW", "reason": "단일 패턴만 확인 – 수동 검토 필요:  AUTHENTICATION_SERVICES=\\(NTS\\)(remote_access.txt)", "raw_status": "MANUAL_REVIEW", "exit_code": 0, "evidence_count": 24, "in_pass_count": false, "evidence": "원본 증적 직접 확인 필요"}

@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 2개 확인:  IDLE_TIME(session_timeout.txt) IDLE_TIMEOUT(session_timeout.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "idle 세션 자동 종료 정책 확인됨"}

@@ -1,0 +1,9 @@
+# MSSQL 역할 멤버십 목록 (sys.database_role_members)
+# 생성일시: 2026-04-26
+database_role         member
+--------------------  --------------------
+db_datareader         app_user
+db_datareader         readonly_user
+db_datawriter         app_user
+# NOTE: PUBLIC 역할에 불필요한 권한 없음 (확인됨)
+# WITH GRANT OPTION: 없음

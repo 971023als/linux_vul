@@ -1,0 +1,6 @@
+# 패치 현황 export
+# 생성일시: 2026-04-26
+Altibase 7.1.0.8.9
+LAST_PATCH=2023-09-01
+EOS_DATE=2025-12-31
+STATUS=REVIEW_NEEDED

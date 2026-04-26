@@ -1,0 +1,5 @@
+# 자원 사용 제한 설정 export
+# 생성일시: 2026-04-26
+max_user_connections=50
+max_connections=500
+connect_timeout=10

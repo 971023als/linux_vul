@@ -1,0 +1,6 @@
+# 네트워크 암호화 설정 export
+# 생성일시: 2026-04-26
+require_secure_transport=ON
+ssl_cipher=TLSv1.2:TLSv1.3
+ssl_cert=/etc/mysql/ssl/server.crt
+# NOTE: SSL/TLS 강제

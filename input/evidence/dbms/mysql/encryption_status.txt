@@ -1,0 +1,11 @@
+# MySQL 암호화 설정 export (information_schema.INNODB_TABLESPACES_ENCRYPTION)
+# 생성일시: 2026-04-26
+innodb_encrypt_tables=ON
+innodb_encrypt_log=ON
+keyring_file_data=/etc/mysql/keyring
+# 암호화 테이블스페이스:
+SPACE_NAME      ENCRYPTION
+--------------  ----------
+proddb/customers  AES_256
+proddb/employees  AES_256
+# NOTE: 중요 테이블 암호화 적용됨

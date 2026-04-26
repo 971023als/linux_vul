@@ -1,0 +1,8 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# Cloud DBMS 원격 접속 설정 (VPC Security Group + RDS)
+# Security Group 인바운드:
+InboundRule: port=5432, source=sg-app-servers (10.0.1.0/24)
+PubliclyAccessible=false
+VPC=vpc-prod-***MASKED***
+# NOTE: VPC 내부 접근만 허용, 퍼블릭 접근 차단

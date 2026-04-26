@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 5개 확인:  TDE(encryption_status.txt) AES(encryption_status.txt) encrypted(encryption_status.txt) column_encryption(encryption_status.txt) tablespace_encryption(encryption_status.txt)
+EVIDENCE=encryption_status.txt에 TDE/AES 적용 확인 + object_list.txt에 평문 저장 없으면 PASS 후보

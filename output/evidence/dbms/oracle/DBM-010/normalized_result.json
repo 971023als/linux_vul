@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 3개 확인:  ADMIN_RESTRICTIONS=ON(listener_config.txt) ADMIN_RESTRICTIONS_LISTENER=ON(listener_config.txt) SECURE_REGISTER_LISTENER=IPC(listener_config.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "Listener 원격 관리 차단, IPC 등록 확인됨"}

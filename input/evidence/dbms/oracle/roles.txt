@@ -1,0 +1,9 @@
+# Oracle 역할 및 권한 목록 (DBA_ROLE_PRIVS + DBA_SYS_PRIVS 요약)
+# 생성일시: 2026-04-26
+GRANTEE   GRANTED_ROLE   ADMIN_OPTION  DEFAULT_ROLE
+--------  -------------  ------------ ------------
+APPUSER   CONNECT        NO            YES
+APPUSER   RESOURCE       NO            YES
+PUBLIC    EXECUTE        NO            (UTL_FILE - REVOKED 2024-01-01)
+# WITH GRANT OPTION 현황: 없음 (APPUSER에 부여된 권한 중 GRANT OPTION 없음)
+# PUBLIC 역할: 기본 권한 외 불필요 권한 없음

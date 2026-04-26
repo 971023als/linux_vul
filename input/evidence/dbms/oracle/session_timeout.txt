@@ -1,0 +1,6 @@
+# 세션 타임아웃 설정 export
+# 생성일시: 2026-04-26
+# Oracle idle session timeout (profiles + resource manager)
+IDLE_TIME=30 (APP_PROFILE)
+# Resource Manager: IDLE_TIMEOUT=1800초
+IDLE_TIME=30

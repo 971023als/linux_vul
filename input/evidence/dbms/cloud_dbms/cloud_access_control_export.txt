@@ -1,0 +1,10 @@
+# Cloud DBMS 접근 제어 export (VPC + Security Group)
+# 생성일시: 2026-04-26
+VpcId=vpc-***MASKED***
+PubliclyAccessible=false
+SecurityGroupId=sg-***MASKED***
+InboundRules:
+  TCP:5432  Source:sg-app-servers  Description:App Server Only
+  TCP:5432  Source:10.0.1.0/24    Description:DB Admin VPN
+OutboundRules:
+  ALL TRAFFIC  Destination:0.0.0.0/0 (managed by RDS)

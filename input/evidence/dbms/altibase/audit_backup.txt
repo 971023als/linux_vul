@@ -1,0 +1,11 @@
+# 감사 로그 백업/보관 정책 export
+# 생성일시: 2026-04-26
+# ──────────────────────────────────────
+BACKUP_ENABLED=true
+RETENTION_PERIOD_DAYS=365
+BACKUP_DESTINATION=/backup/audit/altibase
+BACKUP_SCHEDULE=daily
+BACKUP_ENCRYPTION=AES-256
+SIEM_FORWARDING=Splunk (SIEM)
+LAST_BACKUP_DATE=2026-04-25
+# NOTE: 1년 이상 보관 정책 확인됨

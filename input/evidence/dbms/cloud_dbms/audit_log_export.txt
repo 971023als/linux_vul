@@ -1,0 +1,8 @@
+# Cloud DBMS 감사 로그 export (CloudWatch Logs)
+# 생성일시: 2026-04-26
+log_group=/aws/rds/instance/prod-pg16/postgresql
+retention_days=365
+export_to_s3=ENABLED
+s3_bucket=prod-rds-audit-logs-***MASKED***
+encryption=AES-256 (SSE-S3)
+# 마지막 로그 확인: 2026-04-26 08:30:00 UTC

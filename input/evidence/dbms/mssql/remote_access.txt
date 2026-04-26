@@ -1,0 +1,8 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# MSSQL 원격 접속 설정 (sp_configure + 방화벽)
+remote_access=1
+remote_login_timeout=30
+# 방화벽: 1433/TCP → 허용: 10.0.0.0/8 only
+# Named Pipes: DISABLED
+# Shared Memory: LOCALHOST ONLY

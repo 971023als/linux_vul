@@ -1,0 +1,7 @@
+# Cloud DBMS 암호화 설정 export
+# 생성일시: 2026-04-26
+StorageEncrypted=true
+KmsKeyId=arn:aws:kms:ap-northeast-2:***:key/mrk-***MASKED***
+PerformanceInsightsEncryptionKmsKeyId=arn:aws:kms:***MASKED***
+BackupRetentionPeriod=7
+CopyTagsToSnapshot=true

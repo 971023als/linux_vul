@@ -1,0 +1,9 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# Oracle 원격 접속 설정 (sqlnet.ora + iptables)
+TCP.VALIDNODE_CHECKING=YES
+TCP.INVITED_NODES=(10.0.1.0/24, 10.0.2.10)
+TCP.EXCLUDED_NODES=(0.0.0.0/0)
+SQLNET.AUTHENTICATION_SERVICES=(NTS)
+# iptables: 1521/TCP → 허용: 10.0.0.0/8 only
+# NOTE: IP 기반 접근 제어 및 원격 제한 확인됨

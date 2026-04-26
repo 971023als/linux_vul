@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 2개 확인:  없음(system_table_privileges.txt) 불필요 권한 없음(system_table_privileges.txt)
+EVIDENCE=일반 계정 시스템 테이블 접근 권한 없음 확인됨

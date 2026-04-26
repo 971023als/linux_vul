@@ -1,0 +1,6 @@
+# 세션 타임아웃 설정 export
+# 생성일시: 2026-04-26
+# Cloud DBMS 세션 타임아웃
+# RDS 파라미터:
+idle_in_transaction_session_timeout=30000
+tcp_keepalives_idle=600

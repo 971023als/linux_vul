@@ -1,0 +1,6 @@
+# 네트워크 암호화 설정 export
+# 생성일시: 2026-04-26
+FORCE_ENCRYPTION=1
+CERTIFICATE=MSSQL_CERT_2024 (SHA-256)
+TLS_VERSION=1.2
+# NOTE: 클라이언트-서버 암호화 강제

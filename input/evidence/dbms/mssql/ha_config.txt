@@ -1,0 +1,6 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# MSSQL Always On AG 설정
+HADR_ENDPOINT_AUTHENTICATION=CERTIFICATE
+CERTIFICATE=AG_CERT_2024
+# NOTE: 인증서 기반 인증, 평문 비밀번호 미사용

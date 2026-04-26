@@ -1,0 +1,5 @@
+# 네트워크 암호화 설정 export
+# 생성일시: 2026-04-26
+SSL_ENABLE=1
+SSL_VERSION=TLSv1.2
+# NOTE: SSL/TLS 암호화 통신 활성화

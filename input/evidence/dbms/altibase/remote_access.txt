@@ -1,0 +1,7 @@
+# 원격 접속 설정 export
+# 생성일시: 2026-04-26
+# Altibase/Tibero 원격 접속 설정
+REMOTE_ACCESS_ENABLED=true
+ALLOWED_HOSTS=10.0.0.0/8
+LISTEN_ADDRESS=10.0.1.5
+# iptables: DB 포트 → 10.0.0.0/8 only

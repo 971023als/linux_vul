@@ -1,0 +1,10 @@
+# Oracle 관리자 계정 목록 (DBA 권한 보유 계정)
+# 생성일시: 2026-04-26
+USERNAME            GRANTED_ROLE    ADMIN_OPTION  DEFAULT_ROLE
+--------------------  --------------- ------------ ------------
+SYS                   DBA             YES           YES
+SYSTEM                DBA             NO            YES
+APPUSER               CONNECT         NO            YES
+APPUSER               RESOURCE        NO            YES
+# NOTE: DBA 권한은 SYS/SYSTEM 2개 계정만 보유 (최소화됨)
+# 변경승인: CR-2024-001 (2024-01-15 승인)

@@ -1,0 +1,9 @@
+# MSSQL 로그인 실패 정책 (sys.sql_logins CHECK_POLICY)
+# 생성일시: 2026-04-26
+# Windows 계정 잠금 정책 연동: ENABLED
+# 잠금 임계값: 5회
+# 잠금 기간: 30분
+# CHECK_POLICY=ON: 모든 SQL 로그인에 적용
+lockout_threshold=5
+lockout_duration=30
+account_lockout_counter_reset=30

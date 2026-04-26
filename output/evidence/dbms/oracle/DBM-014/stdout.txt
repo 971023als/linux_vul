@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 3개 확인:  STATUS=SUPPORTED(patch_status.txt) CPU_APPLIED(patch_status.txt) LAST_PATCH(patch_status.txt)
+EVIDENCE=최신 패치 적용 및 지원 버전 확인됨

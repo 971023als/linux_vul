@@ -1,0 +1,11 @@
+# Cloud DBMS 계정 목록 (파라미터 그룹 export / IAM 역할 매핑)
+# 생성일시: 2026-04-26  대상: AWS RDS PostgreSQL prod
+# ── IAM DB 인증 활성화: Yes
+# ── 마스터 계정: admin (AWS Secrets Manager 관리)
+DB_USER             IAM_AUTH  GRANT_OPTION  LAST_ACTIVITY
+------------------  --------  ------------  -------------
+admin               Y         N             2026-04-25
+appuser             N         N             2026-04-25
+readonly            N         N             2026-04-20
+rds_superuser_role  Y         N             2026-04-25
+# NOTE: 직접 비밀번호 관리 계정 없음, IAM 인증 사용

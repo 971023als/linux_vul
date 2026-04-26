@@ -1,0 +1,7 @@
+# 파일 접근 권한 export
+# 생성일시: 2026-04-26
+# PostgreSQL 주요 파일 권한
+-rw------- postgres postgres /var/lib/pgsql/16/data/pg_hba.conf
+-rw------- postgres postgres /var/lib/pgsql/16/data/postgresql.conf
+drwx------ postgres postgres /var/lib/pgsql/16/data/
+# NOTE: 700/600 권한, postgres 계정 전용

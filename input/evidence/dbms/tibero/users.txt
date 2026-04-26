@@ -1,0 +1,10 @@
+# Tibero 계정 목록 export (DBA_USERS 기반)
+# 생성일시: 2026-04-26
+USERNAME            ACCOUNT_STATUS    PROFILE
+--------------------  ---------------  -------------
+SYS                   OPEN             DEFAULT
+SYSCAT                EXPIRED & LOCKED DEFAULT
+TIBERO                OPEN             APP_PROFILE
+APPUSER               OPEN             APP_PROFILE
+READONLY              OPEN             RO_PROFILE
+TESTUSR               EXPIRED & LOCKED DEFAULT

@@ -1,0 +1,84 @@
+{
+  "assessment_id": "dbm-20260426_084020",
+  "tool": {
+    "name": "dbms-assessor",
+    "version": "0.1",
+    "baseline_file": "5. 26년_전금업_DBMS취약점(2).xlsx"
+  },
+  "target": {
+    "profile": "oracle",
+    "scope": "dbms",
+    "asset_name": "masked",
+    "ip": "masked"
+  },
+  "policy": {
+    "audit_only": true,
+    "dry_run": true,
+    "remediate": false,
+    "direct_db_access": false,
+    "not_implemented_as_pass": false,
+    "evidence_required": true
+  },
+  "summary": {
+    "total": 1,
+    "applicable": 1,
+    "pass": 0,
+    "fail": 0,
+    "na": 0,
+    "manual_review": 1,
+    "evidence_missing": 0,
+    "error": 0,
+    "not_implemented": 0
+  },
+  "results": [
+    {
+      "id": "DBM-001",
+      "source_id": "1",
+      "title": "취약하게 설정된 비밀번호 제거",
+      "profile": "oracle",
+      "risk_level": 4,
+      "severity_label": "HIGH",
+      "status": "MANUAL_REVIEW",
+      "reason": "dry-run 모드 – 실제 실행 생략",
+      "script": {
+        "path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/oracle/DBM-001.sh",
+        "runner": "bash",
+        "exit_code": 0
+      },
+      "raw_output_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/output/evidence/dbms/oracle/DBM-001/stdout.txt",
+      "error_output_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/output/evidence/dbms/oracle/DBM-001/stderr.txt",
+      "input_evidence_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/input/evidence/dbms/oracle/",
+      "evidence": [
+        "admin_users.txt (416 bytes)",
+        "audit_backup.txt (417 bytes)",
+        "audit_config.txt (417 bytes)",
+        "audit_table_privileges.txt (427 bytes)",
+        "change_approval.csv (420 bytes)",
+        "encryption_status.txt (422 bytes)",
+        "failed_login_policy.txt (424 bytes)",
+        "file_permissions.txt (421 bytes)",
+        "ha_config.txt (414 bytes)",
+        "listener_config.txt (420 bytes)",
+        "network_encryption.txt (423 bytes)",
+        "object_list.txt (416 bytes)",
+        "password_lifetime.txt (422 bytes)",
+        "password_policy.txt (420 bytes)",
+        "password_reuse_policy.txt (426 bytes)",
+        "patch_status.txt (417 bytes)",
+        "public_role_privileges.txt (427 bytes)",
+        "remote_access.txt (418 bytes)",
+        "resource_limit.txt (419 bytes)",
+        "roles.txt (410 bytes)",
+        "service_account.txt (420 bytes)",
+        "session_timeout.txt (420 bytes)",
+        "system_table_privileges.txt (428 bytes)",
+        "users.txt (410 bytes)"
+      ],
+      "description": "기본 비밀번호, 계정명과 동일한 비밀번호, 취약한 초기 비밀번호 사용 여부를 점검한다.",
+      "recommendation": "기본 비밀번호, 초기 비밀번호, 계정명과 동일한 비밀번호, 취약 비밀번호 사용 여부를 확인하고 제거한다.",
+      "manual_review_required": true,
+      "error_message": null
+    }
+  ],
+  "generated_at": "2026-04-25T23:40:21.559967Z"
+}

@@ -1,0 +1,7 @@
+# 이중화 구성 설정 export
+# 생성일시: 2026-04-26
+# MySQL 복제 설정
+MASTER_SSL=1
+CHANGE REPLICATION SOURCE TO ... MASTER_SSL=1
+# 복제 계정 비밀번호: mysql_native_password (암호화 저장)
+# NOTE: SSL 복제 사용, 평문 비밀번호 설정 파일 없음

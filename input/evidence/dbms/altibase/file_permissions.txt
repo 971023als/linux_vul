@@ -1,0 +1,5 @@
+# 파일 접근 권한 export
+# 생성일시: 2026-04-26
+-rw------- altibase altibase /home/altibase/conf/altibase.properties
+drwx------ altibase altibase /home/altibase/dbs/
+# NOTE: 600/700 권한 확인

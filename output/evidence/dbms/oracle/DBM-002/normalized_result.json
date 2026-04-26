@@ -1,0 +1,1 @@
+{"status": "FAIL", "reason": "취약 패턴이 감지되었습니다:  expired(users.txt)", "raw_status": "FAIL", "exit_code": 0, "evidence_count": 24, "in_pass_count": false, "evidence": "입력 증적에서 취약 설정 발견"}

@@ -1,0 +1,2 @@
+﻿assessment_id,profile,id,source_id,title,risk_level,severity_label,status,reason,script_path,exit_code,evidence_count,description,recommendation,error_message
+dbm-20260426_083853,mssql,DBM-030,30,xp_cmdshell 사용 비활성화,4,HIGH,MANUAL_REVIEW,dry-run 모드 – 실제 실행 생략,/sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/mssql/DBM-030.sh,0,27,MSSQL의 xp_cmdshell 확장 저장 프로시저가 비활성화되어 있는지 점검한다.,"xp_cmdshell을 비활성화(sp_configure 'xp_cmdshell', 0)하고 사용을 금지한다.",

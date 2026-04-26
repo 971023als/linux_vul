@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 3개 확인:  SESSIONS_PER_USER=[0-9](resource_limit.txt) CONNECT_TIME(resource_limit.txt) CPU_PER_SESSION(resource_limit.txt)
+EVIDENCE=세션/연결 수 제한 설정 확인됨

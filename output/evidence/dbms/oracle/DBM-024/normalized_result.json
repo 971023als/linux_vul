@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 3개 확인:  SESSIONS_PER_USER=[0-9](resource_limit.txt) CONNECT_TIME(resource_limit.txt) CPU_PER_SESSION(resource_limit.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "세션/연결 수 제한 설정 확인됨"}

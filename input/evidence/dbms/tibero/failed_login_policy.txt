@@ -1,0 +1,5 @@
+# Altibase/Tibero 로그인 실패 정책
+# 생성일시: 2026-04-26
+FAILED_LOGIN_ATTEMPTS=5
+PASSWORD_LOCK_TIME=30
+# NOTE: 5회 실패 시 30분 잠금

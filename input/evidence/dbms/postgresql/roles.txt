@@ -1,0 +1,7 @@
+# PostgreSQL 역할 권한 목록 (pg_roles + information_schema)
+# 생성일시: 2026-04-26
+rolname   rolsuper  rolcreaterole  rolcreatedb  rolbypassrls  granted_roles
+--------  --------  -------------  -----------  ------------  -------------
+appuser   f         f              f            f             pg_read_write_all
+readonly  f         f              f            f             pg_read_all_data
+# NOTE: PUBLIC 스키마 권한 CREATE 회수 완료 (PostgreSQL 15 기본값)

@@ -1,0 +1,87 @@
+{
+  "assessment_id": "dbm-20260426_084021",
+  "tool": {
+    "name": "dbms-assessor",
+    "version": "0.1",
+    "baseline_file": "5. 26년_전금업_DBMS취약점(2).xlsx"
+  },
+  "target": {
+    "profile": "mssql",
+    "scope": "dbms",
+    "asset_name": "masked",
+    "ip": "masked"
+  },
+  "policy": {
+    "audit_only": true,
+    "dry_run": true,
+    "remediate": false,
+    "direct_db_access": false,
+    "not_implemented_as_pass": false,
+    "evidence_required": true
+  },
+  "summary": {
+    "total": 1,
+    "applicable": 1,
+    "pass": 0,
+    "fail": 0,
+    "na": 0,
+    "manual_review": 1,
+    "evidence_missing": 0,
+    "error": 0,
+    "not_implemented": 0
+  },
+  "results": [
+    {
+      "id": "DBM-030",
+      "source_id": "30",
+      "title": "xp_cmdshell 사용 비활성화",
+      "profile": "mssql",
+      "risk_level": 4,
+      "severity_label": "HIGH",
+      "status": "MANUAL_REVIEW",
+      "reason": "dry-run 모드 – 실제 실행 생략",
+      "script": {
+        "path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/mssql/DBM-030.sh",
+        "runner": "bash",
+        "exit_code": 0
+      },
+      "raw_output_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/output/evidence/dbms/mssql/DBM-030/stdout.txt",
+      "error_output_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/output/evidence/dbms/mssql/DBM-030/stderr.txt",
+      "input_evidence_path": "/sessions/hopeful-lucid-wozniak/mnt/linux_vul/input/evidence/dbms/mssql/",
+      "evidence": [
+        "admin_users.txt (415 bytes)",
+        "audit_backup.txt (416 bytes)",
+        "audit_config.txt (416 bytes)",
+        "audit_table_privileges.txt (426 bytes)",
+        "change_approval.csv (419 bytes)",
+        "encryption_status.txt (421 bytes)",
+        "failed_login_policy.txt (423 bytes)",
+        "file_permissions.txt (420 bytes)",
+        "ha_config.txt (413 bytes)",
+        "listener_config.txt (419 bytes)",
+        "network_encryption.txt (422 bytes)",
+        "object_list.txt (415 bytes)",
+        "password_lifetime.txt (421 bytes)",
+        "password_policy.txt (419 bytes)",
+        "password_reuse_policy.txt (425 bytes)",
+        "patch_status.txt (416 bytes)",
+        "public_role_privileges.txt (426 bytes)",
+        "registry_procedure_privileges.txt (143 bytes)",
+        "remote_access.txt (417 bytes)",
+        "resource_limit.txt (418 bytes)",
+        "roles.txt (409 bytes)",
+        "sa_status.txt (123 bytes)",
+        "service_account.txt (419 bytes)",
+        "session_timeout.txt (419 bytes)",
+        "system_table_privileges.txt (427 bytes)",
+        "users.txt (409 bytes)",
+        "xp_cmdshell_status.txt (132 bytes)"
+      ],
+      "description": "MSSQL의 xp_cmdshell 확장 저장 프로시저가 비활성화되어 있는지 점검한다.",
+      "recommendation": "xp_cmdshell을 비활성화(sp_configure 'xp_cmdshell', 0)하고 사용을 금지한다.",
+      "manual_review_required": true,
+      "error_message": null
+    }
+  ],
+  "generated_at": "2026-04-25T23:40:22.201051Z"
+}

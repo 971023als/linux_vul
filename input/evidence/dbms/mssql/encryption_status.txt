@@ -1,0 +1,9 @@
+# MSSQL 암호화 설정 export (sys.databases + sys.column_encryption_keys)
+# 생성일시: 2026-04-26
+DATABASE        TDE_STATUS         ENCRYPTION_ALGORITHM
+--------------  -----------------  --------------------
+proddb          ENCRYPTION_ON      AES_256
+ALWAYS_ENCRYPTED_COLUMNS:
+  dbo.Customers.CardNumber    AES_256 (CEK-001)
+  dbo.Customers.SSN           AES_256 (CEK-001)
+# NOTE: Always Encrypted 및 TDE 모두 적용됨

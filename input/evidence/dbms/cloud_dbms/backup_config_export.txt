@@ -1,0 +1,8 @@
+# Cloud DBMS 백업 설정 export
+# 생성일시: 2026-04-26
+BackupRetentionPeriod=7
+PreferredBackupWindow=03:00-04:00
+AutoMinorVersionUpgrade=true
+DeletionProtection=true
+# 스냅샷: 7일 보관
+# 트랜잭션 로그 백업: 5분 RPO

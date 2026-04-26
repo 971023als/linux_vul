@@ -1,0 +1,12 @@
+# RDS 파라미터 그룹 export
+# 생성일시: 2026-04-26  대상: pg16-prod-param-group
+ParameterName                         ParameterValue    Source
+------------------------------------  ----------------  --------
+rds.force_ssl                         1                 user
+log_connections                       1                 user
+log_disconnections                    1                 user
+log_min_duration_statement            1000              user
+idle_in_transaction_session_timeout   30000             user
+max_connections                       100               user
+shared_buffers                        4096MB            user
+failed_login_attempts                 5                 user

@@ -1,0 +1,7 @@
+# Tibero Listener 설정 export
+# 생성일시: 2026-04-26
+LISTENER_PORT=8629
+LISTENER_ADDRESS=localhost
+ADMIN_RESTRICTIONS=ON
+SECURE_REGISTER=IPC
+# NOTE: 원격 Listener 관리 차단, IPC만 허용

@@ -1,0 +1,3 @@
+STATUS=MANUAL_REVIEW
+REASON=dry-run 모드 – 실제 실행 생략
+EVIDENCE=스크립트 존재 확인: /sessions/hopeful-lucid-wozniak/mnt/linux_vul/shell_script/dbms/altibase/DBM-003.sh

@@ -1,0 +1,7 @@
+# 네트워크 암호화 설정 export
+# 생성일시: 2026-04-26
+ssl=on
+ssl_cert_file=server.crt
+ssl_key_file=server.key
+hostssl all all 0.0.0.0/0 scram-sha-256
+# NOTE: SSL 강제, 비SSL 접속 차단

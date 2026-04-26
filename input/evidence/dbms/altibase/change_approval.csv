@@ -1,0 +1,5 @@
+change_id,date,requestor,approver,action,status
+CR-2024-001,2024-01-15,dba_team,security_team,DBA 권한 부여 (admin_user),APPROVED
+CR-2024-002,2024-03-20,dev_team,security_team,appuser 계정 생성,APPROVED
+CR-2024-003,2024-05-10,dba_team,security_team,SCOTT/HR 계정 잠금,APPROVED
+CR-2025-001,2025-01-10,dba_team,security_team,CPU 패치 적용,APPROVED

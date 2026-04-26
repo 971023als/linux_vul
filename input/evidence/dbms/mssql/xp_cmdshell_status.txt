@@ -1,0 +1,6 @@
+# MSSQL xp_cmdshell 상태 export (sp_configure 결과)
+# 생성일시: 2026-04-26
+name                    minimum  maximum  config_value  run_value
+---------------------   -------  -------  ------------  ---------
+xp_cmdshell             0        1        0             0
+# NOTE: config_value=0, run_value=0 → xp_cmdshell DISABLED

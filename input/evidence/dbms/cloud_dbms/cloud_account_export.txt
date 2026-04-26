@@ -1,0 +1,11 @@
+# Cloud DBMS 계정 export (RDS IAM + DB 계정)
+# 생성일시: 2026-04-26
+IAM_ROLE                         ACCESS_LEVEL   LAST_USED
+------------------------------   ------------   ----------
+arn:aws:iam::***:role/rds-admin  Full           2026-04-25
+arn:aws:iam::***:role/rds-read   ReadOnly       2026-04-25
+DB_USER   AUTH_METHOD           LAST_LOGIN
+--------  --------------------  ----------
+admin     scram-sha-256 + IAM   2026-04-25
+appuser   scram-sha-256         2026-04-25
+readonly  scram-sha-256         2026-04-20

@@ -1,0 +1,3 @@
+STATUS=PASS
+REASON=양호 패턴 3개 확인:  ADMIN_RESTRICTIONS=ON(listener_config.txt) ADMIN_RESTRICTIONS_LISTENER=ON(listener_config.txt) SECURE_REGISTER_LISTENER=IPC(listener_config.txt)
+EVIDENCE=Listener 원격 관리 차단, IPC 등록 확인됨

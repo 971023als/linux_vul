@@ -1,0 +1,3 @@
+STATUS=FAIL
+REASON=취약 패턴 감지:  PUBLIC.*EXECUTE.*UTL
+EVIDENCE=입력 증적에서 취약 설정 발견

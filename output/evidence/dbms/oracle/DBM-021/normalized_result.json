@@ -1,0 +1,1 @@
+{"status": "PASS", "reason": "양호 패턴 2개 확인:  STATUS=SUPPORTED(patch_status.txt) EOS_DATE=20[2-9][7-9](patch_status.txt)", "raw_status": "PASS", "exit_code": 0, "evidence_count": 24, "in_pass_count": true, "evidence": "현재 지원 버전 사용 확인됨"}
