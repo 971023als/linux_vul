@@ -60,4 +60,14 @@ fi
 cat << __MD_EOF__
 # ${CODE}: ${ITEM}
 
-| 
+| 항목 | 내용 |
+|------|------|
+| 분류 | ${CATEGORY} |
+| 코드 | ${CODE} |
+| 위험도 | ${RISK} |
+| 진단항목 | ${ITEM} |
+| 진단결과 | **${RESULT}** |
+| 현황 | ${STATUS} |
+| 대응방안 | 1. Telnet 서비스 비활성화 (systemctl disable --now telnet.socket)<br>2. /etc/ssh/sshd_config에 PermitRootLogin no 설정 후 sshd 재시작 |
+
+__MD_EOF__
