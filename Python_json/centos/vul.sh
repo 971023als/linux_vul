@@ -241,6 +241,7 @@ convert_results() {
 import json
 import csv
 import html
+import sys
 from pathlib import Path
 
 json_path = Path('$RESULTS_PATH')
@@ -253,9 +254,10 @@ def load_results():
             data = json.load(json_file)
     except (ValueError, OSError) as e:
         print(f'결과 JSON을 읽을 수 없습니다: {e}')
-        return []
+        sys.exit(1)
     if not isinstance(data, list):
-        return []
+        print('결과 JSON이 리스트 형식이 아닙니다.')
+        sys.exit(1)
     # 객체만 처리 (배열/문자열 등 다른 형식은 제외)
     return [item for item in data if isinstance(item, dict)]
 
@@ -325,7 +327,12 @@ fieldnames = collect_fieldnames(data)
 json_to_csv(data, fieldnames)
 json_to_html(data, fieldnames)
 "
-    echo "결과가 CSV와 HTML 형식으로 변환되었습니다: $HTML_PATH"
+    if [ $? -eq 0 ]; then
+        echo "결과가 CSV와 HTML 형식으로 변환되었습니다: $HTML_PATH"
+    else
+        echo "결과 변환에 실패했습니다. 빈 리포트를 성공으로 처리하지 않고 중단합니다: $RESULTS_PATH"
+        return 1
+    fi
 }
 
 
@@ -347,7 +354,7 @@ main() {
     setup_apache_encoding # 인코딩 설정 함수 호출
     check_legacy_web_artifacts # 웹 루트 잔여 결과 파일 경고
     execute_security_checks
-    convert_results
+    convert_results || exit 1
     restart_apache
 }
 
