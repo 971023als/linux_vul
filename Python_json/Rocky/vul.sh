@@ -249,7 +249,12 @@ def json_to_html():
 json_to_csv()
 json_to_html()
 "
-    echo "결과가 CSV와 HTML 형식으로 변환되었습니다."
+    if [ $? -eq 0 ]; then
+        echo "결과가 CSV와 HTML 형식으로 변환되었습니다."
+    else
+        echo "결과 변환에 실패했습니다. 빈 리포트를 성공으로 처리하지 않고 중단합니다: $RESULTS_PATH"
+        return 1
+    fi
 }
 
 
@@ -270,9 +275,8 @@ main() {
     setup_environment
     setup_apache_encoding # 인코딩 설정 함수 호출
     execute_security_checks 
-    convert_results  # 이 부분을 수정했습니다.
+    convert_results || exit 1
     restart_apache
 }
 
 main
-
