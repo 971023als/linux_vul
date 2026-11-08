@@ -17,7 +17,8 @@ declare -A OS_PACKAGES=(
     [fedora]="httpd mod_wsgi python3-virtualenv" # 여기를 수정했습니다
 )
 
-CRON_JOB="/usr/bin/bash /root/linux_vul/shell_script/centos/vul.sh"
+# 스크립트가 실제 위치한 디렉터리 (cron에서도 cwd와 무관하게 동작)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || { echo "스크립트 경로를 확인할 수 없습니다."; exit 1; }
 NOW=$(date +'%Y-%m-%d_%H-%M-%S')
 WEB_DIRECTORY="/var/www/html"
 RESULTS_PATH="$WEB_DIRECTORY/results_${NOW}.json"
@@ -65,6 +66,12 @@ install_packages() {
 
 # Cron 작업 설정 및 cronie 패키지 설치
 setup_cron_job() {
+    # cron 명령에서는 %·제어 문자·작은따옴표가 특수 해석되므로 포함된 경로는 등록하지 않음
+    case "$SCRIPT_DIR" in
+        *%*|*$'\n'*|*$'\r'*|*$'\t'*|*"'"*) echo "스크립트 경로에 %·제어 문자·작은따옴표가 포함되어 cron 등록이 불가능합니다: $SCRIPT_DIR"; return 1 ;;
+    esac
+    CRON_JOB="/bin/bash '$SCRIPT_DIR/vul.sh'"
+
     # crontab 명령이 존재하는지 확인
     if ! command -v crontab &> /dev/null; then
         echo "crontab 명령을 찾을 수 없습니다. cronie 패키지를 설치합니다."
@@ -75,7 +82,7 @@ setup_cron_job() {
 
     # Cron 작업 추가
     (crontab -l 2>/dev/null | grep -Fq "$CRON_JOB") && echo "Cron job이 이미 존재합니다." || {
-        (crontab -l 2>/dev/null; echo "0 0 * * * $CRON_JOB # 매일 스크립트 실행") | crontab - &&
+        (crontab -l 2>/dev/null; printf '%s\n' "0 0 * * * $CRON_JOB # 매일 스크립트 실행") | crontab - &&
         echo "Cron job을 추가했습니다." || {
             echo "Cron job 추가에 실패했습니다. crontab이 설정되어 있는지 확인해주세요."
             exit 1
@@ -128,9 +135,9 @@ execute_security_checks() {
     first_entry=true
 
     for i in $(seq -f "%02g" 1 72); do
-        SCRIPT_PATH="U-$i.sh"
+        SCRIPT_PATH="${SCRIPT_DIR}/U-$i.sh"
         if [ -f "$SCRIPT_PATH" ]; then
-            RESULT=$(bash ../../runners/shell_runner.sh --check "U-$i" --script "$SCRIPT_PATH")
+            RESULT=$(bash "${SCRIPT_DIR}/../../runners/shell_runner.sh" --check "U-$i" --script "$SCRIPT_PATH")
             if [ $? -eq 0 ]; then
                 [ "$first_entry" = false ] && echo "," >> "$RESULTS_PATH"
                 first_entry=false
