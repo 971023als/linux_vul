@@ -1,5 +1,5 @@
 # docker/Dockerfile
-FROM python:3.9-slim-buster
+FROM python:3.11-slim-bookworm
 
 # 1. 시스템 의존성 설치 (Pandoc, 한글 폰트, WeasyPrint 필요 라이브러리)
 RUN apt-get update && apt-get install -y \
