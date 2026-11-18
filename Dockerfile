@@ -76,9 +76,7 @@ ARG PIP_INDEX=""
 RUN pip3 install --no-cache-dir --quiet \
         ${PIP_INDEX:+--index-url "$PIP_INDEX"} \
         boto3 \
-        jinja2 \
-        weasyprint \
-        pdfkit
+        weasyprint
 
 # ── ssm-runner 바이너리 (Stage 1에서 복사) ──────────────────────────────────
 COPY --from=builder /bin/ssm-runner /usr/local/bin/ssm-runner
