@@ -27,6 +27,21 @@ RUN go mod tidy && \
     go build -ldflags="-s -w" \
     -o /bin/ssm-runner ./cmd/ssm-runner
 
+# AWS CLI install-only stage: keep unzip out of the direct runtime install list.
+FROM ubuntu:22.04 AS awscli-installer
+ARG APT_MIRROR=""
+RUN if [ -n "$APT_MIRROR" ]; then \
+        sed -i "s|http://archive.ubuntu.com|${APT_MIRROR}|g" /etc/apt/sources.list; \
+    fi && \
+    apt-get update -qq && \
+    apt-get install -y --no-install-recommends curl ca-certificates unzip && \
+    rm -rf /var/lib/apt/lists/*
+ARG AWSCLI_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+RUN curl -fsSL "$AWSCLI_URL" -o /tmp/awscliv2.zip && \
+    unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && \
+    /tmp/awscliv2/aws/install --install-dir /usr/local/aws-cli --bin-dir /usr/local/bin && \
+    rm -rf /tmp/awscliv2 /tmp/awscliv2.zip
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Stage 2 — 런타임
 # ──────────────────────────────────────────────────────────────────────────────
@@ -60,15 +75,12 @@ RUN if [ -n "$APT_MIRROR" ]; then \
         xvfb \
         git \
         jq \
-        unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# ── AWS CLI v2 설치 (내부망: --build-arg AWSCLI_URL=http://...) ──────────────
-ARG AWSCLI_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
-RUN curl -fsSL "$AWSCLI_URL" -o /tmp/awscliv2.zip && \
-    unzip -q /tmp/awscliv2.zip -d /tmp/awscliv2 && \
-    /tmp/awscliv2/aws/install && \
-    rm -rf /tmp/awscliv2 /tmp/awscliv2.zip
+# AWS CLI payload only; preserve its version tree and recreate entrypoint links.
+COPY --from=awscli-installer /usr/local/aws-cli/ /usr/local/aws-cli/
+RUN ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/local/bin/aws && \
+    ln -s /usr/local/aws-cli/v2/current/bin/aws_completer /usr/local/bin/aws_completer
 
 # ── Python 의존성 ──────────────────────────────────────────────────────────────
 # 내부망 pip 미러: --build-arg PIP_INDEX=https://pypi.internal/simple
