@@ -58,8 +58,6 @@ RUN if [ -n "$APT_MIRROR" ]; then \
         fonts-noto-cjk \
         wkhtmltopdf \
         xvfb \
-        git \
-        jq \
         unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
